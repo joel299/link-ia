@@ -1,7 +1,7 @@
 # Bugs e dificuldades — LinkIA
 
 **Última atualização:** 13/11/2026  
-**Status do registro:** Correção do callback OAuth em andamento; permanecem registrados 1 bloqueio de automação de navegador e pendências de validação interativa.
+**Status do registro:** Correção de origem do callback OAuth publicada; validação interativa com nova autorização Google pendente. Permanecem registrados 1 bloqueio de automação de navegador e outras pendências de validação interativa.
 
 ## Como usar este arquivo
 
@@ -73,11 +73,11 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
 
 ### BUG-007 — Callback OAuth usa endereço interno do container
 - **Data:** 13/11/2026
-- **Estado:** correção implementada localmente; publicação e reconexão Google pendentes.
+- **Estado:** correção publicada; nova autorização Google pendente.
 - **Sintoma e evidência:** após o consentimento Google, a URL de retorno mostrada no navegador aponta para `0.0.0.0:3000`, resultando em `ERR_ADDRESS_INVALID`.
 - **Causa confirmada:** a rota de conexão criava o callback com `new URL(request.url).origin`, que neste deploy refletiu o endereço interno do serviço. Coolify já tem `APP_BASE_URL=https://linkia.iainfinito.com.br`.
 - **Correção:** centralizado `getAppBaseUrl()` para priorizar `APP_BASE_URL`; a rota que cria o Connect Link e todos os redirecionamentos finais do callback usam essa origem pública.
-- **Validação pendente:** publicar a nova imagem, iniciar uma nova conexão OAuth (o link antigo continua apontando para o endereço inválido) e confirmar o retorno ao painel no domínio público.
+- **Validação:** GitHub Actions concluiu build/publicação e Coolify recebeu o webhook; domínio público e `/api/health` responderam HTTP 200 com TLS válido. A validação OAuth real ainda requer iniciar outra conexão (o link antigo continua apontando para o endereço inválido) e confirmar o retorno ao painel.
 
 ## Riscos e questões em aberto — não são bugs
 
