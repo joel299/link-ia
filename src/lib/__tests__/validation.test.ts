@@ -144,17 +144,21 @@ describe("validateProfileForPublish", () => {
     expect(validateProfileForPublish(baseProfile)).toEqual({});
   });
 
+  it("does not require the removed external booking URL", () => {
+    expect(
+      validateProfileForPublish({ ...baseProfile, bookingUrl: null })
+    ).toEqual({});
+  });
+
   it("blocks publish when an enabled link is empty or invalid", () => {
     const invalid: Profile = {
       ...baseProfile,
       displayName: "",
       whatsappNumber: "123",
-      bookingUrl: "http://insecure.com",
     };
     const errors = validateProfileForPublish(invalid);
     expect(errors.displayName).toBeDefined();
     expect(errors.whatsappNumber).toBeDefined();
-    expect(errors.bookingUrl).toBeDefined();
   });
 
   it("allows empty links when they are disabled", () => {

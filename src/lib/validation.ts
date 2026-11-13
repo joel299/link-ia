@@ -463,25 +463,6 @@ export function validateProfileForPublish(profile: Profile): ValidationErrors {
     }
   }
 
-  if (profile.bookingEnabled) {
-    if (!profile.bookingUrl || !profile.bookingUrl.trim()) {
-      errors.bookingUrl =
-        "Informe a URL HTTPS de agendamento, ou desative este link.";
-    } else {
-      const bk = validateBookingUrl(profile.bookingUrl);
-      if (!bk.valid || !bk.url) {
-        errors.bookingUrl = bk.error ?? "URL de agendamento inválida.";
-      }
-    }
-    const labelCheck = sanitizePlainText(
-      profile.bookingLabel,
-      TEXT_LIMITS.bookingLabel
-    );
-    if (labelCheck.error) {
-      errors.bookingLabel = labelCheck.error;
-    }
-  }
-
   const themeCheck = validateTheme(profile.theme);
   Object.assign(errors, themeCheck.errors);
 

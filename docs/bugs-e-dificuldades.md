@@ -1,7 +1,7 @@
 # Bugs e dificuldades — LinkIA
 
 **Última atualização:** 13/11/2026  
-**Status do registro:** Correção de origem do callback OAuth publicada; validação interativa com nova autorização Google pendente. Permanecem registrados 1 bloqueio de automação de navegador e outras pendências de validação interativa.
+**Status do registro:** Correção de origem do callback OAuth publicada; correção de publicação `422` implementada localmente e aguardando deploy/validação no perfil. Permanecem registrados 1 bloqueio de automação de navegador e outras pendências de validação interativa.
 
 ## Como usar este arquivo
 
@@ -78,6 +78,14 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
 - **Causa confirmada:** a rota de conexão criava o callback com `new URL(request.url).origin`, que neste deploy refletiu o endereço interno do serviço. Coolify já tem `APP_BASE_URL=https://linkia.iainfinito.com.br`.
 - **Correção:** centralizado `getAppBaseUrl()` para priorizar `APP_BASE_URL`; a rota que cria o Connect Link e todos os redirecionamentos finais do callback usam essa origem pública.
 - **Validação:** GitHub Actions concluiu build/publicação e Coolify recebeu o webhook; domínio público e `/api/health` responderam HTTP 200 com TLS válido. A validação OAuth real ainda requer iniciar outra conexão (o link antigo continua apontando para o endereço inválido) e confirmar o retorno ao painel.
+
+### BUG-008 — Publicação rejeitada por exigir URL externa removida do editor
+- **Data:** 13/11/2026
+- **Estado:** correção local implementada; deploy/validação no container pendentes.
+- **Sintoma e evidência:** `POST /api/profiles/:id/publish` retorna HTTP 422 mesmo com nome, slug, WhatsApp e agenda interna válidos; DevTools registra a requisição no host público e resposta 422.
+- **Causa confirmada no código:** `validateProfileForPublish()` exigia `bookingUrl` HTTPS quando `bookingEnabled=true`, mas o editor não oferece mais URL externa e a página pública usa somente `internalBookingEnabled`. Além disso, `createProfile()` iniciava `booking_enabled` como `1` sem uma URL.
+- **Correção:** removida da publicação a validação do campo externo obsoleto; novos perfis agora começam com `booking_enabled=0`. Adicionado teste de regressão para publicar perfil legado sem `bookingUrl`.
+- **Validação local:** `npm test` (25/25), `npm run typecheck` e `npm run lint` concluídos; lint mantém quatro avisos pré-existentes de `<img>`. Deploy e publicação real do perfil ainda pendentes.
 
 ## Riscos e questões em aberto — não são bugs
 

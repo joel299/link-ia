@@ -254,7 +254,7 @@ export function createProfile(
       1,
       null,
       "Agendar horário",
-      1,
+      0,
       JSON.stringify(themeCheck.theme),
       "draft",
       now,
