@@ -93,39 +93,66 @@ export function CatalogPanel({
     [onCatalogChange]
   );
 
-  useEffect(() => {
-    let active = true;
-    fetch(`/api/profiles/${encodeURIComponent(profileId)}/catalog`, {
-      credentials: "include",
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        if (!active) return;
-        if (!res.ok) {
-          setLoadError(
+  const fetchCatalog = useCallback(async (): Promise<{
+    items?: CatalogItem[];
+    error?: string;
+  }> => {
+    try {
+      const res = await fetch(
+        `/api/profiles/${encodeURIComponent(profileId)}/catalog`,
+        {
+          credentials: "include",
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return {
+          error:
             typeof data.error === "string"
               ? data.error
-              : "Não foi possível carregar o catálogo."
-          );
-          setLoading(false);
-          return;
-        }
-        const loaded = Array.isArray(data.items)
-          ? (data.items as CatalogItem[])
-          : [];
-        setLoadError(null);
+              : "Não foi possível carregar o catálogo.",
+        };
+      }
+      return {
+        items: Array.isArray(data.items) ? (data.items as CatalogItem[]) : [],
+      };
+    } catch {
+      return { error: "Erro de conexão ao carregar o catálogo." };
+    }
+  }, [profileId]);
+
+  useEffect(() => {
+    let active = true;
+    void fetchCatalog().then((result) => {
+      if (!active) return;
+      if (result.error) {
+        setLoadError(result.error);
         setLoading(false);
-        syncItems(loaded);
-      })
-      .catch(() => {
-        if (!active) return;
-        setLoadError("Erro de conexão ao carregar o catálogo.");
-        setLoading(false);
-      });
+        return;
+      }
+      setLoadError(null);
+      setLoading(false);
+      syncItems(result.items ?? []);
+    });
     return () => {
       active = false;
     };
-  }, [profileId, syncItems]);
+  }, [fetchCatalog, syncItems]);
+
+  function handleRetryLoad() {
+    setLoading(true);
+    setLoadError(null);
+    void fetchCatalog().then((result) => {
+      if (result.error) {
+        setLoadError(result.error);
+        setLoading(false);
+        return;
+      }
+      setLoadError(null);
+      setLoading(false);
+      syncItems(result.items ?? []);
+    });
+  }
 
   function openNewForm() {
     setEditingId(null);
@@ -380,7 +407,15 @@ export function CatalogPanel({
           <p className="field-hint">Carregando catálogo...</p>
         ) : loadError ? (
           <div role="alert" className="alert-banner alert-error">
-            {loadError}
+            <span>{loadError}</span>
+            <button
+              type="button"
+              onClick={handleRetryLoad}
+              className="btn btn-secondary"
+              style={{ marginLeft: "12px", minHeight: "36px" }}
+            >
+              Tentar novamente
+            </button>
           </div>
         ) : null}
 

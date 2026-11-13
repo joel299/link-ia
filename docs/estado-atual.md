@@ -1,7 +1,7 @@
 # Estado atual — LinkIA
 
-**Última atualização:** 12/11/2026  
-**Status:** MVP + Google Calendar (Composio) + fluxo de agendamento público `/{slug}/agendar` implementados e ativos localmente na porta `3000`; pendente inspeção visual interativa no navegador, criação real de evento no Google Calendar via navegador, teste em Docker Linux e descoberta da plataforma Qualify.
+**Última atualização:** 13/11/2026  
+**Status:** MVP + Google Calendar (Composio) + fluxo de agendamento público `/{slug}/agendar` + catálogo/carrossel + preparação Docker/Coolify (`origin/main`) implementados e ativos localmente em `http://localhost:3000`; `CatalogPanel.tsx` atualizado com botão **"Tentar novamente"** após investigação de `ERR_CONNECTION_REFUSED`. Pendente inspeção interativa no navegador do usuário, criação real de evento no Google Calendar via navegador, teste em Docker Linux e descoberta da plataforma Qualify.
 
 ## Retomada rápida
 
