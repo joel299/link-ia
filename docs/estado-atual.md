@@ -1,7 +1,7 @@
 # Estado atual — LinkIA
 
 **Última atualização:** 13/11/2026  
-**Status:** MVP + Google Calendar (Composio) + fluxo de agendamento público `/{slug}/agendar` + catálogo/carrossel publicados no Coolify. Em 13/11/2026 foi corrigido o `422` de publicação: a aplicação exigia URL de agendamento externa removida do editor, apesar do fluxo atual usar agenda interna. Correção e teste de regressão prontos localmente; publicar e confirmar `/soueujoe` no container pendente. A correção anterior do callback OAuth está publicada; ainda falta validar uma autorização Google real. Também pendem criação real de evento, teste em Docker Linux e descoberta da plataforma Qualify.
+**Status:** MVP + Google Calendar (Composio) + fluxo de agendamento público `/{slug}/agendar` + catálogo/carrossel publicados no Coolify. Em 13/11/2026, commit `b0aaf48` corrigiu o `422` de publicação causado pela validação obsoleta de URL externa; GitHub Actions/Coolify atualizaram o serviço. Perfil `/soueujoe` foi publicado no painel; páginas `/soueujoe` e `/soueujoe/agendar` responderam HTTP 200 com TLS válido, e a API pública retornou horários disponíveis para 16/11/2026. A correção anterior do callback OAuth também está publicada. Falta criar um evento real no calendário com autorização do usuário; pendem teste em Docker Linux e descoberta da plataforma Qualify.
 
 ## Retomada rápida
 
