@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAppBaseUrl } from "@/lib/app-url";
 import { getSessionUser } from "@/lib/auth";
 import { ComposioConfigError, ComposioProviderError } from "@/lib/composio";
 import { getProfileByIdForOwner } from "@/lib/profiles";
@@ -22,13 +23,11 @@ export async function POST(
     return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
   }
 
-  const origin = new URL(request.url).origin;
-
   try {
     const result = await initiateCalendarConnection({
       profileId: check.profile.id,
       ownerId: user.id,
-      origin,
+      origin: getAppBaseUrl(request.url).origin,
     });
     return NextResponse.json(result);
   } catch (err) {

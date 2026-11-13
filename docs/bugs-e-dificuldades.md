@@ -1,7 +1,7 @@
 # Bugs e dificuldades — LinkIA
 
-**Última atualização:** 12/11/2026  
-**Status do registro:** Bugs encontrados nas rodadas de implementação e Code Review foram corrigidos e revalidados; permanecem registrados 1 bloqueio de automação de navegador e a ausência de credenciais Composio no ambiente local.
+**Última atualização:** 13/11/2026  
+**Status do registro:** Correção do callback OAuth em andamento; permanecem registrados 1 bloqueio de automação de navegador e pendências de validação interativa.
 
 ## Como usar este arquivo
 
@@ -70,6 +70,14 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
 - **Estado:** parcialmente resolvido (Connect Link real validado; consentimento Google OAuth depende de login interativo)
 - **Evidência atual:** `.env` criado localmente a partir de `.env.example` (com `SESSION_SECRET` gerado localmente, sem expor segredos). `POST /api/profiles/:id/integrations/google-calendar/connect` retornou HTTP `200` com `isMock: false` e URL real em `connect.composio.dev` para dois profissionais distintos, e acesso cruzado retornou `403`.
 - **Próximo passo:** Autorizar uma conta Google real no navegador em `http://localhost:3000/painel` para validar o callback OAuth real, FreeBusy e criação real de evento no Google Calendar.
+
+### BUG-007 — Callback OAuth usa endereço interno do container
+- **Data:** 13/11/2026
+- **Estado:** correção implementada localmente; publicação e reconexão Google pendentes.
+- **Sintoma e evidência:** após o consentimento Google, a URL de retorno mostrada no navegador aponta para `0.0.0.0:3000`, resultando em `ERR_ADDRESS_INVALID`.
+- **Causa confirmada:** a rota de conexão criava o callback com `new URL(request.url).origin`, que neste deploy refletiu o endereço interno do serviço. Coolify já tem `APP_BASE_URL=https://linkia.iainfinito.com.br`.
+- **Correção:** centralizado `getAppBaseUrl()` para priorizar `APP_BASE_URL`; a rota que cria o Connect Link e todos os redirecionamentos finais do callback usam essa origem pública.
+- **Validação pendente:** publicar a nova imagem, iniciar uma nova conexão OAuth (o link antigo continua apontando para o endereço inválido) e confirmar o retorno ao painel no domínio público.
 
 ## Riscos e questões em aberto — não são bugs
 

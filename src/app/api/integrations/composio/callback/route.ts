@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
+import { getAppBaseUrl } from "@/lib/app-url";
 import { getSessionUser } from "@/lib/auth";
 import { completeCalendarOAuthCallback, SchedulingError } from "@/lib/scheduling";
 
 export async function GET(request: Request) {
+  const appBaseUrl = getAppBaseUrl(request.url);
   const user = await getSessionUser();
   if (!user) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/login", appBaseUrl));
   }
 
   const url = new URL(request.url);
@@ -17,7 +19,7 @@ export async function GET(request: Request) {
 
   if (!state) {
     return NextResponse.redirect(
-      new URL("/painel?calendar=invalid_state", request.url)
+      new URL("/painel?calendar=invalid_state", appBaseUrl)
     );
   }
 
@@ -33,7 +35,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       new URL(
         `/painel?profileId=${encodeURIComponent(result.profileId)}&calendar=${encodeURIComponent(result.status)}`,
-        request.url
+        appBaseUrl
       )
     );
   } catch (err) {
@@ -41,12 +43,12 @@ export async function GET(request: Request) {
       return NextResponse.redirect(
         new URL(
           `/painel?calendar=error&reason=${encodeURIComponent(err.message)}`,
-          request.url
+          appBaseUrl
         )
       );
     }
     return NextResponse.redirect(
-      new URL("/painel?calendar=error", request.url)
+      new URL("/painel?calendar=error", appBaseUrl)
     );
   }
 }
