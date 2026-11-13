@@ -1,0 +1,69 @@
+{
+  "$schema": "./tokens.schema.json",
+  "name": "Aurum Lex glass proposals",
+  "version": "1.0.0",
+  "status": "PROPOSED",
+  "tiers": {
+    "glass.subtle": {
+      "transparency": "low",
+      "blurPx": {
+        "min": 4,
+        "max": 8
+      },
+      "light": "very subtle",
+      "edge": "subtle",
+      "shadow": "low",
+      "plate": "medium",
+      "calibration": "pending"
+    },
+    "glass.standard": {
+      "transparency": "medium",
+      "blurPx": {
+        "min": 8,
+        "max": 14
+      },
+      "light": "visible controlled",
+      "edge": "visible",
+      "shadow": "medium",
+      "plate": "medium-strong",
+      "calibration": "pending"
+    },
+    "glass.elevated": {
+      "transparency": "medium-high",
+      "blurPx": {
+        "min": 12,
+        "max": 20
+      },
+      "light": "bounded stronger highlight",
+      "edge": "clear",
+      "shadow": "medium-strong",
+      "plate": "strong",
+      "calibration": "pending"
+    },
+    "glass.dense": {
+      "transparency": "low",
+      "blurPx": {
+        "min": 0,
+        "max": 6
+      },
+      "light": "reduced",
+      "edge": "clear",
+      "shadow": "low",
+      "plate": "strong",
+      "calibration": "pending"
+    },
+    "glass.fallback": {
+      "transparency": "none",
+      "blurPx": {
+        "min": 0,
+        "max": 0
+      },
+      "light": "none",
+      "edge": "structural",
+      "shadow": "structural",
+      "plate": "solid",
+      "calibration": "pending"
+    }
+  },
+  "note": "Blur ranges are starting proposals, not measured. No opacity values are frozen. Preserve existing brand palette."
+}

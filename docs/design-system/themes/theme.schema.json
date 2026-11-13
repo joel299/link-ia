@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aurum-lex.local/design-system/theme.schema.json",
+  "title": "Aurum Lex Theme",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "status",
+    "scope",
+    "tokens"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "EXISTING",
+        "PROPOSED"
+      ]
+    },
+    "scope": {
+      "enum": [
+        "system",
+        "user",
+        "office"
+      ]
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "createdAt": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "updatedAt": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tokens": {
+      "type": "object",
+      "required": [
+        "colors"
+      ],
+      "properties": {
+        "colors": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "gradients": {
+          "type": "object"
+        },
+        "elevation": {
+          "type": "object"
+        },
+        "typography": {
+          "type": "object"
+        },
+        "radius": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

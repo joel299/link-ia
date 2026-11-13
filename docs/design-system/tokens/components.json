@@ -1,0 +1,103 @@
+{
+  "$schema": "./tokens.schema.json",
+  "name": "Aurum Lex component mappings",
+  "version": "1.0.0",
+  "status": "PROPOSED",
+  "components": {
+    "app-shell": {
+      "tier": "glass.subtle",
+      "tokens": [
+        "surface.sidebar",
+        "surface.canvas",
+        "action.focus"
+      ],
+      "references": [
+        "REF-004",
+        "REF-006"
+      ]
+    },
+    "navigation": {
+      "tier": "glass.subtle",
+      "tokens": [
+        "surface.sidebar",
+        "text.primary",
+        "action.focus"
+      ],
+      "references": [
+        "REF-003",
+        "SUP-008"
+      ]
+    },
+    "button": {
+      "tier": "glass.subtle",
+      "tokens": [
+        "action.primary",
+        "action.focus",
+        "status.error"
+      ],
+      "references": [
+        "REF-002"
+      ]
+    },
+    "input": {
+      "tier": "glass.dense",
+      "tokens": [
+        "surface.panel",
+        "border.control",
+        "action.focus",
+        "status.error"
+      ],
+      "references": [
+        "REF-002",
+        "SUP-007"
+      ]
+    },
+    "modal": {
+      "tier": "glass.elevated",
+      "tokens": [
+        "surface.overlay",
+        "action.focus"
+      ],
+      "references": [
+        "REF-004",
+        "SUP-008"
+      ]
+    },
+    "table": {
+      "tier": "glass.dense",
+      "tokens": [
+        "surface.panel",
+        "text.primary",
+        "border.default"
+      ],
+      "references": [
+        "REF-003",
+        "SUP-007"
+      ]
+    },
+    "panel": {
+      "tier": "glass.standard",
+      "tokens": [
+        "surface.panel",
+        "border.default"
+      ],
+      "references": [
+        "REF-004",
+        "REF-005"
+      ]
+    },
+    "feedback": {
+      "tier": "glass.elevated",
+      "tokens": [
+        "status.error",
+        "status.success",
+        "status.warning",
+        "action.focus"
+      ],
+      "references": [
+        "REF-002",
+        "SUP-008"
+      ]
+    }
+  }
+}

@@ -1,0 +1,87 @@
+/* LinkIA Glassmorphism — Controlled Layers with Mandatory Solid Fallback */
+
+.glass-surface {
+  position: relative;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--glass-bg-standard);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-highlight);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  backdrop-filter: blur(12px) saturate(130%);
+}
+
+.glass-surface[data-intensity="subtle"] {
+  background: var(--glass-bg-subtle);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+
+.glass-surface[data-intensity="standard"] {
+  background: var(--glass-bg-standard);
+  box-shadow: var(--shadow-md), inset 0 1px 0 var(--glass-highlight);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  backdrop-filter: blur(12px) saturate(130%);
+}
+
+.glass-surface[data-intensity="elevated"] {
+  background: var(--glass-bg-elevated);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-highlight);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+
+.glass-surface[data-intensity="dense"] {
+  background: var(--glass-bg-dense);
+  box-shadow: var(--shadow-md), inset 0 1px 0 var(--glass-highlight);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  backdrop-filter: blur(10px) saturate(120%);
+}
+
+/* Stabilized inner plate behind text and forms */
+.glass-plate {
+  position: relative;
+  border-radius: calc(var(--radius-lg) - 2px);
+  background: var(--color-plate);
+}
+
+/* Mandatory fallback when backdrop-filter is unsupported */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-surface,
+  .glass-surface[data-intensity="subtle"],
+  .glass-surface[data-intensity="standard"],
+  .glass-surface[data-intensity="elevated"],
+  .glass-surface[data-intensity="dense"] {
+    background: var(--color-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .glass-surface[data-intensity="elevated"] {
+    background: var(--color-surface-raised);
+  }
+
+  .glass-plate {
+    background: var(--color-plate-solid);
+  }
+}
+
+/* Mandatory fallback when user prefers reduced transparency */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-surface,
+  .glass-surface[data-intensity="subtle"],
+  .glass-surface[data-intensity="standard"],
+  .glass-surface[data-intensity="elevated"],
+  .glass-surface[data-intensity="dense"] {
+    background: var(--color-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .glass-surface[data-intensity="elevated"] {
+    background: var(--color-surface-raised);
+  }
+
+  .glass-plate {
+    background: var(--color-plate-solid);
+  }
+}

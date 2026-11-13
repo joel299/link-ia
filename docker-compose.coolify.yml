@@ -1,0 +1,36 @@
+services:
+  linkia:
+    image: ghcr.io/joel299/link-ia:linkia-coolify
+    pull_policy: always
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      DATA_DIR: /app/data
+      SESSION_SECRET: "${SESSION_SECRET:?Defina SESSION_SECRET no Coolify}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-true}"
+      APP_BASE_URL: "${APP_BASE_URL:?Defina APP_BASE_URL no Coolify}"
+      COMPOSIO_API_KEY: "${COMPOSIO_API_KEY:-}"
+      COMPOSIO_GOOGLE_CALENDAR_AUTH_CONFIG_ID: "${COMPOSIO_GOOGLE_CALENDAR_AUTH_CONFIG_ID:-}"
+      COMPOSIO_ALLOW_LOCAL_MOCK: "${COMPOSIO_ALLOW_LOCAL_MOCK:-false}"
+    volumes:
+      - linkia_data:/app/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  linkia_data:
+

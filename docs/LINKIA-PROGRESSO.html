@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Acompanhamento visual do projeto LinkIA: decisões, etapa atual, progresso e prazo estimado.">
+  <title>LinkIA — Acompanhamento do projeto</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101312;
+      --bg-soft: #151b17;
+      --surface: rgba(29, 36, 32, .78);
+      --plate: #1b211e;
+      --text: #f0f4f0;
+      --muted: #b0bbb3;
+      --line: #354039;
+      --green: #33b978;
+      --green-strong: #1f8a5b;
+      --gold: #e2c987;
+      --shadow: 0 18px 50px rgba(0,0,0,.24);
+      --glass-blur: 16px;
+      --radius: 22px;
+      font-family: Manrope, Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    html[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f4f6f2;
+      --bg-soft: #e9eee9;
+      --surface: rgba(255,255,255,.78);
+      --plate: #fff;
+      --text: #18211c;
+      --muted: #59665e;
+      --line: #dce4dd;
+      --green: #16784e;
+      --green-strong: #176b49;
+      --gold: #9a762f;
+      --shadow: 0 16px 42px rgba(26,45,32,.11);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 14% 4%, color-mix(in srgb, var(--green) 14%, transparent), transparent 38rem),
+        radial-gradient(ellipse at 92% 30%, color-mix(in srgb, var(--gold) 9%, transparent), transparent 34rem),
+        var(--bg);
+      line-height: 1.55;
+    }
+    button { font: inherit; }
+    .shell { width: min(1120px, calc(100% - 36px)); margin: 0 auto; padding: 30px 0 54px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 28px; }
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .mark { width: 42px; height: 42px; border: 1px solid color-mix(in srgb, var(--gold) 65%, var(--line)); border-radius: 14px; display: grid; place-items: center; color: var(--gold); background: var(--surface); box-shadow: var(--shadow); }
+    .mark svg { width: 22px; height: 22px; }
+    .brand-name { margin: 0; font-weight: 750; letter-spacing: .02em; }
+    .brand-sub { margin: 1px 0 0; color: var(--muted); font-size: .83rem; }
+    .theme-toggle { border: 1px solid var(--line); color: var(--text); background: var(--surface); padding: 9px 13px; border-radius: 12px; cursor: pointer; backdrop-filter: blur(var(--glass-blur)); }
+    .theme-toggle:hover { border-color: var(--green); }
+    .hero { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(245px, .6fr); gap: 18px; margin-bottom: 18px; }
+    .surface { border: 1px solid color-mix(in srgb, var(--line) 78%, transparent); background: var(--surface); box-shadow: var(--shadow); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border-radius: var(--radius); }
+    .hero-copy { padding: clamp(22px, 4vw, 38px); position: relative; overflow: hidden; }
+    .eyebrow { color: var(--green); text-transform: uppercase; letter-spacing: .12em; font-size: .74rem; font-weight: 750; }
+    h1 { margin: 8px 0 10px; font-size: clamp(2rem, 5vw, 3.25rem); line-height: 1.08; letter-spacing: -.045em; }
+    .intro { max-width: 680px; margin: 0; color: var(--muted); }
+    .hero-stat { padding: 24px; display: flex; flex-direction: column; justify-content: center; }
+    .stat-label { color: var(--muted); font-size: .85rem; }
+    .stat-value { display: flex; align-items: baseline; gap: 7px; margin: 5px 0; font-size: 3rem; font-weight: 760; letter-spacing: -.06em; }
+    .stat-value span { color: var(--green); }
+    .progress-track { height: 8px; border-radius: 8px; background: var(--line); overflow: hidden; margin: 7px 0 12px; }
+    .progress-fill { height: 100%; width: 85%; background: linear-gradient(90deg, var(--green-strong), var(--green)); border-radius: inherit; }
+    .estimate { color: var(--muted); font-size: .84rem; }
+    .estimate strong { color: var(--gold); font-weight: 650; }
+    .section { margin-top: 22px; }
+    .section-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin: 0 2px 12px; }
+    h2 { margin: 0; font-size: 1.12rem; letter-spacing: -.015em; }
+    .section-note { margin: 0; color: var(--muted); font-size: .82rem; }
+    .graph-wrap { padding: 18px; overflow: hidden; }
+    .graph { width: 100%; min-height: 210px; display: block; }
+    .edge { stroke: var(--line); stroke-width: 3; }
+    .edge.done { stroke: var(--green); }
+    .edge.current { stroke: var(--gold); stroke-dasharray: 7 7; }
+    .node { cursor: pointer; outline: none; }
+    .node circle { fill: var(--plate); stroke: var(--line); stroke-width: 2; transition: stroke .18s ease, r .18s ease; }
+    .node.done circle { fill: color-mix(in srgb, var(--green) 18%, var(--plate)); stroke: var(--green); }
+    .node.current circle { stroke: var(--gold); stroke-width: 3; }
+    .node:hover circle, .node:focus circle, .node[aria-pressed="true"] circle { stroke: var(--gold); stroke-width: 4; }
+    .node .number { fill: var(--text); font-size: 14px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+    .node .label { fill: var(--text); font-size: 13px; font-weight: 650; text-anchor: middle; }
+    .node .state { fill: var(--muted); font-size: 11px; text-anchor: middle; }
+    .detail { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; margin-top: 10px; padding: 14px 16px; border-radius: 16px; background: var(--plate); border: 1px solid var(--line); }
+    .detail h3 { margin: 0 0 3px; font-size: .98rem; }
+    .detail p { margin: 0; color: var(--muted); font-size: .88rem; }
+    .tag { color: var(--gold); font-size: .76rem; white-space: nowrap; }
+    .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .list-panel { padding: 21px; }
+    .plain-list { margin: 13px 0 0; padding: 0; list-style: none; }
+    .plain-list li { padding: 11px 0; border-top: 1px solid var(--line); }
+    .plain-list li:first-child { border-top: 0; }
+    .decision-title { display: block; font-weight: 650; }
+    .decision-copy { display: block; color: var(--muted); font-size: .86rem; margin-top: 3px; }
+    .phase-list { margin-top: 13px; }
+    .phase { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); font-size: .88rem; }
+    .phase:first-child { border-top: 0; }
+    .phase span:last-child { color: var(--muted); white-space: nowrap; }
+    .phase.complete .phase-name::before { content: "✓ "; color: var(--green); }
+    .phase.current .phase-name::before { content: "● "; color: var(--gold); font-size: .7em; vertical-align: 2px; }
+    .note { margin-top: 18px; padding: 15px 18px; color: var(--muted); font-size: .84rem; }
+    .note strong { color: var(--text); }
+    footer { margin-top: 22px; color: var(--muted); font-size: .78rem; text-align: center; }
+    @media (max-width: 760px) {
+      .hero, .columns { grid-template-columns: 1fr; }
+      .hero-stat { min-height: 170px; }
+      .section-head { display: block; }
+      .section-note { margin-top: 5px; }
+      .graph-wrap { padding: 10px; overflow-x: auto; }
+      .graph { min-width: 700px; }
+      .detail { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .surface, .theme-toggle { background: var(--plate); backdrop-filter: none; -webkit-backdrop-filter: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .surface, .theme-toggle { background: var(--plate); }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand" aria-label="LinkIA">
+        <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M9.5 14.5 14.5 9.5M7.2 16.8l-1 1a4.1 4.1 0 0 1-5.8-5.8l4-4a4.1 4.1 0 0 1 5.8 0M16.8 7.2l1-1a4.1 4.1 0 0 1 5.8 5.8l-4 4a4.1 4.1 0 0 1-5.8 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+        <div><p class="brand-name">LinkIA</p><p class="brand-sub">Acompanhamento do projeto</p></div>
+      </div>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Alternar tema claro e escuro">Tema claro</button>
+    </header>
+
+    <section class="hero" aria-labelledby="pageTitle">
+      <div class="hero-copy surface">
+        <span class="eyebrow">MVP + Google Agenda (Composio) · Local Ativo</span>
+        <h1 id="pageTitle">MVP e agendamento implementados.</h1>
+        <p class="intro">Painel de edição com prévia ao vivo, página pública `/{slug}`, conexão Google Agenda via Composio (com simulação local explícita quando sem credenciais) e fluxo `/{slug}/agendar` validados localmente na porta 3000.</p>
+      </div>
+      <aside class="hero-stat surface" aria-label="Progresso e prazo estimado">
+        <span class="stat-label">Progresso verificado do MVP</span>
+        <div class="stat-value"><span>85%</span></div>
+        <div class="progress-track" role="progressbar" aria-label="Progresso estimado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="85"><div class="progress-fill"></div></div>
+        <div class="estimate"><strong>Restam ~1 dia</strong> para OAuth real Composio (com chaves), revisão visual no Chrome, Linux e Qualify.</div>
+      </aside>
+    </section>
+
+    <section class="section" aria-labelledby="graphTitle">
+      <div class="section-head"><h2 id="graphTitle">Etapas e dependências</h2><p class="section-note">Selecione uma etapa para ver o que foi validado e o que falta.</p></div>
+      <div class="graph-wrap surface">
+        <svg class="graph" viewBox="0 0 900 230" role="group" aria-label="Grafo interativo das etapas do LinkIA">
+          <line class="edge done" x1="90" y1="86" x2="270" y2="86" />
+          <line class="edge done" x1="270" y1="86" x2="450" y2="86" />
+          <line class="edge done" x1="450" y1="86" x2="630" y2="86" />
+          <line class="edge current" x1="630" y1="86" x2="810" y2="86" />
+          <g class="node done" tabindex="0" role="button" aria-pressed="false" data-step="0" aria-label="Etapa 1: Escopo do MVP, concluída">
+            <circle cx="90" cy="86" r="25"/><text class="number" x="90" y="86">1</text><text class="label" x="90" y="137">Escopo</text><text class="state" x="90" y="157">concluído</text>
+          </g>
+          <g class="node done" tabindex="0" role="button" aria-pressed="false" data-step="1" aria-label="Etapa 2: System Design, concluído">
+            <circle cx="270" cy="86" r="25"/><text class="number" x="270" y="86">2</text><text class="label" x="270" y="137">System Design</text><text class="state" x="270" y="157">aplicado</text>
+          </g>
+          <g class="node done" tabindex="0" role="button" aria-pressed="false" data-step="2" aria-label="Etapa 3: Painel e prévia, concluído">
+            <circle cx="450" cy="86" r="25"/><text class="number" x="450" y="86">3</text><text class="label" x="450" y="137">Painel e prévia</text><text class="state" x="450" y="157">implementado</text>
+          </g>
+          <g class="node done" tabindex="0" role="button" aria-pressed="false" data-step="3" aria-label="Etapa 4: Persistência, links e Docker, concluído">
+            <circle cx="630" cy="86" r="25"/><text class="number" x="630" y="86">4</text><text class="label" x="630" y="137">API, Links e Docker</text><text class="state" x="630" y="157">validado</text>
+          </g>
+          <g class="node current" tabindex="0" role="button" aria-pressed="true" data-step="4" aria-label="Etapa 5: Revisão visual, Linux e Qualify, em andamento">
+            <circle cx="810" cy="86" r="25"/><text class="number" x="810" y="86">5</text><text class="label" x="810" y="137">UI, Linux e Qualify</text><text class="state" x="810" y="157">pendente</text>
+          </g>
+        </svg>
+        <div class="detail" aria-live="polite">
+          <div><h3 id="detailTitle">UI, Linux e Qualify</h3><p id="detailCopy">Backend, frontend (painel, agenda de referência, catálogo e carrossel responsivo), testes (24/24), lint (0 erros), typecheck (0 erros), build, FreeBusy real no Composio e QA HTTP em localhost:3000 passaram. Falta inspeção visual/Lighthouse no Chrome, criação real de evento no navegador, teste em Linux, descoberta do Qualify e rate limiting.</p></div>
+          <span class="tag" id="detailTag">EM ANDAMENTO · REVISÃO FINAL</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section columns" aria-label="Decisões e estimativa">
+      <article class="list-panel surface">
+        <h2>Decisões confirmadas</h2>
+        <ul class="plain-list">
+          <li><span class="decision-title">Next.js 16 + TypeScript + SQLite</span><span class="decision-copy">Painel e página pública SSR em um único serviço portável (`DATA_DIR`).</span></li>
+          <li><span class="decision-title">Segurança de sessão e validação</span><span class="decision-copy">`SESSION_SECRET` obrigatório em produção e validação de tipos em runtime no `PATCH`.</span></li>
+          <li><span class="decision-title">Página pública isolada</span><span class="decision-copy">`/{slug}` não carrega código do editor e oculta campos privados e rascunhos.</span></li>
+          <li><span class="decision-title">Docker multi-stage portável</span><span class="decision-copy">Imagem `linkia-mvp:local` (410 MB) validada no Windows com `/api/health`.</span></li>
+          <li><span class="decision-title">Qualify pendente de descoberta</span><span class="decision-copy">Sem documentação no repo; tratado como pendente antes de criar config específica.</span></li>
+        </ul>
+      </article>
+      <article class="list-panel surface">
+        <h2>Status por etapa</h2>
+        <div class="phase-list">
+          <div class="phase complete"><span class="phase-name">Escopo e System Design</span><span>concluído</span></div>
+          <div class="phase complete"><span class="phase-name">Painel, prévia e temas</span><span>concluído</span></div>
+          <div class="phase complete"><span class="phase-name">SQLite, slug, links e publicação</span><span>concluído</span></div>
+          <div class="phase complete"><span class="phase-name">Code Review + QA HTTP + Docker Win</span><span>validado</span></div>
+          <div class="phase current"><span class="phase-name">Navegador UI, Linux, Qualify e rate limit</span><span>pendente</span></div>
+        </div>
+      </article>
+    </section>
+
+    <aside class="note surface"><strong>Base dos 85%:</strong> Código implementado (painel, prévia, página pública, Composio Google Calendar e fluxo <code>/{slug}/agendar</code> com sincronização de salvamento), <code>npm run lint</code> (0 erros), <code>npm run typecheck</code> (0 erros), <code>npm test</code> (21/21), <code>next build</code>, leitura real <code>GOOGLECALENDAR_FREE_BUSY_QUERY</code> no Composio, validação HTTP em <code>localhost:3000</code> e smoke test Docker no Windows concluídos. Os 15% restantes correspondem à validação visual interativa no navegador (Chrome DevTools não estava ativo no host), criação real de evento no navegador, teste em Docker Linux, descoberta da plataforma Qualify e rate limiting.</aside>
+    <footer>Atualizado em 12/11/2026 · Fonte: Code Review, QA HTTP, Vitest e Docker Desktop (Windows).</footer>
+  </main>
+  <script>
+    const steps = [
+      { title: 'Escopo do MVP', copy: 'PRD/SDD define fluxo completo de perfil, links externos (Instagram, WhatsApp DDI, agendamento HTTPS) e critérios de aceite.', tag: 'CONCLUÍDO' },
+      { title: 'System Design', copy: 'Tokens semânticos (preto, verde, dourado), temas claro/escuro sem flash e GlassSurface com fallback sólido aplicados no código.', tag: 'CONCLUÍDO' },
+      { title: 'Painel e prévia', copy: 'Landing, /login (com modo demo), /painel com editor por tarefa e prévia ao vivo sincronizada.', tag: 'CONCLUÍDO' },
+      { title: 'API, Links e Docker', copy: 'SQLite, uploads seguros, slug único, publicação, 15/15 testes Vitest, QA HTTP e container Docker validados no Windows.', tag: 'VALIDADO' },
+      { title: 'UI, Linux e Qualify', copy: 'Backend, frontend, testes (15/15), lint (0 erros), QA HTTP e imagem Docker (Windows) passaram. Falta inspeção visual interativa no navegador, teste em Linux, descoberta do Qualify e rate limiting.', tag: 'EM ANDAMENTO · REVISÃO FINAL' }
+    ];
+    const nodes = [...document.querySelectorAll('.node')];
+    function selectStep(node) {
+      const step = steps[Number(node.dataset.step)];
+      nodes.forEach(item => item.setAttribute('aria-pressed', String(item === node)));
+      document.querySelector('#detailTitle').textContent = step.title;
+      document.querySelector('#detailCopy').textContent = step.copy;
+      document.querySelector('#detailTag').textContent = step.tag;
+    }
+    nodes.forEach(node => {
+      node.addEventListener('click', () => selectStep(node));
+      node.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectStep(node); }
+      });
+    });
+    const toggle = document.querySelector('#themeToggle');
+    const root = document.documentElement;
+    const savedTheme = localStorage.getItem('linkia-progress-theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') root.dataset.theme = savedTheme;
+    function updateToggle() { toggle.textContent = root.dataset.theme === 'dark' ? 'Tema claro' : 'Tema escuro'; }
+    updateToggle();
+    toggle.addEventListener('click', () => {
+      root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('linkia-progress-theme', root.dataset.theme);
+      updateToggle();
+    });
+  </script>
+</body>
+</html>

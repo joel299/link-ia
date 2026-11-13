@@ -1,0 +1,34 @@
+{
+  "$schema": "./tokens.schema.json",
+  "name": "Aurum Lex semantic",
+  "version": "1.0.0",
+  "status": "EXISTING",
+  "tokens": {
+    "surface": {
+      "canvas": "color.background",
+      "panel": "color.card",
+      "overlay": "color.popover",
+      "sidebar": "color.sidebar"
+    },
+    "text": {
+      "primary": "color.foreground",
+      "secondary": "color.mutedForeground",
+      "onAccent": "color.primaryForeground"
+    },
+    "action": {
+      "primary": "color.primary",
+      "accent": "color.gold",
+      "focus": "color.ring"
+    },
+    "status": {
+      "error": "color.destructive",
+      "success": "color.success",
+      "warning": "color.warning"
+    },
+    "border": {
+      "default": "color.border",
+      "control": "color.input"
+    }
+  },
+  "notes": "Documentary aliases; not exported CSS."
+}

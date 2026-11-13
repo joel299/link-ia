@@ -1,0 +1,143 @@
+/* LinkIA Design System Tokens — Semantic & Theme-Aware */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Brand & Surfaces */
+  --color-bg: #f4f6f2;
+  --color-bg-gradient: radial-gradient(
+    circle at 12% 8%,
+    rgba(22, 120, 78, 0.08),
+    transparent 45%
+  ),
+  radial-gradient(
+    circle at 88% 16%,
+    rgba(154, 118, 47, 0.08),
+    transparent 40%
+  );
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-subtle: #eaf0eb;
+  --color-plate: rgba(255, 255, 255, 0.88);
+  --color-plate-solid: #ffffff;
+
+  /* Typography */
+  --color-text: #18211c;
+  --color-text-muted: #59665e;
+
+  /* Borders */
+  --color-border: #dce4dd;
+  --color-border-strong: #bcc8be;
+
+  /* Actions & Brand Accents */
+  --color-primary: #16784e;
+  --color-primary-hover: #126240;
+  --color-on-primary: #ffffff;
+  --color-accent: #9a762f;
+  --color-on-accent: #17140e;
+
+  /* Semantic Status */
+  --color-danger: #b42318;
+  --color-danger-bg: #fef3f2;
+  --color-danger-border: #fecdca;
+  --color-success: #16784e;
+  --color-success-bg: #ecfdf3;
+  --color-success-border: #abefc6;
+  --color-warning: #9a6700;
+  --color-warning-bg: #fff8eb;
+  --color-warning-border: #f5d08a;
+
+  /* Glass Layers */
+  --glass-bg-subtle: rgba(255, 255, 255, 0.62);
+  --glass-bg-standard: rgba(255, 255, 255, 0.72);
+  --glass-bg-elevated: rgba(255, 255, 255, 0.84);
+  --glass-bg-dense: rgba(255, 255, 255, 0.9);
+  --glass-highlight: rgba(255, 255, 255, 0.85);
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(16, 19, 18, 0.06);
+  --shadow-md: 0 8px 24px rgba(16, 19, 18, 0.08);
+  --shadow-lg: 0 16px 40px rgba(16, 19, 18, 0.12);
+
+  /* Focus Ring */
+  --focus-ring: 0 0 0 3px rgba(22, 120, 78, 0.35);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Brand & Surfaces */
+  --color-bg: #101312;
+  --color-bg-gradient: radial-gradient(
+    circle at 12% 8%,
+    rgba(51, 185, 120, 0.12),
+    transparent 45%
+  ),
+  radial-gradient(
+    circle at 88% 14%,
+    rgba(226, 201, 135, 0.09),
+    transparent 40%
+  );
+  --color-surface: #171c19;
+  --color-surface-raised: #1d2420;
+  --color-surface-subtle: #131815;
+  --color-plate: rgba(23, 28, 25, 0.86);
+  --color-plate-solid: #171c19;
+
+  /* Typography */
+  --color-text: #f0f4f0;
+  --color-text-muted: #b0bbb3;
+
+  /* Borders */
+  --color-border: #354039;
+  --color-border-strong: #4a5950;
+
+  /* Actions & Brand Accents */
+  --color-primary: #33b978;
+  --color-primary-hover: #29a368;
+  --color-on-primary: #0d1a12;
+  --color-accent: #e2c987;
+  --color-on-accent: #211b0d;
+
+  /* Semantic Status */
+  --color-danger: #f97066;
+  --color-danger-bg: rgba(180, 35, 24, 0.18);
+  --color-danger-border: rgba(249, 112, 102, 0.45);
+  --color-success: #33b978;
+  --color-success-bg: rgba(51, 185, 120, 0.16);
+  --color-success-border: rgba(51, 185, 120, 0.4);
+  --color-warning: #e2c987;
+  --color-warning-bg: rgba(199, 164, 91, 0.15);
+  --color-warning-border: rgba(226, 201, 135, 0.4);
+
+  /* Glass Layers */
+  --glass-bg-subtle: rgba(23, 28, 25, 0.58);
+  --glass-bg-standard: rgba(23, 28, 25, 0.72);
+  --glass-bg-elevated: rgba(29, 36, 32, 0.84);
+  --glass-bg-dense: rgba(23, 28, 25, 0.9);
+  --glass-highlight: rgba(255, 255, 255, 0.08);
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.36);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.48);
+
+  /* Focus Ring */
+  --focus-ring: 0 0 0 3px rgba(51, 185, 120, 0.4);
+}
+
+:root {
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-page: 28px;
+
+  --font-system: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+
+  --editor-max-width: 1440px;
+  --public-max-width: 480px;
+  --transition-fast: 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}

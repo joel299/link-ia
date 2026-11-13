@@ -1,0 +1,25 @@
+{
+  "$schema": "./tokens.schema.json",
+  "name": "Aurum Lex motion",
+  "version": "1.0.0",
+  "status": "EXISTING + PROPOSED",
+  "tokens": {
+    "existing": {
+      "panelHoverMs": 300,
+      "pageEnterMs": 550,
+      "staggerMs": 600,
+      "pulseMs": 2200,
+      "source": "src/styles.css"
+    },
+    "proposed": {
+      "microInteractionMs": {
+        "min": 160,
+        "max": 240
+      },
+      "surfaceEnterMs": {
+        "max": 300
+      },
+      "reducedMotion": "Respect prefers-reduced-motion; not globally implemented"
+    }
+  }
+}

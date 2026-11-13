@@ -1,0 +1,299 @@
+{
+  "$schema": "./tokens.schema.json",
+  "name": "Aurum Lex primitives",
+  "version": "1.0.0",
+  "status": "EXISTING",
+  "tokens": {
+    "color": {
+      "background": {
+        "$type": "color",
+        "$value": "oklch(0.13 0.004 80)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "foreground": {
+        "$type": "color",
+        "$value": "oklch(0.94 0.012 85)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "card": {
+        "$type": "color",
+        "$value": "oklch(0.175 0.005 80)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "cardForeground": {
+        "$type": "color",
+        "$value": "oklch(0.94 0.012 85)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "popover": {
+        "$type": "color",
+        "$value": "oklch(0.17 0.005 80)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "popoverForeground": {
+        "$type": "color",
+        "$value": "oklch(0.94 0.012 85)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "gold": {
+        "$type": "color",
+        "$value": "oklch(0.78 0.12 82)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "goldSoft": {
+        "$type": "color",
+        "$value": "oklch(0.86 0.08 88)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "primary": {
+        "$type": "color",
+        "$value": "oklch(0.78 0.12 82)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "primaryForeground": {
+        "$type": "color",
+        "$value": "oklch(0.14 0.01 80)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "secondary": {
+        "$type": "color",
+        "$value": "oklch(0.22 0.006 80)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "secondaryForeground": {
+        "$type": "color",
+        "$value": "oklch(0.92 0.012 85)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "muted": {
+        "$type": "color",
+        "$value": "oklch(0.21 0.005 80)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "mutedForeground": {
+        "$type": "color",
+        "$value": "oklch(0.66 0.015 85)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "accent": {
+        "$type": "color",
+        "$value": "oklch(0.25 0.02 82)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "accentForeground": {
+        "$type": "color",
+        "$value": "oklch(0.88 0.09 86)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "destructive": {
+        "$type": "color",
+        "$value": "oklch(0.62 0.19 25)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "destructiveForeground": {
+        "$type": "color",
+        "$value": "oklch(0.97 0 0)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "success": {
+        "$type": "color",
+        "$value": "oklch(0.72 0.14 155)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "warning": {
+        "$type": "color",
+        "$value": "oklch(0.78 0.15 65)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "border": {
+        "$type": "color",
+        "$value": "oklch(0.78 0.12 82 / 14%)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "input": {
+        "$type": "color",
+        "$value": "oklch(0.78 0.12 82 / 18%)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "ring": {
+        "$type": "color",
+        "$value": "oklch(0.78 0.12 82 / 60%)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "chart1": {
+        "$type": "color",
+        "$value": "oklch(0.78 0.12 82)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "chart2": {
+        "$type": "color",
+        "$value": "oklch(0.6 0.08 80)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "chart3": {
+        "$type": "color",
+        "$value": "oklch(0.45 0.04 80)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "chart4": {
+        "$type": "color",
+        "$value": "oklch(0.86 0.08 88)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "chart5": {
+        "$type": "color",
+        "$value": "oklch(0.35 0.02 80)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "sidebar": {
+        "$type": "color",
+        "$value": "oklch(0.105 0.004 80)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "sidebarForeground": {
+        "$type": "color",
+        "$value": "oklch(0.85 0.012 85)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "sidebarPrimary": {
+        "$type": "color",
+        "$value": "oklch(0.78 0.12 82)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "sidebarPrimaryForeground": {
+        "$type": "color",
+        "$value": "oklch(0.14 0.01 80)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "sidebarAccent": {
+        "$type": "color",
+        "$value": "oklch(0.2 0.015 82)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "sidebarAccentForeground": {
+        "$type": "color",
+        "$value": "oklch(0.88 0.09 86)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "sidebarBorder": {
+        "$type": "color",
+        "$value": "oklch(0.78 0.12 82 / 12%)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "sidebarRing": {
+        "$type": "color",
+        "$value": "oklch(0.78 0.12 82 / 60%)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "effortLow": {
+        "$type": "color",
+        "$value": "oklch(0.9 0.13 74)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "effortMedium": {
+        "$type": "color",
+        "$value": "oklch(0.84 0.15 65)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "effortHigh": {
+        "$type": "color",
+        "$value": "oklch(0.78 0.16 56)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "effortXhigh": {
+        "$type": "color",
+        "$value": "oklch(0.72 0.17 48)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      },
+      "effortUltra": {
+        "$type": "color",
+        "$value": "oklch(0.66 0.17 40)",
+        "$description": "src/styles.css :root",
+        "status": "EXISTING"
+      }
+    },
+    "gradient": {
+      "gold": {
+        "$type": "gradient",
+        "$value": "linear-gradient(135deg, oklch(0.88 0.09 90), oklch(0.74 0.13 78) 50%, oklch(0.6 0.11 70))",
+        "status": "EXISTING"
+      },
+      "card": {
+        "$type": "gradient",
+        "$value": "linear-gradient(160deg, oklch(0.2 0.008 80), oklch(0.155 0.004 80))",
+        "status": "EXISTING"
+      }
+    },
+    "elevation": {
+      "gold": {
+        "$type": "shadow",
+        "$value": "0 10px 40px -12px oklch(0.78 0.12 82 / 35%)",
+        "status": "EXISTING"
+      },
+      "card": {
+        "$type": "shadow",
+        "$value": "0 1px 0 0 oklch(1 0 0 / 4%) inset, 0 20px 40px -24px oklch(0 0 0 / 80%)",
+        "status": "EXISTING"
+      }
+    },
+    "shape": {
+      "radius": {
+        "$type": "dimension",
+        "$value": "0.75rem",
+        "status": "EXISTING"
+      }
+    },
+    "typography": {
+      "display": {
+        "$type": "fontFamily",
+        "$value": "Cormorant Garamond, Georgia, serif",
+        "status": "EXISTING"
+      },
+      "body": {
+        "$type": "fontFamily",
+        "$value": "Manrope, system-ui, sans-serif",
+        "status": "EXISTING"
+      }
+    }
+  }
+}
