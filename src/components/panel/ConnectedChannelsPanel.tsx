@@ -1104,6 +1104,21 @@ export function ConnectedChannelsPanel({
                         {fieldErrors.whatsappNumber}
                       </p>
                     ) : null}
+                    {whatsappNumber.trim().length > 0 ? (
+                      <div style={{ marginTop: "8px" }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{ minHeight: "34px", fontSize: "0.85rem" }}
+                          onClick={() => {
+                            onFieldChange("whatsappNumber", "");
+                            onFieldChange("whatsappEnabled", false);
+                          }}
+                        >
+                          Remover número
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="field-group">
@@ -1707,8 +1722,7 @@ export function ConnectedChannelsPanel({
               <div className="channel-header-info">
                 <span className="channel-name">Facebook</span>
                 <span className="channel-subtitle">
-                  Conta e página conectadas para recursos da plataforma e
-                  anúncios
+                  Conta e página conectadas para recursos da plataforma
                 </span>
               </div>
               <div className="channel-header-meta">
@@ -1749,6 +1763,11 @@ export function ConnectedChannelsPanel({
                   </div>
                 ) : fbData ? (
                   <>
+                    <p className="field-hint" style={{ marginBottom: "8px" }}>
+                      Esta conexão refere-se ao perfil ou página do Facebook.
+                      Para conectar contas de anúncios e consultar campanhas do
+                      Meta Ads, acesse a aba Tráfego pago.
+                    </p>
                     {fbData.connection.status === "pending_config" ||
                     !fbData.connection.configReady ? (
                       <div className="alert-banner alert-warning">

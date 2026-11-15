@@ -122,6 +122,18 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
   - Removidos os botões duplicados de conexão do Facebook em `PaidTrafficPanel.tsx`, com link direto para `/painel#canais-conectados` e sanitização de erros em `src/lib/ads-service.ts` e `src/lib/zernio-whatsapp.ts`.
   - Criado `src/lib/integration-cleanup.ts` (`cleanupStaleIntegrationStates`) para limpeza idempotente de estados OAuth expirados e tentativas antigas sem apagar conexões válidas.
 
+### BUG-012 — Falha em Meta Ads (`ConnectedAccount_ToolkitMismatch` / code 633) e mistura entre Facebook social e Meta Ads
+- **Data:** 15/11/2026
+- **Estado:** diagnóstico concluído; tratamento de erro, separação na UI e filtro de período implementados; pendente ajuste externo da auth config `metaads` no `.env`
+- **Causa confirmada:**
+  - Em inspeção ao vivo no Composio, `COMPOSIO_META_ADS_AUTH_CONFIG_ID` no `.env` local aponta para uma auth config do toolkit **`facebook`** (e não `metaads`), fazendo com que contas conectadas via esse fluxo pertençam ao toolkit `facebook`. Ao executar `METAADS_GET_AD_ACCOUNTS`, a API retorna HTTP 400 (`code: 633`, `slug: "ConnectedAccount_ToolkitMismatch"`).
+  - `sanitizeAdsErrorMessage` lia apenas `err.message`, ocultando `err.cause.details` nos logs de servidor e exibindo erro genérico ao usuário; além disso, `PaidTrafficPanel.tsx` rotulava a aba como "Facebook / Meta Ads" e redirecionava a conexão para a sessão 2.
+- **Correção aplicada:**
+  - `src/lib/ads-service.ts`: extração profunda de detalhes (`extractDeepAdsErrorText`) para log seguro no servidor e mapeamento explícito de `ConnectedAccount_ToolkitMismatch` (HTTP 409) orientando reconexão em Tráfego pago; adição de `validateAdsDateRange` e suporte a `date_preset` / `time_range` (sem envio simultâneo) em `METAADS_GET_INSIGHTS` e `effective_status` explícito sem `DELETED` em `METAADS_LIST_CAMPAIGNS`.
+  - `src/components/panel/PaidTrafficPanel.tsx` e `src/components/panel/ConnectedChannelsPanel.tsx`: separação clara entre **Facebook** (sessão 2) e **Meta Ads** (aba Tráfego pago, com botões próprios de Conectar/Reconectar/Desconectar e seletor de período), além de botão `"Remover número"` no caminho 2 do WhatsApp.
+  - `src/components/public/PublicProfileView.tsx`, `PublicSocialSection.tsx`, `public-profile.css`: seção de destaques do Instagram movida para acima de "Serviços e produtos", carrossel horizontal touch no mobile sem barra de rolagem visível, badge `"Reel"` singular e estado pendente sem dados fictícios.
+- **Ação externa pendente:** Atualizar `COMPOSIO_META_ADS_AUTH_CONFIG_ID` no `.env` (e ambiente de deploy) para uma auth config OAuth2 do toolkit `metaads` (usando `META_ADS_CLIENT_ID` e `META_ADS_CLIENT_SECRET`) e reconectar o perfil na aba Tráfego pago -> Meta Ads.
+
 ## Riscos e questões em aberto — não são bugs
 
 ### RISCO-001 — Integração com mídia do Instagram

@@ -56,6 +56,7 @@ export interface PublicProfile {
   catalogItems?: PublicCatalogItem[];
   tiktokUrl?: string | null;
   socialMediaItems?: PublicSocialMediaItem[];
+  instagramConnectedPendingSync?: boolean;
   theme: ProfileTheme;
   updatedAt: string;
 }
@@ -299,6 +300,19 @@ export interface WhatsAppConnectionView {
   updatedAt: string | null;
 }
 
+export type AdsDatePreset =
+  | "last_7d"
+  | "last_30d"
+  | "this_month"
+  | "last_month"
+  | "custom";
+
+export interface AdsDateRangeFilter {
+  datePreset: AdsDatePreset;
+  since?: string;
+  until?: string;
+}
+
 export interface AdCampaignView {
   id: string;
   name: string;
@@ -308,6 +322,10 @@ export interface AdCampaignView {
   spend: string | null;
   impressions: string | null;
   clicks: string | null;
+  reach?: string | null;
+  ctr?: string | null;
+  cpc?: string | null;
+  cpm?: string | null;
 }
 
 export interface AdCampaignOperationView {

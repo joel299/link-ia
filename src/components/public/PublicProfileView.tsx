@@ -165,17 +165,18 @@ export function PublicProfileView({
         </nav>
       </main>
 
+      <PublicSocialSection
+        items={profile.socialMediaItems ?? []}
+        instagramConnectedPendingSync={profile.instagramConnectedPendingSync}
+        isPreview={isPreview}
+      />
+
       <PublicCatalogCarousel
         slug={profile.slug}
         professionalName={profile.displayName || "Profissional"}
         items={profile.catalogItems ?? []}
         whatsappUrl={whatsappHref}
         internalBookingEnabled={showInternalBooking}
-        isPreview={isPreview}
-      />
-
-      <PublicSocialSection
-        items={profile.socialMediaItems ?? []}
         isPreview={isPreview}
       />
 

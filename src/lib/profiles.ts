@@ -604,9 +604,9 @@ export function getPublishedPublicProfileBySlug(
 
   const connectedInstagramRow = db
     .prepare(
-      "SELECT canonical_url FROM social_connections WHERE profile_id = ? AND provider = 'instagram' AND status = 'connected' LIMIT 1"
+      "SELECT canonical_url, last_synced_at FROM social_connections WHERE profile_id = ? AND provider = 'instagram' AND status = 'connected' LIMIT 1"
     )
-    .get(row.id) as { canonical_url: string | null } | undefined;
+    .get(row.id) as { canonical_url: string | null; last_synced_at: string | null } | undefined;
 
   const connectedTiktokRow = db
     .prepare(
@@ -655,6 +655,11 @@ export function getPublishedPublicProfileBySlug(
     instagramUrl: resolvedInstagramUrl,
     tiktokUrl: connectedTiktokRow?.canonical_url ?? null,
     socialMediaItems,
+    instagramConnectedPendingSync: Boolean(
+      connectedInstagramRow &&
+        !connectedInstagramRow.last_synced_at &&
+        socialMediaItems.length === 0
+    ),
     whatsappUrl,
     bookingUrl,
     bookingLabel: row.booking_label || "Agendar horário",

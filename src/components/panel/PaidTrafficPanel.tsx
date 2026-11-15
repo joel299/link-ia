@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import type {
   AdCampaignOperationView,
   AdCampaignView,
+  AdsDatePreset,
   AdsProvider,
   Profile,
   SocialAssetView,
@@ -48,8 +48,8 @@ interface TabState {
 const PROVIDER_TABS: { id: AdsProvider; label: string; subtitle: string }[] = [
   {
     id: "meta_ads",
-    label: "Facebook / Meta Ads",
-    subtitle: "Contas de anúncios, campanhas e criação pausada com revisão",
+    label: "Meta Ads",
+    subtitle: "Contas de anúncios, campanhas e indicadores por período",
   },
   {
     id: "tiktok_ads",
@@ -57,6 +57,23 @@ const PROVIDER_TABS: { id: AdsProvider; label: string; subtitle: string }[] = [
     subtitle: "Contas de anunciante (advertiser) e campanhas autorizadas",
   },
 ];
+
+function formatCampaignStatus(status: string): string {
+  switch (status.toUpperCase()) {
+    case "ACTIVE":
+      return "Ativa";
+    case "PAUSED":
+      return "Pausada";
+    case "ARCHIVED":
+      return "Encerrada";
+    case "IN_PROCESS":
+      return "Em análise";
+    case "WITH_ISSUES":
+      return "Com pendências";
+    default:
+      return status || "Sem status";
+  }
+}
 
 const STATUS_META: Record<
   SocialConnectionStatus,
@@ -76,17 +93,6 @@ const STATUS_META: Record<
 
 function createEmptyTabState(): TabState {
   return { loaded: false, loading: false, error: null, data: null };
-}
-
-function generateIdempotencyKey(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `op_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function getTodayIso(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function readInitialTrafficReturn(): {
@@ -140,13 +146,24 @@ function readInitialTrafficReturn(): {
 async function fetchAdsOverviewSnapshot(
   targetProfileId: string,
   provider: AdsProvider,
-  sync = false
+  sync = false,
+  dateRange?: { datePreset: AdsDatePreset; since?: string; until?: string }
 ): Promise<{
   error: string | null;
   data: AdsOverviewPayload | null;
 }> {
   try {
-    const query = sync ? "?sync=1" : "";
+    const params = new URLSearchParams();
+    if (sync) params.set("sync", "1");
+    if (dateRange) {
+      params.set("datePreset", dateRange.datePreset);
+      if (dateRange.datePreset === "custom") {
+        if (dateRange.since) params.set("since", dateRange.since);
+        if (dateRange.until) params.set("until", dateRange.until);
+      }
+    }
+    const qs = params.toString();
+    const query = qs ? `?${qs}` : "";
     const res = await fetch(
       `/api/profiles/${targetProfileId}/ads/${provider}${query}`,
       { credentials: "include" }
@@ -193,44 +210,37 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
-  // Ad account selection state
+  // Ad account selection & period filter state
   const [selectedAccountInput, setSelectedAccountInput] = useState("");
-
-  // Campaign draft form state
-  const [draftName, setDraftName] = useState("");
-  const [draftObjective, setDraftObjective] = useState("TRAFFIC");
-  const [draftBudgetAmount, setDraftBudgetAmount] = useState("50");
-  const [draftBudgetCurrency, setDraftBudgetCurrency] = useState("BRL");
-  const [draftBudgetType, setDraftBudgetType] = useState<"daily" | "lifetime">(
-    "daily"
-  );
-  const [draftStartDate, setDraftStartDate] = useState(getTodayIso);
-  const [draftEndDate, setDraftEndDate] = useState("");
-  const [draftTargetSummary, setDraftTargetSummary] = useState("");
-  const [draftHeadline, setDraftHeadline] = useState("");
-  const [draftDestinationUrl, setDraftDestinationUrl] = useState(
-    profile.slug ? `https://linkia.app/${profile.slug}` : ""
-  );
-  const [idempotencyKey, setIdempotencyKey] = useState(generateIdempotencyKey);
-  const [draftFieldErrors, setDraftFieldErrors] = useState<
-    Record<string, string>
-  >({});
-
-  // Explicit confirmation checkboxes per operation ID
-  const [createCheckboxes, setCreateCheckboxes] = useState<
-    Record<string, boolean>
-  >({});
-  const [activateCheckboxes, setActivateCheckboxes] = useState<
-    Record<string, boolean>
-  >({});
+  const [datePreset, setDatePreset] = useState<AdsDatePreset>("last_30d");
+  const [customSince, setCustomSince] = useState("");
+  const [customUntil, setCustomUntil] = useState("");
 
   const activeProfileRef = useRef(profile.id);
   useEffect(() => {
     activeProfileRef.current = profile.id;
   }, [profile.id]);
 
+  const dateRangeRef = useRef<{
+    datePreset: AdsDatePreset;
+    since?: string;
+    until?: string;
+  }>({ datePreset: "last_30d" });
+  useEffect(() => {
+    dateRangeRef.current = {
+      datePreset,
+      since: customSince || undefined,
+      until: customUntil || undefined,
+    };
+  }, [datePreset, customSince, customUntil]);
+
   const loadProvider = useCallback(
-    async (targetProfileId: string, provider: AdsProvider, sync = false) => {
+    async (
+      targetProfileId: string,
+      provider: AdsProvider,
+      sync = false,
+      overrideRange?: { datePreset: AdsDatePreset; since?: string; until?: string }
+    ) => {
       setTabs((prev) => ({
         ...prev,
         [provider]: { ...prev[provider], loading: true, error: null },
@@ -238,7 +248,8 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
       const snap = await fetchAdsOverviewSnapshot(
         targetProfileId,
         provider,
-        sync
+        sync,
+        overrideRange ?? dateRangeRef.current
       );
       if (activeProfileRef.current !== targetProfileId) return;
 
@@ -466,113 +477,6 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
     }
   }
 
-  async function handleCreateDraft(e: FormEvent) {
-    e.preventDefault();
-    setBusyAction("create-draft");
-    setNotice(null);
-    setDraftFieldErrors({});
-
-    const amount = Number(draftBudgetAmount);
-    try {
-      const res = await fetch(
-        `/api/profiles/${profile.id}/ads/${activeTab}/campaigns`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            name: draftName.trim(),
-            objective: draftObjective,
-            budgetAmount: Number.isFinite(amount) ? amount : 0,
-            budgetCurrency: draftBudgetCurrency,
-            budgetType: draftBudgetType,
-            startDate: draftStartDate,
-            endDate: draftEndDate.trim() || undefined,
-            targetSummary: draftTargetSummary.trim(),
-            creativeHeadline: draftHeadline.trim(),
-            destinationUrl: draftDestinationUrl.trim(),
-            idempotencyKey,
-          }),
-        }
-      );
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        if (data.errors && typeof data.errors === "object") {
-          setDraftFieldErrors(data.errors as Record<string, string>);
-        }
-        setNotice({
-          tone: "error",
-          message:
-            data.error || "Não foi possível salvar o rascunho da campanha.",
-        });
-        return;
-      }
-
-      setNotice({
-        tone: "success",
-        message:
-          "Rascunho salvo! Revise os valores abaixo e confirme explicitamente para criar a campanha PAUSADA.",
-      });
-      setDraftName("");
-      setDraftTargetSummary("");
-      setDraftHeadline("");
-      setIdempotencyKey(generateIdempotencyKey());
-      await loadProvider(profile.id, activeTab, false);
-    } catch {
-      setNotice({
-        tone: "error",
-        message: "Erro de conexão ao salvar rascunho.",
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleConfirmOperation(
-    operationId: string,
-    action: "create_paused" | "activate"
-  ) {
-    setBusyAction(`${action}:${operationId}`);
-    setNotice(null);
-    try {
-      const res = await fetch(
-        `/api/profiles/${profile.id}/ads/${activeTab}/campaigns/${operationId}/confirm`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ action, confirmed: true }),
-        }
-      );
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setNotice({
-          tone: "error",
-          message:
-            data.error || "Não foi possível confirmar a operação da campanha.",
-        });
-        await loadProvider(profile.id, activeTab, false);
-        return;
-      }
-
-      setNotice({
-        tone: "success",
-        message:
-          action === "create_paused"
-            ? "Campanha criada em estado PAUSADO na conta de anúncios."
-            : "Campanha ativada com sucesso.",
-      });
-      await loadProvider(profile.id, activeTab, true);
-    } catch {
-      setNotice({
-        tone: "error",
-        message: "Erro de conexão ao confirmar operação.",
-      });
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
   const currentTab = tabs[activeTab];
   const overview = currentTab.data;
   const isConnected = overview?.connection.status === "connected";
@@ -645,12 +549,13 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
                 <div>
                   <h2 className="section-title">
                     {activeTab === "meta_ads"
-                      ? "Conexão Facebook / Meta Ads"
+                      ? "Conexão Meta Ads"
                       : "Conexão TikTok Ads"}
                   </h2>
                   <p className="field-hint">
-                    Conexão exclusiva para anúncios, separada do perfil
-                    orgânico.
+                    {activeTab === "meta_ads"
+                      ? "Conexão exclusiva para anúncios no Meta Ads, separada do perfil orgânico e da conexão social do Facebook."
+                      : "Conexão exclusiva para anúncios, separada do perfil orgânico."}
                   </p>
                 </div>
                 <span
@@ -723,33 +628,24 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
               </div>
 
               <div className="channel-actions">
-                {activeTab === "meta_ads" ? (
-                  <Link
-                    href="/painel#canais-conectados"
-                    className={
-                      isConnected ? "btn btn-secondary" : "btn btn-primary"
-                    }
-                  >
-                    {isConnected
-                      ? "Gerenciar conexão em Canais conectados"
-                      : "Conectar Facebook em Canais conectados"}
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={
-                      busyAction === "connect" || !overview.config.configReady
-                    }
-                    onClick={() => void handleConnect(activeTab)}
-                  >
-                    {busyAction === "connect"
-                      ? "Redirecionando..."
-                      : isConnected
-                        ? "Reconectar conta"
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={
+                    busyAction === "connect" || !overview.config.configReady
+                  }
+                  onClick={() => void handleConnect(activeTab)}
+                >
+                  {busyAction === "connect"
+                    ? "Redirecionando..."
+                    : isConnected
+                      ? activeTab === "meta_ads"
+                        ? "Reconectar Meta Ads"
+                        : "Reconectar conta"
+                      : activeTab === "meta_ads"
+                        ? "Conectar Meta Ads"
                         : "Conectar conta"}
-                  </button>
-                )}
+                </button>
 
                 {isConnected ? (
                   <button
@@ -767,8 +663,7 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
                   </button>
                 ) : null}
 
-                {activeTab !== "meta_ads" &&
-                overview.connection.status !== "disconnected" &&
+                {overview.connection.status !== "disconnected" &&
                 overview.connection.status !== "pending_config" ? (
                   confirmDisconnect ? (
                     <div className="channel-confirm-box">
@@ -859,7 +754,75 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
           {/* 2. Campaigns & Metrics */}
           <GlassSurface intensity="subtle" className="editor-section">
             <div className="editor-section-inner">
-              <h2 className="section-title">Campanhas e métricas</h2>
+              <div className="traffic-header-row">
+                <h2 className="section-title">Campanhas e métricas</h2>
+                {isConnected && hasSelectedAccount ? (
+                  <div
+                    className="traffic-account-row"
+                    style={{ gap: "8px", flexWrap: "wrap" }}
+                  >
+                    <select
+                      aria-label="Período das métricas"
+                      className="input"
+                      style={{ width: "auto", minWidth: "160px" }}
+                      value={datePreset}
+                      onChange={(e) => {
+                        const next = e.target.value as AdsDatePreset;
+                        setDatePreset(next);
+                        if (next !== "custom") {
+                          void loadProvider(profile.id, activeTab, true, {
+                            datePreset: next,
+                          });
+                        }
+                      }}
+                    >
+                      <option value="last_7d">Últimos 7 dias</option>
+                      <option value="last_30d">Últimos 30 dias</option>
+                      <option value="this_month">Este mês</option>
+                      <option value="last_month">Mês passado</option>
+                      <option value="custom">Personalizado</option>
+                    </select>
+                    {datePreset === "custom" ? (
+                      <>
+                        <input
+                          type="date"
+                          aria-label="Data inicial"
+                          className="input"
+                          style={{ width: "auto" }}
+                          value={customSince}
+                          onChange={(e) => setCustomSince(e.target.value)}
+                        />
+                        <input
+                          type="date"
+                          aria-label="Data final"
+                          className="input"
+                          style={{ width: "auto" }}
+                          value={customUntil}
+                          onChange={(e) => setCustomUntil(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={
+                            busyAction === "sync" || !customSince || !customUntil
+                          }
+                          onClick={() => {
+                            setBusyAction("sync");
+                            void loadProvider(profile.id, activeTab, true, {
+                              datePreset: "custom",
+                              since: customSince,
+                              until: customUntil,
+                            }).finally(() => setBusyAction(null));
+                          }}
+                        >
+                          Aplicar período
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
               {overview.campaignsError ? (
                 <div className="alert-banner alert-warning">
                   {overview.campaignsError}
@@ -873,7 +836,7 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
                 </p>
               ) : overview.campaigns.length === 0 ? (
                 <p className="field-hint">
-                  Nenhuma campanha encontrada para a conta selecionada.
+                  Nenhuma campanha com dados no período selecionado.
                 </p>
               ) : (
                 <div className="campaigns-list">
@@ -886,436 +849,23 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
                             ID: {camp.id} · Objetivo: {camp.objective}
                           </span>
                         </div>
-                        <span className="badge badge-draft">{camp.status}</span>
+                        <span className="badge badge-draft">
+                          {formatCampaignStatus(camp.status)}
+                        </span>
                       </div>
                       <div className="campaign-metrics-row">
                         <span>
                           Orçamento diário: {camp.dailyBudget || "—"}
                         </span>
-                        <span>Gasto: {camp.spend || "—"}</span>
+                        <span>Gasto: {camp.spend || "Sem dados no período"}</span>
                         <span>Impressões: {camp.impressions || "—"}</span>
                         <span>Cliques: {camp.clicks || "—"}</span>
+                        {camp.reach ? <span>Alcance: {camp.reach}</span> : null}
+                        {camp.ctr ? <span>CTR: {camp.ctr}%</span> : null}
+                        {camp.cpc ? <span>CPC: {camp.cpc}</span> : null}
                       </div>
                     </div>
                   ))}
-                </div>
-              )}
-            </div>
-          </GlassSurface>
-
-          {/* 3. Campaign Draft Form */}
-          <GlassSurface intensity="subtle" className="editor-section">
-            <div className="editor-section-inner">
-              <div>
-                <h2 className="section-title">Preparar rascunho de campanha</h2>
-                <p className="field-hint">
-                  Salvar o rascunho não cria anúncio nem gera cobrança. A
-                  criação ocorre apenas após revisão final e confirmação
-                  explícita, sempre em estado PAUSADO.
-                </p>
-              </div>
-
-              {!isConnected || !hasSelectedAccount ? (
-                <p className="field-hint">
-                  Conecte sua conta e selecione uma conta de anúncios antes de
-                  preparar um rascunho.
-                </p>
-              ) : (
-                <form onSubmit={handleCreateDraft} className="traffic-draft-form">
-                  <div className="calendar-settings-grid">
-                    <div className="field-group">
-                      <label htmlFor="campName" className="field-label">
-                        Nome da campanha
-                      </label>
-                      <input
-                        id="campName"
-                        type="text"
-                        className="input"
-                        required
-                        value={draftName}
-                        onChange={(e) => setDraftName(e.target.value)}
-                        placeholder="Ex.: Agenda Novembro - LinkIA"
-                      />
-                      {draftFieldErrors.name ? (
-                        <span className="field-error">
-                          {draftFieldErrors.name}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="field-group">
-                      <label htmlFor="campObjective" className="field-label">
-                        Objetivo
-                      </label>
-                      <select
-                        id="campObjective"
-                        className="input"
-                        value={draftObjective}
-                        onChange={(e) => setDraftObjective(e.target.value)}
-                      >
-                        <option value="TRAFFIC">Tráfego (visitas ao link)</option>
-                        <option value="LEADS">Cadastros / Leads</option>
-                        <option value="ENGAGEMENT">Engajamento</option>
-                        <option value="AWARENESS">Reconhecimento</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="calendar-settings-grid">
-                    <div className="field-group">
-                      <label htmlFor="campBudget" className="field-label">
-                        Valor do orçamento
-                      </label>
-                      <input
-                        id="campBudget"
-                        type="number"
-                        min="1"
-                        step="0.01"
-                        className="input"
-                        required
-                        value={draftBudgetAmount}
-                        onChange={(e) => setDraftBudgetAmount(e.target.value)}
-                      />
-                      {draftFieldErrors.budgetAmount ? (
-                        <span className="field-error">
-                          {draftFieldErrors.budgetAmount}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="field-group">
-                      <label htmlFor="campCurrency" className="field-label">
-                        Moeda
-                      </label>
-                      <select
-                        id="campCurrency"
-                        className="input"
-                        value={draftBudgetCurrency}
-                        onChange={(e) => setDraftBudgetCurrency(e.target.value)}
-                      >
-                        <option value="BRL">BRL (R$)</option>
-                        <option value="USD">USD ($)</option>
-                      </select>
-                    </div>
-
-                    <div className="field-group">
-                      <label htmlFor="campBudgetType" className="field-label">
-                        Tipo de orçamento
-                      </label>
-                      <select
-                        id="campBudgetType"
-                        className="input"
-                        value={draftBudgetType}
-                        onChange={(e) =>
-                          setDraftBudgetType(
-                            e.target.value === "lifetime" ? "lifetime" : "daily"
-                          )
-                        }
-                      >
-                        <option value="daily">Diário</option>
-                        <option value="lifetime">Total (vitalício)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="calendar-settings-grid">
-                    <div className="field-group">
-                      <label htmlFor="campStartDate" className="field-label">
-                        Data de início
-                      </label>
-                      <input
-                        id="campStartDate"
-                        type="date"
-                        className="input"
-                        required
-                        value={draftStartDate}
-                        onChange={(e) => setDraftStartDate(e.target.value)}
-                      />
-                      {draftFieldErrors.startDate ? (
-                        <span className="field-error">
-                          {draftFieldErrors.startDate}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="field-group">
-                      <label htmlFor="campEndDate" className="field-label">
-                        Data de término (opcional)
-                      </label>
-                      <input
-                        id="campEndDate"
-                        type="date"
-                        className="input"
-                        value={draftEndDate}
-                        onChange={(e) => setDraftEndDate(e.target.value)}
-                      />
-                      {draftFieldErrors.endDate ? (
-                        <span className="field-error">
-                          {draftFieldErrors.endDate}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="field-group">
-                    <label htmlFor="campTarget" className="field-label">
-                      Público / segmentação
-                    </label>
-                    <input
-                      id="campTarget"
-                      type="text"
-                      className="input"
-                      required
-                      value={draftTargetSummary}
-                      onChange={(e) => setDraftTargetSummary(e.target.value)}
-                      placeholder="Ex.: São Paulo, 25–45 anos, interesses em bem-estar"
-                    />
-                    {draftFieldErrors.targetSummary ? (
-                      <span className="field-error">
-                        {draftFieldErrors.targetSummary}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="calendar-settings-grid">
-                    <div className="field-group">
-                      <label htmlFor="campHeadline" className="field-label">
-                        Título do criativo
-                      </label>
-                      <input
-                        id="campHeadline"
-                        type="text"
-                        className="input"
-                        required
-                        value={draftHeadline}
-                        onChange={(e) => setDraftHeadline(e.target.value)}
-                        placeholder="Ex.: Agende sua consulta online"
-                      />
-                      {draftFieldErrors.creativeHeadline ? (
-                        <span className="field-error">
-                          {draftFieldErrors.creativeHeadline}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="field-group">
-                      <label htmlFor="campUrl" className="field-label">
-                        URL de destino (HTTPS)
-                      </label>
-                      <input
-                        id="campUrl"
-                        type="url"
-                        className="input"
-                        required
-                        value={draftDestinationUrl}
-                        onChange={(e) => setDraftDestinationUrl(e.target.value)}
-                        placeholder="https://..."
-                      />
-                      {draftFieldErrors.destinationUrl ? (
-                        <span className="field-error">
-                          {draftFieldErrors.destinationUrl}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div>
-                    <button
-                      type="submit"
-                      className="btn btn-primary"
-                      disabled={busyAction === "create-draft"}
-                    >
-                      {busyAction === "create-draft"
-                        ? "Salvando rascunho..."
-                        : "Salvar rascunho para revisão"}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </GlassSurface>
-
-          {/* 4. Final Review & Explicit Confirmation */}
-          <GlassSurface intensity="subtle" className="editor-section">
-            <div className="editor-section-inner">
-              <h2 className="section-title">
-                Revisão final e confirmação explícita
-              </h2>
-
-              {overview.operations.length === 0 ? (
-                <p className="field-hint">
-                  Nenhum rascunho ou operação registrada ainda.
-                </p>
-              ) : (
-                <div className="operations-list">
-                  {overview.operations.map((op) => {
-                    const createChecked = Boolean(createCheckboxes[op.id]);
-                    const activateChecked = Boolean(activateCheckboxes[op.id]);
-                    return (
-                      <div key={op.id} className="operation-review-box">
-                        <div className="campaign-card-top">
-                          <div>
-                            <strong className="campaign-name">
-                              {op.params.name}
-                            </strong>
-                            <span className="field-hint">
-                              Conta: {op.adAccountId} · Objetivo:{" "}
-                              {op.params.objective}
-                            </span>
-                          </div>
-                          <span
-                            className={`badge ${
-                              op.status === "active"
-                                ? "badge-published"
-                                : op.status === "failed"
-                                  ? "badge-error"
-                                  : "badge-draft"
-                            }`}
-                          >
-                            {op.status === "draft"
-                              ? "Rascunho (aguardando confirmação)"
-                              : op.status === "created_paused"
-                                ? "Criada PAUSADA"
-                                : op.status === "active"
-                                  ? "Ativa"
-                                  : "Falhou"}
-                          </span>
-                        </div>
-
-                        <div className="channel-kv-grid">
-                          <div>
-                            <span className="channel-kv-label">
-                              Orçamento e moeda
-                            </span>
-                            <span className="channel-kv-value">
-                              {op.params.budgetCurrency}{" "}
-                              {op.params.budgetAmount.toFixed(2)} (
-                              {op.params.budgetType === "daily"
-                                ? "Diário"
-                                : "Vitalício"}
-                              )
-                            </span>
-                          </div>
-                          <div>
-                            <span className="channel-kv-label">Duração</span>
-                            <span className="channel-kv-value">
-                              {op.params.startDate}
-                              {op.params.endDate
-                                ? ` até ${op.params.endDate}`
-                                : " (sem data de término)"}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="channel-kv-label">Resumo</span>
-                            <span className="channel-kv-value">
-                              {op.estimatedBudgetSummary}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="channel-kv-label">Destino</span>
-                            <span className="channel-kv-value">
-                              {op.params.destinationUrl}
-                            </span>
-                          </div>
-                        </div>
-
-                        <p className="field-hint">
-                          Público: {op.params.targetSummary} · Título:{" "}
-                          {op.params.creativeHeadline}
-                        </p>
-
-                        {op.externalCampaignId ? (
-                          <p className="field-hint">
-                            ID externo da campanha:{" "}
-                            <code>{op.externalCampaignId}</code>
-                          </p>
-                        ) : null}
-
-                        {op.lastError ? (
-                          <div className="alert-banner alert-error">
-                            {op.lastError}
-                          </div>
-                        ) : null}
-
-                        {op.status === "draft" ? (
-                          <div className="operation-confirm-block">
-                            <label className="checkbox-inline">
-                              <input
-                                type="checkbox"
-                                checked={createChecked}
-                                onChange={(e) =>
-                                  setCreateCheckboxes((prev) => ({
-                                    ...prev,
-                                    [op.id]: e.target.checked,
-                                  }))
-                                }
-                              />
-                              <span>
-                                Confirmo os valores, moeda, duração e conta
-                                acima para criar esta campanha em estado
-                                PAUSADO.
-                              </span>
-                            </label>
-                            <button
-                              type="button"
-                              className="btn btn-primary"
-                              disabled={
-                                !createChecked ||
-                                busyAction === `create_paused:${op.id}`
-                              }
-                              onClick={() =>
-                                void handleConfirmOperation(
-                                  op.id,
-                                  "create_paused"
-                                )
-                              }
-                            >
-                              {busyAction === `create_paused:${op.id}`
-                                ? "Criando campanha..."
-                                : "Criar campanha PAUSADA"}
-                            </button>
-                          </div>
-                        ) : null}
-
-                        {op.status === "created_paused" ? (
-                          <div className="operation-confirm-block">
-                            <label className="checkbox-inline">
-                              <input
-                                type="checkbox"
-                                checked={activateChecked}
-                                onChange={(e) =>
-                                  setActivateCheckboxes((prev) => ({
-                                    ...prev,
-                                    [op.id]: e.target.checked,
-                                  }))
-                                }
-                              />
-                              <span>
-                                Confirmo que desejo ATIVAR esta campanha e
-                                autorizar a veiculação com o orçamento
-                                configurado.
-                              </span>
-                            </label>
-                            <button
-                              type="button"
-                              className="btn btn-primary"
-                              disabled={
-                                !activateChecked ||
-                                busyAction === `activate:${op.id}`
-                              }
-                              onClick={() =>
-                                void handleConfirmOperation(op.id, "activate")
-                              }
-                            >
-                              {busyAction === `activate:${op.id}`
-                                ? "Ativando..."
-                                : "Ativar campanha"}
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
                 </div>
               )}
             </div>

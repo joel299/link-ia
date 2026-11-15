@@ -4,6 +4,7 @@ import {
   getAdsOverviewForOwner,
   isAdsProvider,
   selectAdAccountForOwner,
+  validateAdsDateRange,
 } from "@/lib/ads-service";
 import { getSessionUser } from "@/lib/auth";
 
@@ -28,11 +29,17 @@ export async function GET(
   const sync = url.searchParams.get("sync") === "1";
 
   try {
+    const dateRange = validateAdsDateRange({
+      datePreset: url.searchParams.get("datePreset"),
+      since: url.searchParams.get("since"),
+      until: url.searchParams.get("until"),
+    });
     const overview = await getAdsOverviewForOwner({
       profileId: id,
       ownerId: user.id,
       provider,
       sync,
+      dateRange,
     });
     return NextResponse.json(overview, {
       headers: { "Cache-Control": "no-store" },

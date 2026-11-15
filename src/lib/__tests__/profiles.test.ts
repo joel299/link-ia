@@ -111,5 +111,14 @@ describe("profiles & auth persistence (SQLite)", () => {
     const list = listProfilesByOwner(ownerId);
     expect(list.length).toBe(1);
     expect(list[0].id).toBe(created.profile!.id);
+
+    // Clearing WhatsApp number removes wa.me link from public profile
+    const cleared = updateProfile(created.profile!.id, ownerId, {
+      whatsappNumber: "",
+      whatsappEnabled: false,
+    });
+    expect(cleared.status).toBe(200);
+    const pubAfterClear = getPublishedPublicProfileBySlug("carlos-studio");
+    expect(pubAfterClear?.whatsappUrl).toBeNull();
   });
 });

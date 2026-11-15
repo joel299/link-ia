@@ -3,6 +3,7 @@ import { isSafeHttpUrl } from "./profile-visuals";
 
 interface PublicSocialSectionProps {
   items: PublicSocialMediaItem[];
+  instagramConnectedPendingSync?: boolean;
   isPreview?: boolean;
 }
 
@@ -10,7 +11,7 @@ function getMediaTypeLabel(mediaType: string): string {
   switch (mediaType.toUpperCase()) {
     case "REELS":
     case "REEL":
-      return "Reels";
+      return "Reel";
     case "VIDEO":
       return "Vídeo";
     case "CAROUSEL_ALBUM":
@@ -22,6 +23,7 @@ function getMediaTypeLabel(mediaType: string): string {
 
 export function PublicSocialSection({
   items,
+  instagramConnectedPendingSync = false,
   isPreview = false,
 }: PublicSocialSectionProps) {
   const safeItems = items
@@ -29,7 +31,24 @@ export function PublicSocialSection({
     .slice(0, 3);
 
   if (safeItems.length === 0) {
-    return null;
+    if (!instagramConnectedPendingSync) {
+      return null;
+    }
+
+    return (
+      <section
+        className="public-social-section"
+        aria-label="Publicações recentes do Instagram"
+      >
+        <div className="public-social-header">
+          <h2 className="public-social-title">Destaques do Instagram</h2>
+        </div>
+        <p className="public-social-pending">
+          Instagram conectado. Os destaques aparecerão aqui assim que a primeira
+          sincronização for concluída.
+        </p>
+      </section>
+    );
   }
 
   return (
@@ -77,17 +96,13 @@ export function PublicSocialSection({
               ) : null}
               {typeof item.likeCount === "number" ||
               typeof item.commentCount === "number" ? (
-                <p
-                  className="public-social-caption"
-                  style={{ opacity: 0.85, fontSize: "0.78rem" }}
-                >
-                  {typeof item.likeCount === "number"
-                    ? `${item.likeCount.toLocaleString("pt-BR")} curtidas`
-                    : "Curtidas indisponíveis"}
-                  {" · "}
-                  {typeof item.commentCount === "number"
-                    ? `${item.commentCount.toLocaleString("pt-BR")} comentários`
-                    : "Comentários indisponíveis"}
+                <p className="public-social-stats">
+                  {typeof item.likeCount === "number" &&
+                  typeof item.commentCount === "number"
+                    ? `${item.likeCount.toLocaleString("pt-BR")} curtidas · ${item.commentCount.toLocaleString("pt-BR")} comentários`
+                    : typeof item.likeCount === "number"
+                      ? `${item.likeCount.toLocaleString("pt-BR")} curtidas`
+                      : `${item.commentCount!.toLocaleString("pt-BR")} comentários`}
                 </p>
               ) : null}
             </a>

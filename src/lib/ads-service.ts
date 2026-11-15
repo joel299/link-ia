@@ -8,6 +8,8 @@ import { getProfileByIdForOwner } from "./profiles";
 import type {
   AdCampaignOperationView,
   AdCampaignView,
+  AdsDatePreset,
+  AdsDateRangeFilter,
   AdsProvider,
   SocialAssetView,
   SocialConnectionStatus,
@@ -27,19 +29,115 @@ export class AdsServiceError extends Error {
   }
 }
 
-function sanitizeAdsErrorMessage(
+const VALID_ADS_DATE_PRESETS: ReadonlySet<AdsDatePreset> = new Set([
+  "last_7d",
+  "last_30d",
+  "this_month",
+  "last_month",
+  "custom",
+]);
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function validateAdsDateRange(input?: {
+  datePreset?: string | null;
+  since?: string | null;
+  until?: string | null;
+}): AdsDateRangeFilter {
+  const rawPreset = (input?.datePreset ?? "last_30d").trim() as AdsDatePreset;
+  const datePreset: AdsDatePreset = VALID_ADS_DATE_PRESETS.has(rawPreset)
+    ? rawPreset
+    : "last_30d";
+
+  if (datePreset !== "custom") {
+    return { datePreset };
+  }
+
+  const since = (input?.since ?? "").trim();
+  const until = (input?.until ?? "").trim();
+  if (!ISO_DATE_RE.test(since) || !ISO_DATE_RE.test(until)) {
+    throw new AdsServiceError(
+      "Informe as datas inicial e final no formato YYYY-MM-DD para o período personalizado.",
+      400
+    );
+  }
+  if (since > until) {
+    throw new AdsServiceError(
+      "A data inicial não pode ser maior que a data final.",
+      400
+    );
+  }
+  return { datePreset: "custom", since, until };
+}
+
+function extractDeepAdsErrorText(err: unknown): string {
+  const parts: string[] = [];
+  const seen = new Set<unknown>();
+
+  function visit(val: unknown, depth: number) {
+    if (!val || depth > 4) return;
+    if (typeof val === "string") {
+      parts.push(val);
+      return;
+    }
+    if (typeof val !== "object" || seen.has(val)) return;
+    seen.add(val);
+
+    const rec = val as Record<string, unknown>;
+    for (const key of [
+      "message",
+      "slug",
+      "code",
+      "status",
+      "error",
+      "details",
+      "cause",
+      "requestId",
+      "request_id",
+    ]) {
+      if (key in rec && rec[key] !== undefined && rec[key] !== null) {
+        if (typeof rec[key] === "string" || typeof rec[key] === "number") {
+          parts.push(`${key}=${String(rec[key])}`);
+        } else {
+          visit(rec[key], depth + 1);
+        }
+      }
+    }
+  }
+
+  visit(err, 0);
+  if (parts.length === 0) {
+    parts.push(String(err ?? ""));
+  }
+  return parts.join(" | ").slice(0, 800);
+}
+
+export function sanitizeAdsErrorMessage(
   err: unknown,
   context: string
 ): { message: string; status: number } {
-  const raw = err instanceof Error ? err.message : String(err ?? "");
+  const raw = extractDeepAdsErrorText(err);
   const correlationId = crypto.randomUUID().slice(0, 12);
   console.error("[Ads]", {
     correlationId,
     context,
-    error: raw.slice(0, 400),
+    error: raw,
   });
 
   const lower = raw.toLowerCase();
+  if (
+    lower.includes("connectedaccount_toolkitmismatch") ||
+    lower.includes("code=633") ||
+    lower.includes("belongs to facebook") ||
+    lower.includes("can not be used for metaads") ||
+    lower.includes("cannot be used for metaads")
+  ) {
+    return {
+      message:
+        "A conexão atual não possui autorização para o Meta Ads. Reconecte sua conta na aba Tráfego pago.",
+      status: 409,
+    };
+  }
   if (
     lower.includes("expired") ||
     lower.includes("expirad") ||
@@ -52,13 +150,13 @@ function sanitizeAdsErrorMessage(
   ) {
     return {
       message:
-        "A conexão expirou ou falta autorização. Conecte novamente em Canais conectados.",
+        "A conexão expirou ou falta autorização. Reconecte sua conta na aba Tráfego pago.",
       status: 401,
     };
   }
   if (
     lower.includes("no ad account") ||
-    lower.includes("ad account") && lower.includes("not found")
+    (lower.includes("ad account") && lower.includes("not found"))
   ) {
     return {
       message: "Não encontramos uma conta de anúncios disponível para este acesso.",
@@ -119,6 +217,7 @@ export interface AdsToolAdapter {
     composioUserId: string;
     connectedAccountId: string;
     adAccountId: string;
+    dateRange?: AdsDateRangeFilter;
   }): Promise<AdCampaignView[]>;
 
   createPausedCampaign(params: {
@@ -343,6 +442,7 @@ export const defaultAdsToolAdapter: AdsToolAdapter = {
     composioUserId,
     connectedAccountId,
     adAccountId,
+    dateRange,
   }) {
     const client = getComposioClient();
 
@@ -353,6 +453,13 @@ export const defaultAdsToolAdapter: AdsToolAdapter = {
         dangerouslySkipVersionCheck: true,
         arguments: {
           ad_account_id: adAccountId,
+          effective_status: [
+            "ACTIVE",
+            "PAUSED",
+            "ARCHIVED",
+            "IN_PROCESS",
+            "WITH_ISSUES",
+          ],
           limit: 50,
         },
       });
@@ -364,15 +471,42 @@ export const defaultAdsToolAdapter: AdsToolAdapter = {
         );
       }
 
+      const insightsArgs: Record<string, unknown> = {
+        object_id: adAccountId,
+        level: "campaign",
+        fields: [
+          "impressions",
+          "clicks",
+          "spend",
+          "reach",
+          "cpc",
+          "cpm",
+          "ctr",
+          "campaign_name",
+          "campaign_id",
+          "objective",
+          "date_start",
+          "date_stop",
+        ],
+      };
+      if (
+        dateRange?.datePreset === "custom" &&
+        dateRange.since &&
+        dateRange.until
+      ) {
+        insightsArgs.time_range = {
+          since: dateRange.since,
+          until: dateRange.until,
+        };
+      } else {
+        insightsArgs.date_preset = dateRange?.datePreset ?? "last_30d";
+      }
+
       const insightsRes = await client.tools.execute("METAADS_GET_INSIGHTS", {
         userId: composioUserId,
         connectedAccountId,
         dangerouslySkipVersionCheck: true,
-        arguments: {
-          object_id: adAccountId,
-          level: "campaign",
-          date_preset: "last_30d",
-        },
+        arguments: insightsArgs,
       });
 
       const metricsByCampaign = new Map<string, Record<string, unknown>>();
@@ -402,6 +536,10 @@ export const defaultAdsToolAdapter: AdsToolAdapter = {
             spend: asString(insight?.spend),
             impressions: asString(insight?.impressions),
             clicks: asString(insight?.clicks),
+            reach: asString(insight?.reach),
+            ctr: asString(insight?.ctr),
+            cpc: asString(insight?.cpc),
+            cpm: asString(insight?.cpm),
           };
         })
         .filter((c): c is AdCampaignView => c !== null);
@@ -979,6 +1117,7 @@ export async function listCampaignsForOwner(
     profileId: string;
     ownerId: string;
     provider: AdsProvider;
+    dateRange?: AdsDateRangeFilter;
   },
   adapter: AdsToolAdapter = defaultAdsToolAdapter
 ): Promise<AdCampaignView[]> {
@@ -996,6 +1135,7 @@ export async function listCampaignsForOwner(
       composioUserId: connection.composio_user_id,
       connectedAccountId: connection.composio_connected_account_id!,
       adAccountId,
+      dateRange: params.dateRange,
     });
 
     const now = new Date().toISOString();
@@ -1026,10 +1166,8 @@ export async function listCampaignsForOwner(
       },
     });
     if (err instanceof AdsServiceError) throw err;
-    throw new AdsServiceError(
-      err instanceof Error ? err.message : "Falha ao consultar campanhas.",
-      502
-    );
+    const mapped = sanitizeAdsErrorMessage(err, `${params.provider}.list_campaigns`);
+    throw new AdsServiceError(mapped.message, mapped.status);
   }
 }
 
@@ -1039,6 +1177,7 @@ export async function getAdsOverviewForOwner(
     ownerId: string;
     provider: AdsProvider;
     sync?: boolean;
+    dateRange?: AdsDateRangeFilter;
   },
   adapter: AdsToolAdapter = defaultAdsToolAdapter
 ): Promise<{
@@ -1121,6 +1260,7 @@ export async function getAdsOverviewForOwner(
             profileId: params.profileId,
             ownerId: params.ownerId,
             provider: params.provider,
+            dateRange: params.dateRange,
           },
           adapter
         );

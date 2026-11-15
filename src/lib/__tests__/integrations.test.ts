@@ -49,7 +49,9 @@ import {
   createCampaignDraftForOwner,
   getAdsOverviewForOwner,
   listAdAccountsForOwner,
+  sanitizeAdsErrorMessage,
   selectAdAccountForOwner,
+  validateAdsDateRange,
 } from "../ads-service";
 import { cleanupStaleIntegrationStates } from "../integration-cleanup";
 import {
@@ -1619,6 +1621,121 @@ describe("Session 2 Consolidation: Idempotent Cleanup & Ads Error Sanitization",
     expect(overview.campaignsError).not.toContain("METAADS_GET_AD_ACCOUNTS");
     expect(overview.campaignsError).not.toContain("403");
     expect(overview.campaignsError).toContain("autorização");
+  });
+
+  it("maps ConnectedAccount_ToolkitMismatch (code 633) to a clear Meta Ads reconnect message", () => {
+    const mismatchErr = Object.assign(
+      new Error("Error executing the tool METAADS_GET_AD_ACCOUNTS"),
+      {
+        cause: {
+          details: {
+            code: 633,
+            slug: "ConnectedAccount_ToolkitMismatch",
+            message:
+              "The connected account ca_123 can not be used for metaads because it belongs to facebook.",
+          },
+        },
+      }
+    );
+
+    const mapped = sanitizeAdsErrorMessage(mismatchErr, "meta_ads.list_accounts");
+    expect(mapped.status).toBe(409);
+    expect(mapped.message).toContain("Meta Ads");
+    expect(mapped.message).not.toContain("METAADS_GET_AD_ACCOUNTS");
+    expect(mapped.message).not.toContain("633");
+  });
+
+  it("validates ads datePreset and custom date ranges cleanly", async () => {
+    expect(validateAdsDateRange()).toEqual({ datePreset: "last_30d" });
+    expect(validateAdsDateRange({ datePreset: "last_7d" })).toEqual({
+      datePreset: "last_7d",
+    });
+    expect(
+      validateAdsDateRange({
+        datePreset: "custom",
+        since: "2026-11-01",
+        until: "2026-11-15",
+      })
+    ).toEqual({
+      datePreset: "custom",
+      since: "2026-11-01",
+      until: "2026-11-15",
+    });
+
+    expect(() =>
+      validateAdsDateRange({ datePreset: "custom", since: "2026-11-15", until: "2026-11-01" })
+    ).toThrow(AdsServiceError);
+
+    expect(() =>
+      validateAdsDateRange({ datePreset: "custom", since: "invalid", until: "2026-11-15" })
+    ).toThrow(AdsServiceError);
+  });
+
+  it("passes dateRange to listCampaignsAndMetrics in getAdsOverviewForOwner", async () => {
+    const { userA, profileA } = createTwoTenants();
+    const db = getDb();
+    const now = new Date().toISOString();
+    const connId = crypto.randomUUID();
+    db.prepare(
+      `INSERT INTO social_connections (
+        id, profile_id, owner_id, provider, toolkit_slug, composio_user_id,
+        composio_connected_account_id, status, account_label, selected_asset_id, selected_asset_name,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, 'meta_ads', 'METAADS', ?, 'ca_meta_2', 'connected', 'Meta Ads', 'act_999', 'Conta Principal', ?, ?)`
+    ).run(connId, profileA.id, userA.id, `linkia_u_${userA.id}_p_${profileA.id}`, now, now);
+
+    db.prepare(
+      `INSERT INTO social_assets (
+        id, connection_id, profile_id, provider, asset_type, external_id, display_name, is_selected, updated_at
+      ) VALUES (?, ?, ?, 'meta_ads', 'meta_ad_account', 'act_999', 'Conta Principal', 1, ?)`
+    ).run(crypto.randomUUID(), connId, profileA.id, now);
+
+    let capturedDateRange: unknown = null;
+    const adapter: AdsToolAdapter = {
+      async listAdAccounts() {
+        return [{ externalId: "act_999", displayName: "Conta Principal" }];
+      },
+      async listCampaignsAndMetrics(params) {
+        capturedDateRange = params.dateRange;
+        return [
+          {
+            id: "camp_1",
+            name: "Campanha Teste",
+            status: "ACTIVE",
+            objective: "OUTCOME_TRAFFIC",
+            dailyBudget: "5000",
+            spend: "120.50",
+            impressions: "3400",
+            clicks: "89",
+            reach: "2900",
+            ctr: "2.62",
+            cpc: "1.35",
+          },
+        ];
+      },
+      async createPausedCampaign() {
+        return { externalCampaignId: "c1" };
+      },
+      async activateCampaign() {},
+    };
+
+    const overview = await getAdsOverviewForOwner(
+      {
+        profileId: profileA.id,
+        ownerId: userA.id,
+        provider: "meta_ads",
+        dateRange: { datePreset: "custom", since: "2026-11-01", until: "2026-11-10" },
+      },
+      adapter
+    );
+
+    expect(capturedDateRange).toEqual({
+      datePreset: "custom",
+      since: "2026-11-01",
+      until: "2026-11-10",
+    });
+    expect(overview.campaigns).toHaveLength(1);
+    expect(overview.campaigns[0].reach).toBe("2900");
   });
 });
 

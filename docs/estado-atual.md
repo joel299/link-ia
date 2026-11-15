@@ -1,7 +1,7 @@
 # Estado atual — LinkIA
 
-**Última atualização:** 14/11/2026  
-**Status:** MVP + Google Calendar (Composio) + Agendamento público + Catálogo/Carrossel + Integrações Sociais (Instagram/TikTok orgânicos), WhatsApp Business Coexistência (Zernio) e Tráfego Pago (`/painel/trafego`, Meta Ads / TikTok Ads) implementados e validados localmente em `http://localhost:3000`. Pendente configuração manual de Auth Configs/Zernio pelo administrador LinkIA, inspeção visual interativa no navegador (`BLOQ-001`), teste em Docker Linux e descoberta da plataforma Qualify.
+**Última atualização:** 15/11/2026  
+**Status:** MVP + Google Calendar (Composio) + Agendamento público + Catálogo/Carrossel + Destaques do Instagram acima do catálogo + Canais conectados consolidados + Tráfego Pago (`/painel/trafego`, Meta Ads / TikTok Ads com seletor de período e tratamento de `ConnectedAccount_ToolkitMismatch`) validados localmente em `http://localhost:3000`. Pendente atualização externa de `COMPOSIO_META_ADS_AUTH_CONFIG_ID` para uma auth config do toolkit `metaads` (hoje aponta para `facebook`), teste em Docker Linux e descoberta da plataforma Qualify.
 
 ## Retomada rápida
 
