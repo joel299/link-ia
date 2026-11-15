@@ -77,7 +77,7 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
   - **Configuração manual pendente do administrador:** definir `ZERNIO_API_KEY`, `ZERNIO_WEBHOOK_SECRET`, `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID`, `COMPOSIO_TIKTOK_AUTH_CONFIG_ID`, `META_ADS_CLIENT_ID`, `META_ADS_CLIENT_SECRET`, `COMPOSIO_META_ADS_AUTH_CONFIG_ID` e `COMPOSIO_TIKTOK_ADS_AUTH_CONFIG_ID` no servidor.
   - **Configuração Segura Meta Ads (`15/11/2026`):**
     - `.env.example`, `compose.yaml` e `docker-compose.coolify.yml` atualizados com `META_ADS_CLIENT_ID`, `META_ADS_CLIENT_SECRET`, `COMPOSIO_META_ADS_AUTH_CONFIG_ID` e `COMPOSIO_META_ADS_REDIRECT_URI` (sem segredos e sem exposição ao navegador).
-    - Schema real do toolkit `metaads` no `@composio/core` confirmado (`authScheme: OAUTH2`, campos obrigatórios `client_id` e `client_secret`, callback padrão `https://backend.composio.dev/api/v1/auth-apps/add`, escopos padrão `ads_read,ads_management,business_management`).
+    - Schema real do toolkit `metaads` no `@composio/core` confirmado (`authScheme: OAUTH2`, campos obrigatórios `client_id` e `client_secret`, callback padrão `https://backend.composio.dev/api/v3/toolkits/auth/callback`, escopos padrão `ads_read,ads_management,business_management`).
     - Criado `src/lib/meta-ads-config.ts` (`getMetaAdsEnvValidation`, `ensureMetaAdsAuthConfig`) e a rota autenticada `GET`/`POST /api/profiles/[id]/ads/meta_ads/setup`, com deduplicação de auth configs existentes no Composio, auditoria redigida e sem criação automática no boot.
     - `src/lib/ads-service.ts` (`getAdsConfigStatus`) e `src/components/panel/PaidTrafficPanel.tsx` atualizados para orientar a criação/validação sob demanda da auth config Meta Ads.
     - Documentação detalhada publicada em `docs/META_ADS_SETUP.md`.
@@ -105,3 +105,10 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
 
 1. Abrir `http://localhost:3000/painel` no navegador, ativar `"Agendamento público ativo"` (ou clicar em **"Salvar alterações"**) e validar o fluxo completo em `/{slug}` -> `/{slug}/agendar` -> criação de evento real na Google Agenda.
 2. Confirmar plataforma **Qualify** e validar container em host Linux.
+
+### Preparação do callback OAuth Meta Ads (15/11/2026)
+- Inspecionada a rota real `GET /api/integrations/social/callback`: ela valida `state` e sessão e redireciona Meta Ads para `/painel/trafego` com `profileId`, `provider` e status.
+- O provedor deve retornar ao Composio em `https://backend.composio.dev/api/v3/toolkits/auth/callback`; o Composio retorna ao LinkIA por `callbackUrl`.
+- Produção confirmada pela documentação do Coolify: `APP_BASE_URL=https://linkia.iainfinito.com.br`. Corrigido o exemplo de URL que usava o host `linka.infinito.com.br`.
+- `getMetaAdsReturnBaseUrl` agora restringe callback ao mesmo domínio de `APP_BASE_URL` e à rota exata do callback, rejeitando host, caminho, query ou fragmento arbitrários. `getMetaAdsRedirectUri` rejeita URI de provedor diferente da URI v3 requerida.
+- Testes de allowlist e URI exata adicionados. A URI v3 foi salva na lista de URIs OAuth válidas no Meta Developers; o app já aparece publicado. As duas variáveis foram salvas no Coolify e estão pendentes de aplicar. Nenhum deploy foi executado. A Auth Config do Composio ainda depende das credenciais Meta; o endpoint de setup agora valida o toolkit e atualiza o oauth_redirect_uri exato antes de reutilizar a configuração.

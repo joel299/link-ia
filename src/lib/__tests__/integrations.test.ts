@@ -94,6 +94,7 @@ beforeEach(() => {
   delete process.env.COMPOSIO_META_ADS_REDIRECT_URI;
   delete process.env.META_ADS_CLIENT_ID;
   delete process.env.META_ADS_CLIENT_SECRET;
+  delete process.env.APP_BASE_URL;
   delete process.env.COMPOSIO_TIKTOK_ADS_AUTH_CONFIG_ID;
   delete process.env.COMPOSIO_ALLOW_LOCAL_MOCK;
 });
@@ -703,7 +704,24 @@ describe("Meta Ads safe credential validation and Composio auth config setup", (
     ]);
   });
 
-  it("reuses COMPOSIO_META_ADS_AUTH_CONFIG_ID from env without calling Composio", async () => {
+  it("rejects a LinkIA return URL outside the configured production origin", () => {
+    process.env.APP_BASE_URL = "https://linkia.iainfinito.com.br";
+    process.env.LINKIA_META_ADS_RETURN_URL =
+      "https://attacker.example/api/integrations/social/callback";
+
+    expect(() => getMetaAdsReturnBaseUrl("https://linkia.iainfinito.com.br")).toThrow(
+      MetaAdsConfigError
+    );
+  });
+
+  it("rejects a non-Composio provider redirect URI", () => {
+    process.env.META_ADS_OAUTH_REDIRECT_URI =
+      "https://linkia.iainfinito.com.br/api/integrations/social/callback";
+
+    expect(() => getMetaAdsRedirectUri()).toThrow(MetaAdsConfigError);
+  });
+
+  it("verifies and updates the callback for the configured Meta Ads auth config", async () => {
     const { userA, profileA } = createTwoTenants();
 
     process.env.COMPOSIO_API_KEY = "cmp_fake_key_only_for_test";
@@ -711,10 +729,21 @@ describe("Meta Ads safe credential validation and Composio auth config setup", (
 
     let listCalls = 0;
     let createCalls = 0;
+    let updateCalls = 0;
     const fakeClient: MetaAdsAuthConfigClient = {
       async listMetaAdsAuthConfigs() {
         listCalls += 1;
-        return [];
+        return [{
+          id: "ac_meta_env_123",
+          toolkitSlug: "metaads",
+          authScheme: "OAUTH2",
+          status: "ENABLED",
+        }];
+      },
+      async updateMetaAdsAuthConfig(id, params) {
+        expect(id).toBe("ac_meta_env_123");
+        expect(params.redirectUri).toBe(META_ADS_DEFAULT_REDIRECT_URI);
+        updateCalls += 1;
       },
       async createMetaAdsAuthConfig() {
         createCalls += 1;
@@ -730,8 +759,35 @@ describe("Meta Ads safe credential validation and Composio auth config setup", (
     expect(result.authConfigId).toBe("ac_meta_env_123");
     expect(result.source).toBe("env");
     expect(result.created).toBe(false);
-    expect(listCalls).toBe(0);
+    expect(listCalls).toBe(1);
+    expect(updateCalls).toBe(1);
     expect(createCalls).toBe(0);
+  });
+
+  it("rejects a configured auth config ID outside the metaads toolkit", async () => {
+    const { userA, profileA } = createTwoTenants();
+
+    process.env.COMPOSIO_API_KEY = "cmp_fake_key_only_for_test";
+    process.env.COMPOSIO_META_ADS_AUTH_CONFIG_ID = "ac_facebook_wrong_toolkit";
+
+    const fakeClient: MetaAdsAuthConfigClient = {
+      async listMetaAdsAuthConfigs() {
+        return [];
+      },
+      async updateMetaAdsAuthConfig() {
+        throw new Error("Must not update an auth config outside metaads.");
+      },
+      async createMetaAdsAuthConfig() {
+        throw new Error("Must not create a replacement without explicit setup.");
+      },
+    };
+
+    await expect(
+      ensureMetaAdsAuthConfig(
+        { profileId: profileA.id, ownerId: userA.id },
+        fakeClient
+      )
+    ).rejects.toThrow(MetaAdsConfigError);
   });
 
   it("deduplicates existing enabled OAUTH2 metaads auth config in Composio", async () => {
@@ -742,6 +798,7 @@ describe("Meta Ads safe credential validation and Composio auth config setup", (
     process.env.META_ADS_CLIENT_SECRET = "fake_meta_app_secret_never_logged";
 
     let createCalls = 0;
+    let updateCalls = 0;
     const fakeClient: MetaAdsAuthConfigClient = {
       async listMetaAdsAuthConfigs() {
         return [
@@ -759,6 +816,11 @@ describe("Meta Ads safe credential validation and Composio auth config setup", (
           },
         ];
       },
+      async updateMetaAdsAuthConfig(id, params) {
+        expect(id).toBe("ac_meta_existing_456");
+        expect(params.redirectUri).toBe(META_ADS_DEFAULT_REDIRECT_URI);
+        updateCalls += 1;
+      },
       async createMetaAdsAuthConfig() {
         createCalls += 1;
         return { id: "ac_should_not_create" };
@@ -773,6 +835,7 @@ describe("Meta Ads safe credential validation and Composio auth config setup", (
     expect(result.authConfigId).toBe("ac_meta_existing_456");
     expect(result.source).toBe("composio_existing");
     expect(result.created).toBe(false);
+    expect(updateCalls).toBe(1);
     expect(createCalls).toBe(0);
   });
 
@@ -789,6 +852,9 @@ describe("Meta Ads safe credential validation and Composio auth config setup", (
     const fakeClient: MetaAdsAuthConfigClient = {
       async listMetaAdsAuthConfigs() {
         return [];
+      },
+      async updateMetaAdsAuthConfig() {
+        throw new Error("No existing auth config should be updated.");
       },
       async createMetaAdsAuthConfig(input) {
         capturedInput = input as unknown as Record<string, unknown>;

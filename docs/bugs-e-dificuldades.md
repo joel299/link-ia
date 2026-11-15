@@ -148,4 +148,11 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
 ### RISCO-004 — Meta Ads exige Meta App próprio e aprovação de permissões da Marketing API
 - **Data:** 15/11/2026
 - **Estado:** documentado e mitigado com validação/criação sob demanda de auth config.
-- **Detalhes:** O toolkit `metaads` no Composio (`@composio/core`) não oferece OAuth gerenciado (`managed: []`) e exige `OAUTH2` com `client_id` (`META_ADS_CLIENT_ID`), `client_secret` (`META_ADS_CLIENT_SECRET`) e callback exata cadastrada no Meta for Developers (`https://backend.composio.dev/api/v1/auth-apps/add` por padrão, ou `COMPOSIO_META_ADS_REDIRECT_URI`). O fluxo foi isolado no servidor em `src/lib/meta-ads-config.ts` e `POST /api/profiles/[id]/ads/meta_ads/setup`, evitando criação automática no boot e duplicação de auth configs no Composio. Ver `docs/META_ADS_SETUP.md`.
+- **Detalhes:** O toolkit `metaads` no Composio (`@composio/core`) não oferece OAuth gerenciado (`managed: []`) e exige `OAUTH2` com `client_id` (`META_ADS_CLIENT_ID`), `client_secret` (`META_ADS_CLIENT_SECRET`) e callback exata cadastrada no Meta for Developers (`https://backend.composio.dev/api/v3/toolkits/auth/callback` por padrão, ou `COMPOSIO_META_ADS_REDIRECT_URI`). O fluxo foi isolado no servidor em `src/lib/meta-ads-config.ts` e `POST /api/profiles/[id]/ads/meta_ads/setup`, evitando criação automática no boot e duplicação de auth configs no Composio. Ver `docs/META_ADS_SETUP.md`.
+
+### META-OAUTH-001 - Callback de Meta Ads divergente entre provedor e LinkIA
+- **Data:** 15/11/2026
+- **Estado:** correção local preparada; URI v3 salva no Meta Developers; a Auth Config do Composio depende das credenciais Meta para ser atualizada/criada.
+- **Evidência:** código usa `/api/integrations/social/callback` como retorno do produto e a documentação do deploy confirma `https://linkia.iainfinito.com.br` como origem. A tela Meta Developers mostra uma URI OAuth cadastrada em outro domínio/provedor (`signature.iainfinito.com.br/v1/oauth/callback`).
+- **Correção local:** fixar e validar a URI do Composio em `https://backend.composio.dev/api/v3/toolkits/auth/callback`; restringir `LINKIA_META_ADS_RETURN_URL` à rota de callback no domínio de `APP_BASE_URL`; atualizar `.env.example` e runbook.
+- **Limite:** o aplicativo Meta aparece como publicado, mas a URI correta ainda não foi salva na lista de URIs OAuth válidas. A Auth Config do Composio será validada pelo setup do LinkIA; ele rejeita IDs de outro toolkit e atualiza `oauth_redirect_uri` para a URI canônica antes de reutilizar.

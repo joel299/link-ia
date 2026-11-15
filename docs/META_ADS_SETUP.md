@@ -30,7 +30,7 @@ Existem **dois endereços distintos** no fluxo OAuth do Meta Ads via Composio:
 
 2. **URL de retorno do produto (Composio → LinkIA):**
    ```text
-   https://linka.infinito.com.br/api/integrations/social/callback
+   https://linkia.iainfinito.com.br/api/integrations/social/callback
    ```
    (em desenvolvimento local: `http://localhost:3000/api/integrations/social/callback`)
    - Passada ao Composio como `callbackUrl` na inicialização da conexão (`LINKIA_META_ADS_RETURN_URL`, ou derivada automaticamente de `APP_BASE_URL` + `/api/integrations/social/callback` quando vazia).
@@ -61,21 +61,23 @@ Deixe `COMPOSIO_META_ADS_AUTH_CONFIG_ID` vazio até gerar ou validar a auth conf
 Os arquivos `compose.yaml` e `docker-compose.coolify.yml` repassam as variáveis ao container de forma segura via ambiente:
 
 - `COMPOSIO_API_KEY`
+- `APP_BASE_URL`
 - `META_ADS_CLIENT_ID`
 - `META_ADS_CLIENT_SECRET`
-- `COMPOSIO_META_ADS_REDIRECT_URI` (opcional; padrão `https://backend.composio.dev/api/v1/auth-apps/add`)
+- `META_ADS_OAUTH_REDIRECT_URI` (deve ser exatamente `https://backend.composio.dev/api/v3/toolkits/auth/callback`)
+- `LINKIA_META_ADS_RETURN_URL` (deve usar a origem de `APP_BASE_URL` e a rota `/api/integrations/social/callback`)
 - `COMPOSIO_META_ADS_AUTH_CONFIG_ID`
 
 No **Coolify**:
 1. Abra o serviço do LinkIA → **Environment Variables**.
-2. Cadastre `META_ADS_CLIENT_ID`, `META_ADS_CLIENT_SECRET`, `COMPOSIO_META_ADS_REDIRECT_URI` e `COMPOSIO_API_KEY` como variáveis de ambiente (marcando os segredos como sensíveis).
+2. Cadastre `META_ADS_CLIENT_ID`, `META_ADS_CLIENT_SECRET`, `META_ADS_OAUTH_REDIRECT_URI`, `LINKIA_META_ADS_RETURN_URL` e `COMPOSIO_API_KEY` como variáveis de ambiente (marcando os segredos como sensíveis).
 3. Após obter o ID da auth config no passo 5, cadastre também `COMPOSIO_META_ADS_AUTH_CONFIG_ID` e faça **Redeploy / Restart**.
 
 ---
 
 ## 5. Como criar/validar a auth config `metaads` no Composio
 
-O LinkIA **não** cria auth configs automaticamente no boot do servidor e evita duplicidade verificando se já existe uma auth config habilitada do tipo `OAUTH2` para `metaads` antes de criar.
+O LinkIA **não** cria auth configs automaticamente no boot do servidor. Ao executar o setup autenticado, ele valida que o ID configurado pertence ao toolkit `metaads`, corrige o `oauth_redirect_uri` para a URI v3 canônica e reutiliza uma auth config habilitada; sem uma config reutilizável, cria uma nova usando as credenciais do Meta app.
 
 Com o servidor rodando e autenticado no painel:
 
