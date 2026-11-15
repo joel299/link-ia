@@ -127,6 +127,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     const decoded = verifySessionToken(token);
     if (!decoded) return null;
 
+    ensureAdminBootstrapFromEnv();
+
     const db = getDb();
     const row = db
       .prepare("SELECT id, email, name, role, is_active FROM users WHERE id = ?")

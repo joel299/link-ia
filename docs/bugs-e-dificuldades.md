@@ -179,3 +179,11 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
 ### 15/11/2026 — Ajustes durante implementação do painel administrativo e permissões
 - **Mapeamento de `meta_ads` em rotas sociais orgânicas vs tráfego pago:** `SocialProvider` utiliza `"meta_ads"` no canal Facebook de `ConnectedChannelsPanel` (`/api/profiles/[id]/integrations/social/meta_ads`). Ajustado `socialProviderToFeatureKey("meta_ads")` em `src/lib/permissions.ts` para exigir `"facebook_social"`, mantendo `"meta_ads"` separado nas rotas de tráfego pago (`/api/profiles/[id]/ads/meta_ads/**`).
 - **Regras do React Compiler no ESLint:** `AdminUsersPanel.tsx` e `PaidTrafficPanel.tsx` apresentaram erros de `react-hooks/set-state-in-effect` e `react-hooks/preserve-manual-memoization`; corrigidos executando `fetch` assíncrono direto no `useEffect` (com flag `cancelled`) e removendo `useCallback` desnecessário em `loadProvider`. Validado com `npm run lint` (0 erros) e `npm run typecheck` (0 erros).
+
+### BUG-010 - Bootstrap de administrador não reaplicado ao validar sessão
+- **Data:** 15/11/2026
+- **Estado:** correção local; publicação e validação autenticada pendentes.
+- **Sintoma:** acesso a `/painel/admin` redirecionava com HTTP 307 apesar das variáveis de bootstrap existirem no Coolify.
+- **Causa do redirecionamento confirmada:** o guard envia `role !== 'admin'` para `/painel`; o perfil autenticado não foi disponibilizado na aba para confirmar se o e-mail configurado coincide com a conta. **Lacuna de código confirmada:** o bootstrap só era reavaliado no POST de login, não na leitura da sessão.
+- **Correção:** chamar o bootstrap após validar o token e antes de carregar o usuário do banco; adicionar teste cobrindo promoção de conta existente com sessão válida. A promoção ainda exige e-mail correspondente e senha bootstrap de pelo menos 8 caracteres.
+- **Validação:** `npm run typecheck` passou; `npm run lint` passou com 4 avisos existentes; `npm test` bloqueado por `EPERM` do Windows ao resolver o Vite. O Coolify mostra as variáveis preenchidas/runtime e o container saudável. A confirmação do painel autenticado depende de sessão com e-mail correspondente.

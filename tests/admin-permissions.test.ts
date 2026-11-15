@@ -116,6 +116,33 @@ describe("Admin panel, user permissions, and server-side feature enforcement", (
     expect(Object.values(perms).every(Boolean)).toBe(true);
   });
 
+  it("applies admin bootstrap to a matching existing session", async () => {
+    const user = registerUser(
+      "bootstrap@linkia.test",
+      "Bootstrap Client",
+      "BootstrapPass123!"
+    ).user!;
+    const previousEmail = process.env.ADMIN_BOOTSTRAP_EMAIL;
+    const previousPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+    process.env.ADMIN_BOOTSTRAP_EMAIL = user.email;
+    process.env.ADMIN_BOOTSTRAP_PASSWORD = "TemporaryBootstrapPass123!";
+
+    try {
+      actAs(user);
+      const session = await getSessionUser();
+      expect(session?.role).toBe("admin");
+      const storedUser = getDb()
+        .prepare("SELECT role FROM users WHERE id = ?")
+        .get(user.id) as { role: string } | undefined;
+      expect(storedUser?.role).toBe("admin");
+    } finally {
+      if (previousEmail === undefined) delete process.env.ADMIN_BOOTSTRAP_EMAIL;
+      else process.env.ADMIN_BOOTSTRAP_EMAIL = previousEmail;
+      if (previousPassword === undefined) delete process.env.ADMIN_BOOTSTRAP_PASSWORD;
+      else process.env.ADMIN_BOOTSTRAP_PASSWORD = previousPassword;
+    }
+  });
+
   it("rejects non-admin and unauthenticated callers on admin endpoints (401/403)", async () => {
     const unauthRes = await adminListUsersGet();
     expect(unauthRes.status).toBe(401);
