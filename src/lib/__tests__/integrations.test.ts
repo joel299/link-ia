@@ -57,6 +57,8 @@ import { cleanupStaleIntegrationStates } from "../integration-cleanup";
 import {
   ensureMetaAdsAuthConfig,
   getMetaAdsEnvValidation,
+  getMetaAdsRedirectUri,
+  getMetaAdsReturnBaseUrl,
   META_ADS_DEFAULT_REDIRECT_URI,
   META_ADS_DEFAULT_SCOPES,
   MetaAdsAuthConfigClient,
@@ -87,6 +89,8 @@ beforeEach(() => {
   delete process.env.COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID;
   delete process.env.COMPOSIO_TIKTOK_AUTH_CONFIG_ID;
   delete process.env.COMPOSIO_META_ADS_AUTH_CONFIG_ID;
+  delete process.env.META_ADS_OAUTH_REDIRECT_URI;
+  delete process.env.LINKIA_META_ADS_RETURN_URL;
   delete process.env.COMPOSIO_META_ADS_REDIRECT_URI;
   delete process.env.META_ADS_CLIENT_ID;
   delete process.env.META_ADS_CLIENT_SECRET;
@@ -671,7 +675,23 @@ describe("Meta Ads safe credential validation and Composio auth config setup", (
     expect(status.hasClientId).toBe(false);
     expect(status.hasClientSecret).toBe(false);
     expect(status.hasAuthConfigId).toBe(false);
+    expect(status.redirectUri).toBe(
+      "https://backend.composio.dev/api/v3/toolkits/auth/callback"
+    );
     expect(status.redirectUri).toBe(META_ADS_DEFAULT_REDIRECT_URI);
+    expect(getMetaAdsReturnBaseUrl("https://linka.infinito.com.br")).toBe(
+      "https://linka.infinito.com.br/api/integrations/social/callback"
+    );
+    process.env.META_ADS_OAUTH_REDIRECT_URI =
+      "https://backend.composio.dev/api/v3/toolkits/auth/callback";
+    process.env.LINKIA_META_ADS_RETURN_URL =
+      "https://linka.infinito.com.br/api/integrations/social/callback/";
+    expect(getMetaAdsRedirectUri()).toBe(
+      "https://backend.composio.dev/api/v3/toolkits/auth/callback"
+    );
+    expect(getMetaAdsReturnBaseUrl("http://localhost:3000")).toBe(
+      "https://linka.infinito.com.br/api/integrations/social/callback"
+    );
     expect(status.missingForConnection).toEqual([
       "COMPOSIO_API_KEY",
       "COMPOSIO_META_ADS_AUTH_CONFIG_ID",

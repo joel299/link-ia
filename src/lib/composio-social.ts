@@ -6,6 +6,7 @@ import {
   hashOAuthState,
   recordIntegrationAudit,
 } from "./integration-audit";
+import { getMetaAdsReturnBaseUrl } from "./meta-ads-config";
 import type {
   OrganicSocialProvider,
   PublicSocialMediaItem,
@@ -1282,7 +1283,13 @@ export async function initiateSocialConnection(params: {
   const composioUserId = deriveSocialComposioUserId(ownerId, profileId);
   const state = crypto.randomBytes(24).toString("hex");
   const stateHash = hashOAuthState(state);
-  const callbackUrl = `${origin}/api/integrations/social/callback?state=${encodeURIComponent(state)}`;
+  const returnBaseUrl =
+    provider === "meta_ads"
+      ? getMetaAdsReturnBaseUrl(origin)
+      : `${origin}/api/integrations/social/callback`;
+  const callbackUrlObj = new URL(returnBaseUrl);
+  callbackUrlObj.searchParams.set("state", state);
+  const callbackUrl = callbackUrlObj.toString();
 
   const link = await composioProvider.createConnectLink({
     provider,

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { GlassSurface } from "@/components/ui/GlassSurface";
@@ -113,7 +113,7 @@ function readInitialTrafficReturn(): {
   }
 
   if (provider === "meta_ads" || provider === "tiktok_ads") {
-    const label = provider === "meta_ads" ? "Facebook / Meta Ads" : "TikTok Ads";
+    const label = provider === "meta_ads" ? "Meta Ads" : "TikTok Ads";
     return {
       tab: provider,
       syncOnMount: true,

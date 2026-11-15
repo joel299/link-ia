@@ -333,9 +333,12 @@ export function getAdsConfigStatus(provider: AdsProvider): {
           "Execute POST /api/profiles/{id}/ads/meta_ads/setup para criar/validar a auth config metaads no Composio",
         );
       }
-      if (!process.env.COMPOSIO_META_ADS_REDIRECT_URI?.trim()) {
+      if (
+        !process.env.META_ADS_OAUTH_REDIRECT_URI?.trim() &&
+        !process.env.COMPOSIO_META_ADS_REDIRECT_URI?.trim()
+      ) {
         missing.push(
-          "COMPOSIO_META_ADS_REDIRECT_URI (opcional; padrao https://backend.composio.dev/api/v1/auth-apps/add)",
+          "META_ADS_OAUTH_REDIRECT_URI (opcional; padrão https://backend.composio.dev/api/v3/toolkits/auth/callback)",
         );
       }
     }

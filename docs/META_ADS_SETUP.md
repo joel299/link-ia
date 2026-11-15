@@ -17,17 +17,24 @@ Este guia explica como configurar as credenciais do **Meta Ads** (Facebook/Insta
 
 ---
 
-## 2. Callback OAuth exata para configurar no Meta App
+## 2. URIs OAuth do Meta Ads (não confunda os dois endereços)
 
-No painel **Facebook Login → Configurações → URIs de redirecionamento do OAuth válidos**, adicione exatamente a URI de callback utilizada pelo Composio para a auth config `metaads`:
+Existem **dois endereços distintos** no fluxo OAuth do Meta Ads via Composio:
 
-- **Padrão do toolkit `metaads` no Composio (`@composio/core`):**
-  ```text
-  https://backend.composio.dev/api/v1/auth-apps/add
-  ```
-- Caso sua conta/configuração no Composio utilize o endpoint v3, defina explicitamente `COMPOSIO_META_ADS_REDIRECT_URI` (por exemplo, `https://backend.composio.dev/api/v3/toolkits/auth/callback`) **e** cadastre exatamente essa mesma URI no Meta for Developers.
+1. **Callback do provedor OAuth (Meta → Composio):**
+   ```text
+   https://backend.composio.dev/api/v3/toolkits/auth/callback
+   ```
+   - Cadastre **exatamente** esta URI no painel **Meta for Developers → Facebook Login → Configurações → URIs de redirecionamento do OAuth válidos**.
+   - Ela também é enviada como `oauth_redirect_uri` na criação da Auth Config `metaads` no Composio (`META_ADS_OAUTH_REDIRECT_URI`, com fallback legado para `COMPOSIO_META_ADS_REDIRECT_URI`).
 
-O LinkIA usa `COMPOSIO_META_ADS_REDIRECT_URI` quando preenchida; se estiver vazia, usa `https://backend.composio.dev/api/v1/auth-apps/add` por padrão.
+2. **URL de retorno do produto (Composio → LinkIA):**
+   ```text
+   https://linka.infinito.com.br/api/integrations/social/callback
+   ```
+   (em desenvolvimento local: `http://localhost:3000/api/integrations/social/callback`)
+   - Passada ao Composio como `callbackUrl` na inicialização da conexão (`LINKIA_META_ADS_RETURN_URL`, ou derivada automaticamente de `APP_BASE_URL` + `/api/integrations/social/callback` quando vazia).
+   - Essa rota valida o `state` OAuth e o usuário autenticado, persiste a conexão `meta_ads` e redireciona o navegador para `/painel/trafego?profileId=...&provider=meta_ads&social=connected`.
 
 ---
 
@@ -40,7 +47,8 @@ O LinkIA usa `COMPOSIO_META_ADS_REDIRECT_URI` quando preenchida; se estiver vazi
 COMPOSIO_API_KEY=seu_composio_api_key
 META_ADS_CLIENT_ID=seu_app_id_meta
 META_ADS_CLIENT_SECRET=seu_app_secret_meta
-COMPOSIO_META_ADS_REDIRECT_URI=https://backend.composio.dev/api/v1/auth-apps/add
+META_ADS_OAUTH_REDIRECT_URI=https://backend.composio.dev/api/v3/toolkits/auth/callback
+LINKIA_META_ADS_RETURN_URL=http://localhost:3000/api/integrations/social/callback
 COMPOSIO_META_ADS_AUTH_CONFIG_ID=
 ```
 

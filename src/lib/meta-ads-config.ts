@@ -4,7 +4,7 @@ import { recordIntegrationAudit, requireOwnedProfile } from "./integration-audit
 export const META_ADS_TOOLKIT_SLUG = "metaads";
 export const META_ADS_AUTH_SCHEME = "OAUTH2";
 export const META_ADS_DEFAULT_REDIRECT_URI =
-  "https://backend.composio.dev/api/v1/auth-apps/add";
+  "https://backend.composio.dev/api/v3/toolkits/auth/callback";
 export const META_ADS_DEFAULT_SCOPES =
   "ads_read,ads_management,business_management";
 
@@ -52,8 +52,30 @@ export interface MetaAdsAuthConfigClient {
 }
 
 export function getMetaAdsRedirectUri(): string {
-  const configured = process.env.COMPOSIO_META_ADS_REDIRECT_URI?.trim();
+  const configured =
+    process.env.META_ADS_OAUTH_REDIRECT_URI?.trim() ||
+    process.env.COMPOSIO_META_ADS_REDIRECT_URI?.trim();
   return configured || META_ADS_DEFAULT_REDIRECT_URI;
+}
+
+export function getMetaAdsReturnBaseUrl(fallbackOrigin: string): string {
+  const configured = process.env.LINKIA_META_ADS_RETURN_URL?.trim();
+  if (!configured) {
+    return `${fallbackOrigin.replace(/\/$/, "")}/api/integrations/social/callback`;
+  }
+  const parsed = new URL(configured);
+  if (
+    (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+    parsed.username ||
+    parsed.password
+  ) {
+    throw new MetaAdsConfigError(
+      "LINKIA_META_ADS_RETURN_URL precisa ser uma URL HTTP ou HTTPS válida.",
+      ["LINKIA_META_ADS_RETURN_URL"],
+      500
+    );
+  }
+  return parsed.toString().replace(/\/$/, "");
 }
 
 export function getMetaAdsEnvValidation(): MetaAdsEnvValidation {
