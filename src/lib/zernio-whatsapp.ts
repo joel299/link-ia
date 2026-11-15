@@ -65,6 +65,14 @@ export interface ZernioWhatsAppAccount {
 }
 
 export interface ZernioWhatsAppProvider {
+  ensureProfile?(params: {
+    profileId: string;
+    ownerId: string;
+    existingZernioProfileId?: string | null;
+    displayName?: string | null;
+    slug?: string | null;
+  }): Promise<string>;
+
   getConnectUrl(params: {
     zernioProfileId: string;
     redirectUrl: string;
@@ -179,6 +187,103 @@ export function getZernioConfigStatus(): {
 
 export function buildZernioProfileId(ownerId: string, profileId: string): string {
   return `linkia_u_${ownerId}_p_${profileId}`;
+}
+
+export function isValidZernioObjectId(value: string | null | undefined): boolean {
+  return Boolean(value && /^[a-f0-9]{24}$/i.test(value.trim()));
+}
+
+function mapZernioHttpError(params: {
+  status: number;
+  bodyText: string;
+  requestId: string | null;
+  context: string;
+}): ZernioProviderError {
+  let parsed: Record<string, unknown> = {};
+  try {
+    const json = JSON.parse(params.bodyText);
+    if (json && typeof json === "object" && !Array.isArray(json)) {
+      parsed = json as Record<string, unknown>;
+    }
+  } catch {
+    // non-JSON response
+  }
+
+  const code = typeof parsed.code === "string" ? parsed.code.trim() : "";
+  const type = typeof parsed.type === "string" ? parsed.type.trim() : "";
+  const param = typeof parsed.param === "string" ? parsed.param.trim() : "";
+  const rawError =
+    typeof parsed.error === "string"
+      ? parsed.error.trim()
+      : typeof parsed.message === "string"
+        ? parsed.message.trim()
+        : "";
+  const combined = `${code} ${type} ${param} ${rawError}`.toLowerCase();
+
+  console.error("[Zernio]", {
+    context: params.context,
+    status: params.status,
+    requestId: params.requestId,
+    code: code || undefined,
+    type: type || undefined,
+    param: param || undefined,
+    error: rawError ? rawError.slice(0, 240) : undefined,
+  });
+
+  if (params.status === 401 || params.status === 403) {
+    return new ZernioProviderError(
+      "Credencial da Zernio inválida ou sem permissão para conectar o WhatsApp.",
+      502
+    );
+  }
+
+  if (params.status === 402) {
+    return new ZernioProviderError(
+      "A conta Zernio precisa de configuração de cobrança ou plano ativo para conectar o WhatsApp.",
+      402
+    );
+  }
+
+  if (params.status === 404) {
+    return new ZernioProviderError(
+      "O perfil de conexão da Zernio não foi localizado. Verifique a configuração da conta.",
+      404
+    );
+  }
+
+  if (
+    param === "redirect_url" ||
+    combined.includes("redirect_url") ||
+    combined.includes("redirect url")
+  ) {
+    return new ZernioProviderError(
+      "A URL de retorno (callback) precisa ser absoluta e estar configurada corretamente.",
+      400
+    );
+  }
+
+  if (
+    combined.includes("one_whatsapp_per_profile") ||
+    combined.includes("whatsapp_number_already_connected") ||
+    combined.includes("whatsapp_number_pinned_to_profile")
+  ) {
+    return new ZernioProviderError(
+      "Este número de WhatsApp já está vinculado a uma conexão existente na Zernio. Reutilize ou desvincule a conexão anterior antes de tentar novamente.",
+      409
+    );
+  }
+
+  if (params.status >= 500) {
+    return new ZernioProviderError(
+      `A Zernio retornou erro temporário (${params.status}) ao comunicar com o serviço.`,
+      502
+    );
+  }
+
+  return new ZernioProviderError(
+    "Não foi possível iniciar a conexão do WhatsApp Business na Zernio. Tente novamente.",
+    400
+  );
 }
 
 const ALLOWED_ZERNIO_EXACT_HOSTS = new Set([
@@ -397,6 +502,183 @@ function mapZernioAccountPayload(
 }
 
 class DefaultZernioWhatsAppProvider implements ZernioWhatsAppProvider {
+  async ensureProfile(params: {
+    profileId: string;
+    ownerId: string;
+    existingZernioProfileId?: string | null;
+    displayName?: string | null;
+    slug?: string | null;
+  }): Promise<string> {
+    const config = getZernioConfigStatus();
+    if (!config.configReady) {
+      throw new ZernioConfigError(
+        "Integração Zernio WhatsApp não configurada no servidor.",
+        config.configRequirements
+      );
+    }
+
+    const externalId = buildZernioProfileId(params.ownerId, params.profileId);
+
+    if (config.mode === "mock") {
+      return params.existingZernioProfileId?.trim() || externalId;
+    }
+
+    if (isValidZernioObjectId(params.existingZernioProfileId)) {
+      return params.existingZernioProfileId!.trim();
+    }
+
+    const apiKey = process.env.ZERNIO_API_KEY!.trim();
+    const baseUrl = getZernioApiBaseUrl();
+
+    const findExistingProfile = async (): Promise<string | null> => {
+      let listRes: Response;
+      try {
+        listRes = await fetch(`${baseUrl}/v1/profiles`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            Accept: "application/json",
+          },
+          signal: AbortSignal.timeout(ZERNIO_HTTP_TIMEOUT_MS),
+        });
+      } catch {
+        throw new ZernioProviderError(
+          "Não foi possível conectar ao serviço da Zernio no momento. Tente novamente.",
+          502
+        );
+      }
+
+      if (!listRes.ok) {
+        const errText = await listRes.text().catch(() => "");
+        throw mapZernioHttpError({
+          status: listRes.status,
+          bodyText: errText,
+          requestId:
+            listRes.headers.get("x-request-id") ??
+            listRes.headers.get("x-correlation-id"),
+          context: "list_profiles",
+        });
+      }
+
+      const data = (await listRes.json().catch(() => ({}))) as Record<
+        string,
+        unknown
+      >;
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data.profiles)
+          ? data.profiles
+          : Array.isArray(data.data)
+            ? data.data
+            : [];
+
+      for (const item of list) {
+        if (!item || typeof item !== "object") continue;
+        const rec = item as Record<string, unknown>;
+        const id = typeof rec._id === "string" ? rec._id : typeof rec.id === "string" ? rec.id : "";
+        if (!isValidZernioObjectId(id)) continue;
+        if (rec.externalId === externalId) {
+          return id.trim();
+        }
+      }
+      return null;
+    };
+
+    const existingId = await findExistingProfile();
+    if (existingId) {
+      return existingId;
+    }
+
+    const cleanLabel = (params.displayName || params.slug || "Perfil")
+      .trim()
+      .slice(0, 40);
+    const uniqueName = `LinkIA ${cleanLabel} (${params.profileId.slice(0, 8)})`;
+
+    let createRes: Response;
+    try {
+      createRes = await fetch(`${baseUrl}/v1/profiles`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Idempotency-Key": `linkia-profile-${params.profileId}`,
+        },
+        body: JSON.stringify({
+          name: uniqueName,
+          description: "Perfil LinkIA WhatsApp Business",
+          externalId,
+        }),
+        signal: AbortSignal.timeout(ZERNIO_HTTP_TIMEOUT_MS),
+      });
+    } catch {
+      throw new ZernioProviderError(
+        "Não foi possível conectar ao serviço da Zernio no momento. Tente novamente.",
+        502
+      );
+    }
+
+    const createText = await createRes.text().catch(() => "");
+    let createJson: Record<string, unknown> = {};
+    try {
+      const parsed = JSON.parse(createText);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        createJson = parsed as Record<string, unknown>;
+      }
+    } catch {
+      // non-JSON
+    }
+
+    if (createRes.status === 409) {
+      const details =
+        createJson.details && typeof createJson.details === "object"
+          ? (createJson.details as Record<string, unknown>)
+          : {};
+      const conflictId =
+        typeof details.existingProfileId === "string"
+          ? details.existingProfileId
+          : null;
+      if (isValidZernioObjectId(conflictId)) {
+        return conflictId!.trim();
+      }
+      const recovered = await findExistingProfile();
+      if (recovered) {
+        return recovered;
+      }
+    }
+
+    if (!createRes.ok) {
+      throw mapZernioHttpError({
+        status: createRes.status,
+        bodyText: createText,
+        requestId:
+          createRes.headers.get("x-request-id") ??
+          createRes.headers.get("x-correlation-id"),
+        context: "create_profile",
+      });
+    }
+
+    const profileObj =
+      createJson.profile && typeof createJson.profile === "object"
+        ? (createJson.profile as Record<string, unknown>)
+        : createJson;
+    const createdId =
+      typeof profileObj._id === "string"
+        ? profileObj._id
+        : typeof profileObj.id === "string"
+          ? profileObj.id
+          : "";
+
+    if (!isValidZernioObjectId(createdId)) {
+      throw new ZernioProviderError(
+        "A Zernio não retornou um identificador válido de perfil.",
+        502
+      );
+    }
+
+    return createdId.trim();
+  }
+
   async getConnectUrl(params: {
     zernioProfileId: string;
     redirectUrl: string;
@@ -446,10 +728,15 @@ class DefaultZernioWhatsAppProvider implements ZernioWhatsAppProvider {
     }
 
     if (!response.ok) {
-      throw new ZernioProviderError(
-        `A Zernio retornou erro (${response.status}) ao iniciar a conexão WhatsApp.`,
-        response.status >= 500 ? 502 : 400
-      );
+      const errorText = await response.text().catch(() => "");
+      throw mapZernioHttpError({
+        status: response.status,
+        bodyText: errorText,
+        requestId:
+          response.headers.get("x-request-id") ??
+          response.headers.get("x-correlation-id"),
+        context: "connect_whatsapp",
+      });
     }
 
     const payload = (await response.json()) as Record<string, unknown>;
@@ -854,6 +1141,7 @@ export async function initiateWhatsAppConnection(params: {
   onboardingMode?: "business_app" | "api";
 }): Promise<{
   redirectUrl: string;
+  attemptId: string;
   isMock: boolean;
   connection: WhatsAppConnectionView;
 }> {
@@ -886,9 +1174,30 @@ export async function initiateWhatsAppConnection(params: {
   }
 
   const db = getDb();
-  const zernioProfileId = buildZernioProfileId(params.ownerId, params.profileId);
+  const profileMeta = db
+    .prepare("SELECT display_name, slug FROM profiles WHERE id = ? AND owner_id = ?")
+    .get(params.profileId, params.ownerId) as
+    | { display_name?: string; slug?: string }
+    | undefined;
+  const existingConn = db
+    .prepare("SELECT zernio_profile_id FROM whatsapp_connections WHERE profile_id = ?")
+    .get(params.profileId) as { zernio_profile_id?: string } | undefined;
+
+  const provider = getZernioWhatsAppProvider();
+  const zernioProfileId = provider.ensureProfile
+    ? await provider.ensureProfile({
+        profileId: params.profileId,
+        ownerId: params.ownerId,
+        existingZernioProfileId: existingConn?.zernio_profile_id ?? null,
+        displayName: profileMeta?.display_name ?? null,
+        slug: profileMeta?.slug ?? null,
+      })
+    : existingConn?.zernio_profile_id?.trim() ||
+      buildZernioProfileId(params.ownerId, params.profileId);
+
   const rawState = crypto.randomBytes(32).toString("hex");
   const stateHash = hashOAuthState(rawState);
+  const attemptId = stateHash.slice(0, 16);
   const now = new Date();
   const expiresAt = new Date(now.getTime() + STATE_TTL_MS).toISOString();
   const onboardingMode = params.onboardingMode ?? "business_app";
@@ -896,7 +1205,6 @@ export async function initiateWhatsAppConnection(params: {
   const callbackUrl = new URL("/api/integrations/whatsapp/callback", params.origin);
   callbackUrl.searchParams.set("state", rawState);
 
-  const provider = getZernioWhatsAppProvider();
   const connectResult = await provider.getConnectUrl({
     zernioProfileId,
     redirectUrl: callbackUrl.toString(),
@@ -960,6 +1268,7 @@ export async function initiateWhatsAppConnection(params: {
 
   return {
     redirectUrl: connectResult.redirectUrl,
+    attemptId,
     isMock: connectResult.isMock,
     connection: getWhatsAppConnectionView(params.profileId),
   };
@@ -1070,6 +1379,9 @@ function applyVerifiedAccountToConnection(params: {
 export async function completeWhatsAppCallback(params: {
   state: string;
   ownerId: string;
+  queryConnected?: string | null;
+  queryZernioProfileId?: string | null;
+  queryUsername?: string | null;
   queryStatus?: string | null;
   queryError?: string | null;
   queryErrorCode?: string | null;
@@ -1078,7 +1390,13 @@ export async function completeWhatsAppCallback(params: {
   queryMigrationStatus?: string | null;
 }): Promise<{
   profileId: string;
-  status: WhatsAppConnectionStatus | "cancelled" | "on_premise";
+  status:
+    | WhatsAppConnectionStatus
+    | "cancelled"
+    | "on_premise"
+    | "one_whatsapp_per_profile"
+    | "whatsapp_number_already_connected"
+    | "whatsapp_number_pinned_to_profile";
 }> {
   const db = getDb();
   const stateHash = hashOAuthState(params.state);
@@ -1168,16 +1486,37 @@ export async function completeWhatsAppCallback(params: {
   }
 
   const statusNorm = (params.queryStatus ?? "").trim().toLowerCase();
+  const connectedNorm = (params.queryConnected ?? "").trim().toLowerCase();
   const errorNorm = (params.queryError ?? "").trim().toLowerCase();
   const errorCodeNorm = (params.queryErrorCode ?? "").trim().toUpperCase();
   const migrationNorm = (params.queryMigrationStatus ?? "").trim().toUpperCase();
   const reasonNorm = (params.queryReason ?? "").trim().toUpperCase();
+  const combinedError = `${errorNorm} ${errorCodeNorm.toLowerCase()} ${reasonNorm.toLowerCase()}`;
+
+  if (
+    params.queryZernioProfileId &&
+    params.queryZernioProfileId.trim() !== attempt.zernio_profile_id
+  ) {
+    recordIntegrationAudit({
+      profileId: attempt.profile_id,
+      ownerId: params.ownerId,
+      channel: "whatsapp_zernio",
+      action: "callback_profile_mismatch",
+      outcome: "rejected",
+    });
+    throw new WhatsAppCallbackError(
+      "O perfil retornado no retorno OAuth não corresponde à tentativa iniciada.",
+      "profile_mismatch"
+    );
+  }
 
   if (
     statusNorm === "cancelled" ||
     statusNorm === "canceled" ||
     errorNorm === "access_denied" ||
-    errorNorm === "user_cancelled"
+    errorNorm === "user_cancelled" ||
+    errorNorm === "connection_cancelled" ||
+    combinedError.includes("connection_cancelled")
   ) {
     upsertWhatsAppConnectionRow({
       profileId: attempt.profile_id,
@@ -1279,6 +1618,42 @@ export async function completeWhatsAppCallback(params: {
     return { profileId: attempt.profile_id, status: "incomplete" };
   }
 
+  if (
+    combinedError.includes("one_whatsapp_per_profile") ||
+    combinedError.includes("whatsapp_number_already_connected") ||
+    combinedError.includes("whatsapp_number_pinned_to_profile")
+  ) {
+    const conflictCode = combinedError.includes("one_whatsapp_per_profile")
+      ? "one_whatsapp_per_profile"
+      : combinedError.includes("whatsapp_number_pinned_to_profile")
+        ? "whatsapp_number_pinned_to_profile"
+        : "whatsapp_number_already_connected";
+
+    const conflictMessage =
+      conflictCode === "one_whatsapp_per_profile"
+        ? "Este perfil já possui uma conta WhatsApp Business vinculada. Desconecte a conexão atual antes de vincular outra."
+        : conflictCode === "whatsapp_number_pinned_to_profile"
+          ? "Este número está fixado a outro perfil na Zernio. Utilize o perfil original ou desvincule o número na Zernio."
+          : "Este número de WhatsApp já está conectado em outra conta. Reutilize ou desvincule o número antes de tentar novamente.";
+
+    upsertWhatsAppConnectionRow({
+      profileId: attempt.profile_id,
+      ownerId: params.ownerId,
+      zernioProfileId: attempt.zernio_profile_id,
+      status: "failed",
+      lastError: conflictMessage,
+    });
+    recordIntegrationAudit({
+      profileId: attempt.profile_id,
+      ownerId: params.ownerId,
+      channel: "whatsapp_zernio",
+      action: "callback_number_conflict",
+      outcome: "rejected",
+      details: { conflictCode },
+    });
+    return { profileId: attempt.profile_id, status: conflictCode };
+  }
+
   if (statusNorm === "failed" || statusNorm === "error" || Boolean(errorNorm)) {
     upsertWhatsAppConnectionRow({
       profileId: attempt.profile_id,
@@ -1329,7 +1704,7 @@ export async function completeWhatsAppCallback(params: {
     return { profileId: attempt.profile_id, status: "failed" };
   }
 
-  if (!verifiedAccount) {
+  if (!verifiedAccount || !verifiedAccount.accountId) {
     upsertWhatsAppConnectionRow({
       profileId: attempt.profile_id,
       ownerId: params.ownerId,
@@ -1346,6 +1721,23 @@ export async function completeWhatsAppCallback(params: {
       outcome: "rejected",
     });
     return { profileId: attempt.profile_id, status: "incomplete" };
+  }
+
+  if (!verifiedAccount.phoneNumber && params.queryUsername?.trim()) {
+    verifiedAccount = {
+      ...verifiedAccount,
+      phoneNumber: params.queryUsername.trim(),
+    };
+  }
+  if (connectedNorm === "whatsapp" && verifiedAccount.status === "connecting") {
+    verifiedAccount = {
+      ...verifiedAccount,
+      status: "connected",
+      coexistenceConfirmed:
+        verifiedAccount.onboardingMode === "business_app"
+          ? true
+          : verifiedAccount.coexistenceConfirmed,
+    };
   }
 
   applyVerifiedAccountToConnection({

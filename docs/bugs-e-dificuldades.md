@@ -87,6 +87,19 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
 - **Correção:** removida da publicação a validação do campo externo obsoleto; novos perfis agora começam com `booking_enabled=0`. Adicionado teste de regressão para publicar perfil legado sem `bookingUrl`.
 - **Validação:** `npm test` (25/25), `npm run typecheck`, `npm run lint` (4 avisos pré-existentes de `<img>`), build Docker no GitHub Actions e webhook Coolify concluídos. Perfil `/soueujoe` publicado pelo painel; `/soueujoe` e `/soueujoe/agendar` retornaram HTTP 200 com TLS válido; disponibilidade para `2026-11-16` retornou horários. Não foi criado evento no Google Calendar.
 
+### BUG-009 — Erro HTTP 400 ao iniciar conexão WhatsApp Business via Zernio ("Conectar meu WhatsApp Business")
+- **Data:** 15/11/2026
+- **Estado:** corrigido e validado localmente
+- **Reprodução e evidência:**
+  - `POST http://localhost:3000/api/profiles/fbba6913-2780-47cf-9ea4-72a0853e2548/integrations/whatsapp/connect` retornava HTTP `400` (`{"error":"A Zernio retornou erro (400) ao iniciar a conexão WhatsApp."}`).
+  - Chamada subsequente do backend à Zernio (`GET https://zernio.com/api/v1/connect/whatsapp`) usando o ID sintético `linkia_u_{ownerId}_p_{profileId}` retornou HTTP `400` (`x-request-id: 1a382787-6e55-4dd9-99dc-c6fb64f0186d`, corpo: `{"error":"Invalid profileId format","type":"invalid_request_error","code":"invalid_field_value","param":"profileId"}`).
+  - Chamada com `profileId` real da Zernio (ObjectId de 24 caracteres hex) retornou HTTP `200` com `authUrl` válida (`https://www.facebook.com/v22.0/dialog/oauth?...` e `featureType: "whatsapp_business_app_onboarding"`).
+- **Causa confirmada:** `initiateWhatsAppConnection` em `src/lib/zernio-whatsapp.ts` enviava `buildZernioProfileId(ownerId, profileId)` (`linkia_u_..._p_...`) diretamente como `profileId` na query de `GET /v1/connect/whatsapp`, em vez de criar/obter um perfil real na Zernio via `POST /v1/profiles` / `GET /v1/profiles` e persistir seu `_id`. Além disso, erros `4xx` da Zernio eram convertidos em mensagem genérica `400` sem logar `x-request-id` ou mapear códigos específicos (`401`/`402`/`404`/`redirect_url`/conflitos).
+- **Correção aplicada:**
+  - `DefaultZernioWhatsAppProvider.ensureProfile()` resolve ou cria o perfil real na Zernio (`GET /v1/profiles` por `externalId` -> `POST /v1/profiles` com `Idempotency-Key` e tratamento de `409 Conflict` via `details.existingProfileId`) e persiste o `_id` em `whatsapp_connections.zernio_profile_id`.
+  - `mapZernioHttpError()` registra detalhes sanitizados + `x-request-id` apenas nos logs do servidor e retorna mensagens claras em pt-BR para `401`/`402`/`404`, `redirect_url` inválido e conflitos de número.
+  - Callback (`/api/integrations/whatsapp/callback` + `completeWhatsAppCallback`) e `ConnectedChannelsPanel.tsx` atualizados para `connected=whatsapp`, `profileId`, `accountId`, `username`, códigos de conflito/cancelamento e botão **"Tentar novamente"** no card existente de **Canais conectados**, preservando o link público de WhatsApp em **Links de ação**.
+
 ## Riscos e questões em aberto — não são bugs
 
 ### RISCO-001 — Integração com mídia do Instagram

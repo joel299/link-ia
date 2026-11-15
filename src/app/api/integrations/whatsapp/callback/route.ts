@@ -15,9 +15,14 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const state = url.searchParams.get("state") ?? "";
+  const queryConnected = url.searchParams.get("connected");
+  const queryZernioProfileId =
+    url.searchParams.get("profileId") ?? url.searchParams.get("profile_id");
+  const queryUsername = url.searchParams.get("username");
   const queryStatus =
     url.searchParams.get("status") ?? url.searchParams.get("mock_status");
-  const queryError = url.searchParams.get("error");
+  const queryError =
+    url.searchParams.get("error") ?? url.searchParams.get("whatsapp_error");
   const queryErrorCode =
     url.searchParams.get("error_code") ?? url.searchParams.get("errorCode");
   const queryReason =
@@ -38,6 +43,9 @@ export async function GET(request: Request) {
     const result = await completeWhatsAppCallback({
       state,
       ownerId: user.id,
+      queryConnected,
+      queryZernioProfileId,
+      queryUsername,
       queryStatus,
       queryError,
       queryErrorCode,

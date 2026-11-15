@@ -919,5 +919,225 @@ describe("Zernio webhook endpoint & signature validation", () => {
   });
 });
 
+describe("Zernio live HTTP profile resolution, connect URL, error mapping & callback", () => {
+  it("creates real Zernio profile, calls GET /v1/connect/whatsapp with coexistence, and preserves public WhatsApp action link", async () => {
+    const { userA, profileA } = createTwoTenants();
+    updateProfile(profileA.id, userA.id, {
+      whatsappNumber: "5511999998888",
+      whatsappMessage: "Olá, quero agendar!",
+    });
+
+    process.env.ZERNIO_API_KEY = "zernio_fake_key_never_leaked";
+    process.env.ZERNIO_API_BASE_URL = "https://zernio.com/api";
+
+    const realZernioProfileId = "66a1f0c2a4b9d3e8f1a2b3c4";
+    const calls: Array<{ url: string; method: string; auth: string | null }> = [];
+    const origFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const urlStr = typeof input === "string" ? input : input.toString();
+      const method = (init?.method || "GET").toUpperCase();
+      const headers = new Headers(init?.headers);
+      calls.push({ url: urlStr, method, auth: headers.get("authorization") });
+
+      if (urlStr.endsWith("/v1/profiles") && method === "GET") {
+        return new Response(JSON.stringify({ profiles: [] }), { status: 200 });
+      }
+      if (urlStr.endsWith("/v1/profiles") && method === "POST") {
+        return new Response(
+          JSON.stringify({ profile: { _id: realZernioProfileId } }),
+          { status: 201 }
+        );
+      }
+      if (urlStr.includes("/v1/connect/whatsapp") && method === "GET") {
+        const parsed = new URL(urlStr);
+        expect(parsed.searchParams.get("profileId")).toBe(realZernioProfileId);
+        expect(parsed.searchParams.get("onboarding")).toBe("business_app");
+        expect(parsed.searchParams.get("onboarding")).not.toBe("api");
+        expect(parsed.searchParams.get("redirect_url")).toContain(
+          "/api/integrations/whatsapp/callback?state="
+        );
+        return new Response(
+          JSON.stringify({
+            authUrl: "https://www.facebook.com/v22.0/dialog/oauth?client_id=123",
+            state: "zernio_state",
+          }),
+          { status: 200 }
+        );
+      }
+      if (urlStr.includes("/v1/accounts/acc_live_01") && method === "GET") {
+        return new Response(
+          JSON.stringify({
+            account: {
+              _id: "acc_live_01",
+              profileId: realZernioProfileId,
+              platform: "whatsapp",
+              status: "connected",
+              onboarding: "business_app",
+            },
+          }),
+          { status: 200 }
+        );
+      }
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    try {
+      const initiated = await initiateWhatsAppConnection({
+        profileId: profileA.id,
+        ownerId: userA.id,
+        origin: "https://linkia.iainfinito.com.br",
+        onboardingMode: "business_app",
+      });
+
+      expect(initiated.redirectUrl).toBe(
+        "https://www.facebook.com/v22.0/dialog/oauth?client_id=123"
+      );
+      expect(initiated.isMock).toBe(false);
+      expect(calls.every((c) => c.auth === "Bearer zernio_fake_key_never_leaked")).toBe(true);
+
+      const stateParam = new URL(
+        calls.find((c) => c.url.includes("/v1/connect/whatsapp"))!.url
+      ).searchParams.get("redirect_url")!;
+      const rawState = new URL(stateParam).searchParams.get("state")!;
+
+      const completed = await completeWhatsAppCallback({
+        state: rawState,
+        ownerId: userA.id,
+        queryConnected: "whatsapp",
+        queryZernioProfileId: realZernioProfileId,
+        queryAccountId: "acc_live_01",
+        queryUsername: "+55 11 97777-6666",
+      });
+
+      expect(completed.status).toBe("connected");
+      const view = getWhatsAppConnectionView(profileA.id);
+      expect(view.status).toBe("connected");
+      expect(view.maskedPhone).toBe("+55 ** *****-6666");
+
+      // Disconnecting Zernio does NOT erase "Links de ação" public WhatsApp
+      await disconnectWhatsAppIntegration({ profileId: profileA.id, ownerId: userA.id });
+      const dbRow = getDb()
+        .prepare("SELECT whatsapp_number, whatsapp_message FROM profiles WHERE id = ?")
+        .get(profileA.id) as { whatsapp_number: string; whatsapp_message: string };
+      expect(dbRow.whatsapp_number).toBe("5511999998888");
+      expect(dbRow.whatsapp_message).toBe("Olá, quero agendar!");
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it("maps Zernio 400, 401, 402, 404, timeout and invalid authUrl safely without leaking secrets", async () => {
+    const { userA, profileA } = createTwoTenants();
+    process.env.ZERNIO_API_KEY = "zernio_secret_must_never_leak";
+    process.env.ZERNIO_API_BASE_URL = "https://zernio.com/api";
+
+    const origFetch = globalThis.fetch;
+    const realZernioProfileId = "66a1f0c2a4b9d3e8f1a2b3c5";
+
+    const runScenario = async (
+      connectHandler: () => Promise<Response>
+    ): Promise<string> => {
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const urlStr = typeof input === "string" ? input : input.toString();
+        const method = (init?.method || "GET").toUpperCase();
+        if (urlStr.endsWith("/v1/profiles") && method === "GET") {
+          return new Response(
+            JSON.stringify({
+              profiles: [
+                {
+                  _id: realZernioProfileId,
+                  externalId: `linkia_u_${userA.id}_p_${profileA.id}`,
+                },
+              ],
+            }),
+            { status: 200 }
+          );
+        }
+        return connectHandler();
+      }) as typeof fetch;
+
+      try {
+        await initiateWhatsAppConnection({
+          profileId: profileA.id,
+          ownerId: userA.id,
+          origin: "http://localhost:3000",
+        });
+        return "NO_ERROR";
+      } catch (err) {
+        return err instanceof Error ? err.message : String(err);
+      }
+    };
+
+    try {
+      const msg404 = await runScenario(async () =>
+        new Response(JSON.stringify({ error: "Profile not found" }), { status: 404 })
+      );
+      expect(msg404).toContain("não foi localizado");
+      expect(msg404).not.toContain("zernio_secret_must_never_leak");
+
+      const msg402 = await runScenario(async () =>
+        new Response(JSON.stringify({ error: "Payment required" }), { status: 402 })
+      );
+      expect(msg402).toContain("cobrança");
+
+      const msg401 = await runScenario(async () =>
+        new Response(JSON.stringify({ error: "Invalid API key" }), { status: 401 })
+      );
+      expect(msg401).toContain("Credencial");
+
+      const msg400Redirect = await runScenario(async () =>
+        new Response(
+          JSON.stringify({ error: "Invalid redirect_url", param: "redirect_url" }),
+          { status: 400 }
+        )
+      );
+      expect(msg400Redirect).toContain("URL de retorno");
+
+      const msgBadAuthUrl = await runScenario(async () =>
+        new Response(JSON.stringify({ authUrl: "http://evil.example.com" }), {
+          status: 200,
+        })
+      );
+      expect(msgBadAuthUrl).toContain("allowlist HTTPS");
+
+      const msgTimeout = await runScenario(async () => {
+        throw new DOMException("Aborted", "TimeoutError");
+      });
+      expect(msgTimeout).toContain("Não foi possível conectar ao serviço da Zernio");
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it("handles Zernio callback conflict codes (one_whatsapp_per_profile, whatsapp_number_already_connected, connection_cancelled)", async () => {
+    const { userA, profileA } = createTwoTenants();
+    process.env.ZERNIO_ALLOW_LOCAL_MOCK = "true";
+
+    for (const errCode of [
+      "one_whatsapp_per_profile",
+      "whatsapp_number_already_connected",
+      "whatsapp_number_pinned_to_profile",
+      "connection_cancelled",
+    ]) {
+      const init = await initiateWhatsAppConnection({
+        profileId: profileA.id,
+        ownerId: userA.id,
+        origin: "http://localhost:3000",
+      });
+      const state = new URL(init.redirectUrl, "http://localhost:3000").searchParams.get("state")!;
+      const res = await completeWhatsAppCallback({
+        state,
+        ownerId: userA.id,
+        queryError: errCode,
+      });
+      expect(res.status).toBe(
+        errCode === "connection_cancelled" ? "cancelled" : errCode
+      );
+    }
+  });
+});
+
+
 
 

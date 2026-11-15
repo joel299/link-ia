@@ -100,7 +100,33 @@ function buildReturnNotice(params: URLSearchParams): {
         },
       };
     }
-    if (waStatus === "ineligible") {
+    if (waStatus === "cancelled" || waStatus === "connection_cancelled") {
+      return {
+        channel: "whatsapp",
+        notice: {
+          tone: "warning",
+          message:
+            reason ||
+            "Conexão cancelada antes da conclusão. Você pode tentar novamente quando quiser.",
+        },
+      };
+    }
+    if (
+      waStatus === "one_whatsapp_per_profile" ||
+      waStatus === "whatsapp_number_already_connected" ||
+      waStatus === "whatsapp_number_pinned_to_profile"
+    ) {
+      return {
+        channel: "whatsapp",
+        notice: {
+          tone: "error",
+          message:
+            reason ||
+            "Este número de WhatsApp já está vinculado a outro perfil/conexão. Reutilize ou desvincule a conexão existente antes de tentar novamente.",
+        },
+      };
+    }
+    if (waStatus === "ineligible" || waStatus === "on_premise") {
       return {
         channel: "whatsapp",
         notice: {
@@ -267,6 +293,7 @@ export function ConnectedChannelsPanel({
   const [notice, setNotice] = useState<NoticeBanner | null>(
     () => initialReturn.notice
   );
+  const [waConnectError, setWaConnectError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState<ChannelKey | null>(
     null
@@ -375,8 +402,10 @@ export function ConnectedChannelsPanel({
   }
 
   async function handleConnectWhatsApp() {
+    if (actionBusy === "whatsapp:connect") return;
     setActionBusy("whatsapp:connect");
     setNotice(null);
+    setWaConnectError(null);
     try {
       const res = await fetch(
         `/api/profiles/${profileId}/integrations/whatsapp/connect`,
@@ -397,11 +426,13 @@ export function ConnectedChannelsPanel({
             data: data.connection as WhatsAppConnectionView,
           });
         }
+        const errMsg =
+          data.error ||
+          "Não foi possível iniciar a conexão do WhatsApp Business.";
+        setWaConnectError(errMsg);
         setNotice({
           tone: res.status === 503 ? "warning" : "error",
-          message:
-            data.error ||
-            "Não foi possível iniciar a conexão do WhatsApp Business.",
+          message: errMsg,
         });
         setActionBusy(null);
         return;
@@ -412,14 +443,19 @@ export function ConnectedChannelsPanel({
         return;
       }
 
+      const fallbackMsg = "URL de redirecionamento não recebida do servidor.";
+      setWaConnectError(fallbackMsg);
       setNotice({
         tone: "error",
-        message: "URL de redirecionamento não recebida do servidor.",
+        message: fallbackMsg,
       });
     } catch {
+      const connErr =
+        "Erro de conexão ao iniciar onboarding do WhatsApp Business.";
+      setWaConnectError(connErr);
       setNotice({
         tone: "error",
-        message: "Erro de conexão ao iniciar onboarding do WhatsApp Business.",
+        message: connErr,
       });
     } finally {
       setActionBusy(null);
@@ -779,7 +815,22 @@ export function ConnectedChannelsPanel({
                       </div>
                     ) : null}
 
-                    {waConn.lastError ? (
+                    {waConnectError ? (
+                      <div className="alert-banner alert-error">
+                        <p style={{ margin: 0 }}>{waConnectError}</p>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          style={{ marginTop: "8px" }}
+                          disabled={actionBusy === "whatsapp:connect"}
+                          onClick={() => void handleConnectWhatsApp()}
+                        >
+                          Tentar novamente
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {waConn.lastError && waConn.lastError !== waConnectError ? (
                       <div className="alert-banner alert-error">
                         {waConn.lastError}
                       </div>

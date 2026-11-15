@@ -87,7 +87,10 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
     - `src/app/api/webhooks/zernio/whatsapp/route.ts` e `src/lib/zernio-whatsapp.ts` atualizados para também aceitar `X-Zernio-Event` e `X-Zernio-Event-Id` como fallback junto a `X-Zernio-Signature` (HMAC-SHA256 sobre `rawBody` com `crypto.timingSafeEqual`).
     - Documentação de cadastro externo e testes publicada em `docs/ZERNIO_WEBHOOK_SETUP.md`.
     - `next.config.ts` (`allowedDevOrigins: ["127.0.0.1", "localhost"]`) e `src/app/login/page.tsx` ajustados para destravar acesso local via `127.0.0.1:3000`.
-  - **Validações:** `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` e validação Docker Compose executados após as alterações (detalhes registrados na entrega atual).
+  - **Correção Zernio WhatsApp Connect HTTP 400 (`15/11/2026`):**
+    - Causa confirmada (`BUG-009`): envio do ID sintético `linkia_u_..._p_...` para `GET /v1/connect/whatsapp` causava HTTP `400 Invalid profileId format` na Zernio.
+    - `DefaultZernioWhatsAppProvider.ensureProfile()` passou a obter/criar o perfil real na Zernio (`GET/POST /v1/profiles`) e persistir seu `_id` (ObjectId 24 hex) em `whatsapp_connections.zernio_profile_id`, mantendo o modo coexistência (`onboarding=business_app`), mapeamento sanitizado de erros (`401`/`402`/`404`/`redirect_url`/conflitos), callback completo (`connected=whatsapp`, `profileId`, `accountId`, `username`, códigos de conflito/cancelamento) e botão **"Tentar novamente"** no card existente de **Canais conectados** (`ConnectedChannelsPanel.tsx`).
+  - **Validações:** `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` e validação HTTP local em `http://localhost:3000` executados após as alterações.
 
 ## Próxima ação
 
