@@ -507,6 +507,7 @@ describe("Integrations — Security, Zernio WhatsApp, Social & Ads", () => {
     process.env.COMPOSIO_META_ADS_AUTH_CONFIG_ID = "ac_metaads_test";
 
     const db = getDb();
+    db.prepare("UPDATE profiles SET status = 'published' WHERE id = ?").run(profileA.id);
     const now = new Date().toISOString();
     db.prepare(
       `INSERT INTO social_connections (
@@ -1672,6 +1673,7 @@ describe("Session 2 Consolidation: Idempotent Cleanup & Ads Error Sanitization",
   it("sanitizes raw provider errors in getAdsOverview without exposing tool names", async () => {
     const { userA, profileA } = createTwoTenants();
     const db = getDb();
+    db.prepare("UPDATE profiles SET status = 'published' WHERE id = ?").run(profileA.id);
     const now = new Date().toISOString();
     db.prepare(
       `INSERT INTO social_connections (
@@ -1760,6 +1762,7 @@ describe("Session 2 Consolidation: Idempotent Cleanup & Ads Error Sanitization",
   it("passes dateRange to listCampaignsAndMetrics in getAdsOverviewForOwner", async () => {
     const { userA, profileA } = createTwoTenants();
     const db = getDb();
+    db.prepare("UPDATE profiles SET status = 'published' WHERE id = ?").run(profileA.id);
     const now = new Date().toISOString();
     const connId = crypto.randomUUID();
     db.prepare(

@@ -330,6 +330,25 @@ function initSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_legal_acceptances_user_doc
       ON legal_acceptances(user_id, document_type, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS profile_custom_links (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      owner_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      url TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      icon_type TEXT NOT NULL DEFAULT 'link' CHECK (icon_type IN ('link', 'map', 'store', 'calendar', 'phone', 'globe')),
+      is_active INTEGER NOT NULL DEFAULT 1,
+      position INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_profile_custom_links_profile_pos
+      ON profile_custom_links(profile_id, position ASC, created_at ASC);
   `);
 
   try {
@@ -347,6 +366,7 @@ function initSchema(db: Database.Database): void {
     "ALTER TABLE bookings ADD COLUMN service_price_cents INTEGER",
     "ALTER TABLE profile_social_media ADD COLUMN like_count INTEGER",
     "ALTER TABLE profile_social_media ADD COLUMN comment_count INTEGER",
+    "ALTER TABLE profiles ADD COLUMN public_order_json TEXT",
   ]) {
     try {
       db.exec(alterSql);

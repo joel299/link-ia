@@ -134,20 +134,6 @@ export function AvatarUploader({
               </button>
             ) : null}
           </div>
-
-          <input
-            type="url"
-            aria-label="URL da foto de perfil (opcional)"
-            value={avatarUrl ?? ""}
-            onChange={(e) => {
-              setUploadError(null);
-              const val = e.target.value.trim();
-              onChange(val ? val : null);
-            }}
-            placeholder="Ou cole uma URL HTTPS da imagem (opcional)"
-            className="input"
-            style={{ fontSize: "0.875rem" }}
-          />
         </div>
       </div>
       <p className="field-hint">

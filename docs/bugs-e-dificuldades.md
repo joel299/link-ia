@@ -1,7 +1,7 @@
 # Bugs e dificuldades — LinkIA
 
-**Última atualização:** 13/11/2026  
-**Status do registro:** Correções de callback OAuth e publicação `422` publicadas; perfil `/soueujoe` e disponibilidade pública validados. Criação de evento real no Google Calendar ainda pendente.
+**Última atualização:** 15/11/2026  
+**Status do registro:** Correções finais do painel, página pública, links personalizados, ordenação da prévia e restrição de tráfego pago a perfis publicados implementadas e validadas (`npm test` 63/63, `typecheck`, `lint`, `build`). Creation de evento real no Google Calendar e teste em Docker Linux seguem pendentes.
 
 ## Como usar este arquivo
 
@@ -133,6 +133,14 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
   - `src/components/panel/PaidTrafficPanel.tsx` e `src/components/panel/ConnectedChannelsPanel.tsx`: separação clara entre **Facebook** (sessão 2) e **Meta Ads** (aba Tráfego pago, com botões próprios de Conectar/Reconectar/Desconectar e seletor de período), além de botão `"Remover número"` no caminho 2 do WhatsApp.
   - `src/components/public/PublicProfileView.tsx`, `PublicSocialSection.tsx`, `public-profile.css`: seção de destaques do Instagram movida para acima de "Serviços e produtos", carrossel horizontal touch no mobile sem barra de rolagem visível, badge `"Reel"` singular e estado pendente sem dados fictícios.
 - **Ação externa pendente:** Atualizar `COMPOSIO_META_ADS_AUTH_CONFIG_ID` no `.env` (e ambiente de deploy) para uma auth config OAuth2 do toolkit `metaads` (usando `META_ADS_CLIENT_ID` e `META_ADS_CLIENT_SECRET`) e reconectar o perfil na aba Tráfego pago -> Meta Ads.
+
+### PENDÊNCIA-LEGAL-001 — Minutas de Termos de Uso e Política de Privacidade pendentes de dados empresariais e revisão jurídica
+- **Data:** 15/11/2026
+- **Estado:** bloqueio de publicação definitiva (exibido explicitamente como minuta `0.1-minuta` em desenvolvimento)
+- **Detalhes:**
+  - Páginas públicas `/termos-de-uso` e `/politica-de-privacidade` e fluxo de aceite (`legal_acceptances` + `LegalConsentGate` no `/painel`) implementados sem inventar razão social, CNPJ, endereço, canal de privacidade, encarregado (DPO), prazos de retenção ou lista completa de subprocessadores.
+  - Remoção de cadastro público e modo demonstração na página inicial (`/`), `/login`, `POST /api/auth/demo` (HTTP 403) e `POST /api/auth/register` (exige autorização administrativa via sessão `role='admin'` ou `ADMIN_PROVISION_SECRET`).
+  - Antes de publicar como versão vigente (`1.0`), preencher os campos pendentes em `src/lib/legal-documents.ts` e concluir revisão jurídica.
 
 ## Riscos e questões em aberto — não são bugs
 

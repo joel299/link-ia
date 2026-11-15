@@ -185,6 +185,16 @@ export default function PainelPage() {
     );
   }
 
+  function handleProfileDeleted(deletedId: string) {
+    setProfiles((prev) => {
+      const next = prev.filter((item) => item.id !== deletedId);
+      setSelectedId((current) =>
+        current === deletedId ? (next[0]?.id ?? null) : current
+      );
+      return next;
+    });
+  }
+
   const activeProfile =
     profiles.find((p) => p.id === selectedId) ?? profiles[0] ?? null;
 
@@ -409,6 +419,7 @@ export default function PainelPage() {
           key={activeProfile.id}
           profile={activeProfile}
           onProfileUpdated={handleProfileUpdated}
+          onProfileDeleted={handleProfileDeleted}
         />
       ) : !showCreate ? (
         <GlassSurface intensity="standard">

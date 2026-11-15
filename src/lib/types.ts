@@ -6,6 +6,54 @@ export type ButtonStyle = "rounded" | "soft" | "sharp";
 
 export type ProfileStatus = "draft" | "published";
 
+export type PublicBlockKey =
+  | "booking"
+  | "whatsapp"
+  | "instagram"
+  | "tiktok"
+  | "custom_links"
+  | "social_highlights"
+  | "catalog";
+
+export const DEFAULT_PUBLIC_ORDER: PublicBlockKey[] = [
+  "booking",
+  "whatsapp",
+  "instagram",
+  "tiktok",
+  "custom_links",
+  "social_highlights",
+  "catalog",
+];
+
+export type CustomLinkIconType =
+  | "link"
+  | "map"
+  | "store"
+  | "calendar"
+  | "phone"
+  | "globe";
+
+export interface CustomLinkItem {
+  id: string;
+  profileId: string;
+  title: string;
+  url: string;
+  description: string;
+  iconType: CustomLinkIconType;
+  isActive: boolean;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicCustomLinkItem {
+  id: string;
+  title: string;
+  url: string;
+  description: string;
+  iconType: CustomLinkIconType;
+}
+
 export interface ProfileTheme {
   mode: ThemeMode;
   bgColor: string;
@@ -32,6 +80,7 @@ export interface Profile {
   bookingUrl: string | null;
   bookingLabel: string;
   bookingEnabled: boolean;
+  publicOrder?: PublicBlockKey[];
   theme: ProfileTheme;
   status: ProfileStatus;
   createdAt: string;
@@ -54,6 +103,8 @@ export interface PublicProfile {
   bookingTimezone?: string;
   bookingSlotDurationMinutes?: number;
   catalogItems?: PublicCatalogItem[];
+  customLinks?: PublicCustomLinkItem[];
+  publicOrder?: PublicBlockKey[];
   tiktokUrl?: string | null;
   socialMediaItems?: PublicSocialMediaItem[];
   instagramConnectedPendingSync?: boolean;
@@ -139,6 +190,7 @@ export interface ProfileUpdateInput {
   bookingUrl?: string | null;
   bookingLabel?: string;
   bookingEnabled?: boolean;
+  publicOrder?: PublicBlockKey[];
   theme?: Partial<ProfileTheme>;
 }
 

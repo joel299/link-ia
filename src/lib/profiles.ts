@@ -1,12 +1,15 @@
 import crypto from "node:crypto";
 import { listPublishedCatalogItemsByProfileId } from "./catalog";
+import { listActivePublicCustomLinks } from "./custom-links";
 import { getDb } from "./db";
 import {
   DEFAULT_LIGHT_THEME,
+  DEFAULT_PUBLIC_ORDER,
   Profile,
   ProfileStatus,
   ProfileTheme,
   ProfileUpdateInput,
+  PublicBlockKey,
   PublicProfile,
   ValidationErrors,
 } from "./types";
@@ -39,10 +42,62 @@ interface ProfileRow {
   booking_url: string | null;
   booking_label: string;
   booking_enabled: number;
+  public_order_json?: string | null;
   theme_json: string;
   status: ProfileStatus;
   created_at: string;
   updated_at: string;
+}
+
+const VALID_PUBLIC_BLOCK_KEYS = new Set<PublicBlockKey>(DEFAULT_PUBLIC_ORDER);
+
+export function normalizePublicOrder(raw: unknown): {
+  order?: PublicBlockKey[];
+  error?: string;
+} {
+  if (raw === undefined || raw === null) {
+    return { order: [...DEFAULT_PUBLIC_ORDER] };
+  }
+  if (!Array.isArray(raw)) {
+    return { error: "Ordem dos blocos inválida." };
+  }
+
+  const seen = new Set<PublicBlockKey>();
+  const next: PublicBlockKey[] = [];
+
+  for (const item of raw) {
+    if (
+      typeof item !== "string" ||
+      !VALID_PUBLIC_BLOCK_KEYS.has(item as PublicBlockKey)
+    ) {
+      return { error: "Bloco desconhecido na ordenação pública." };
+    }
+    const key = item as PublicBlockKey;
+    if (seen.has(key)) {
+      return { error: "Blocos duplicados na ordenação pública." };
+    }
+    seen.add(key);
+    next.push(key);
+  }
+
+  for (const fallbackKey of DEFAULT_PUBLIC_ORDER) {
+    if (!seen.has(fallbackKey)) {
+      next.push(fallbackKey);
+    }
+  }
+
+  return { order: next };
+}
+
+function parsePublicOrderJson(raw?: string | null): PublicBlockKey[] {
+  if (!raw) return [...DEFAULT_PUBLIC_ORDER];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    const normalized = normalizePublicOrder(parsed);
+    return normalized.order ?? [...DEFAULT_PUBLIC_ORDER];
+  } catch {
+    return [...DEFAULT_PUBLIC_ORDER];
+  }
 }
 
 function parseThemeJson(raw: string): ProfileTheme {
@@ -71,6 +126,7 @@ function rowToProfile(row: ProfileRow): Profile {
     bookingUrl: row.booking_url,
     bookingLabel: row.booking_label,
     bookingEnabled: Boolean(row.booking_enabled),
+    publicOrder: parsePublicOrderJson(row.public_order_json),
     theme: parseThemeJson(row.theme_json),
     status: row.status,
     createdAt: row.created_at,
@@ -125,8 +181,8 @@ export function isSlugAvailable(
   const db = getDb();
   const existing = excludeProfileId
     ? db
-        .prepare("SELECT id FROM profiles WHERE slug = ? AND id != ?")
-        .get(normalized, excludeProfileId)
+      .prepare("SELECT id FROM profiles WHERE slug = ? AND id != ?")
+      .get(normalized, excludeProfileId)
     : db.prepare("SELECT id FROM profiles WHERE slug = ?").get(normalized);
 
   if (existing) {
@@ -434,6 +490,17 @@ export function updateProfile(
     }
   }
 
+  let nextPublicOrder =
+    current.publicOrder ?? [...DEFAULT_PUBLIC_ORDER];
+  if (input.publicOrder !== undefined) {
+    const orderCheck = normalizePublicOrder(input.publicOrder);
+    if (orderCheck.error || !orderCheck.order) {
+      errors.publicOrder = orderCheck.error ?? "Ordem dos blocos inválida.";
+    } else {
+      nextPublicOrder = orderCheck.order;
+    }
+  }
+
   if (Object.keys(errors).length > 0) {
     return {
       errors,
@@ -461,6 +528,7 @@ export function updateProfile(
         booking_url = ?,
         booking_label = ?,
         booking_enabled = ?,
+        public_order_json = ?,
         theme_json = ?,
         updated_at = ?
       WHERE id = ? AND owner_id = ?`
@@ -478,6 +546,7 @@ export function updateProfile(
       nextBookingUrl,
       nextBookingLabel,
       nextBookingEnabled ? 1 : 0,
+      JSON.stringify(nextPublicOrder),
       JSON.stringify(nextTheme),
       now,
       current.id,
@@ -532,6 +601,77 @@ export function publishProfile(
   return { profile: rowToProfile(updated), status: 200 };
 }
 
+export function unpublishProfile(
+  id: string,
+  ownerId: string
+): { profile?: Profile; errors?: ValidationErrors; status?: number } {
+  const existingResult = getProfileByIdForOwner(id, ownerId);
+  if (existingResult.error === "not_found") {
+    return { errors: { _form: "Perfil não encontrado." }, status: 404 };
+  }
+  if (existingResult.error === "forbidden" || !existingResult.profile) {
+    return { errors: { _form: "Acesso negado a este perfil." }, status: 403 };
+  }
+
+  const now = new Date().toISOString();
+  const db = getDb();
+  db.prepare(
+    "UPDATE profiles SET status = 'draft', updated_at = ? WHERE id = ? AND owner_id = ?"
+  ).run(now, id, ownerId);
+
+  const updated = db
+    .prepare("SELECT * FROM profiles WHERE id = ?")
+    .get(id) as ProfileRow;
+
+  return { profile: rowToProfile(updated), status: 200 };
+}
+
+export function deleteProfileForOwner(
+  id: string,
+  ownerId: string,
+  options?: { confirmPublished?: boolean }
+): {
+  deleted?: boolean;
+  deletedId?: string;
+  error?: string;
+  requiresConfirmation?: boolean;
+  activeBookingsCount?: number;
+  status: number;
+} {
+  const existingResult = getProfileByIdForOwner(id, ownerId);
+  if (existingResult.error === "not_found") {
+    return { error: "Perfil não encontrado.", status: 404 };
+  }
+  if (existingResult.error === "forbidden" || !existingResult.profile) {
+    return { error: "Acesso negado a este perfil.", status: 403 };
+  }
+
+  const profile = existingResult.profile;
+  const db = getDb();
+  const bookingsRow = db
+    .prepare(
+      "SELECT COUNT(*) AS count FROM bookings WHERE profile_id = ? AND status = 'confirmed'"
+    )
+    .get(id) as { count: number } | undefined;
+  const activeBookingsCount = bookingsRow?.count ?? 0;
+
+  if (profile.status === "published" && !options?.confirmPublished) {
+    return {
+      error: `O perfil "${profile.displayName || profile.slug}" está publicado em /${profile.slug}. Confirme a exclusão explícita para remover a página pública e seus vínculos.`,
+      requiresConfirmation: true,
+      activeBookingsCount,
+      status: 409,
+    };
+  }
+
+  db.prepare("DELETE FROM profiles WHERE id = ? AND owner_id = ?").run(
+    id,
+    ownerId
+  );
+
+  return { deleted: true, deletedId: id, status: 200 };
+}
+
 export function getPublishedPublicProfileBySlug(
   rawSlug: string
 ): PublicProfile | null {
@@ -570,24 +710,24 @@ export function getPublishedPublicProfileBySlug(
     )
     .get(row.id) as
     | {
-        enabled: number;
-        horizon_days: number;
-        service_name: string | null;
-        timezone: string;
-        slot_duration_minutes: number;
-      }
+      enabled: number;
+      horizon_days: number;
+      service_name: string | null;
+      timezone: string;
+      slot_duration_minutes: number;
+    }
     | undefined;
   const hasValidWhatsapp = Boolean(
     row.whatsapp_number &&
-      (() => {
-        const wa = normalizeWhatsApp(row.whatsapp_number);
-        return !wa.error && Boolean(wa.url);
-      })()
+    (() => {
+      const wa = normalizeWhatsApp(row.whatsapp_number);
+      return !wa.error && Boolean(wa.url);
+    })()
   );
   const internalBookingEnabled = Boolean(
     connRow?.status === "connected" &&
-      settingsRow?.enabled === 1 &&
-      hasValidWhatsapp
+    settingsRow?.enabled === 1 &&
+    hasValidWhatsapp
   );
   const internalBookingReason:
     | "active"
@@ -628,14 +768,14 @@ export function getPublishedPublicProfileBySlug(
        LIMIT 3`
     )
     .all(row.id) as Array<{
-    external_id: string;
-    media_type: string;
-    caption: string;
-    permalink: string;
-    thumbnail_url: string | null;
-    like_count: number | null;
-    comment_count: number | null;
-  }>;
+      external_id: string;
+      media_type: string;
+      caption: string;
+      permalink: string;
+      thumbnail_url: string | null;
+      like_count: number | null;
+      comment_count: number | null;
+    }>;
 
   const socialMediaItems = socialMediaRows.map((m) => ({
     externalId: m.external_id,
@@ -657,8 +797,8 @@ export function getPublishedPublicProfileBySlug(
     socialMediaItems,
     instagramConnectedPendingSync: Boolean(
       connectedInstagramRow &&
-        !connectedInstagramRow.last_synced_at &&
-        socialMediaItems.length === 0
+      !connectedInstagramRow.last_synced_at &&
+      socialMediaItems.length === 0
     ),
     whatsappUrl,
     bookingUrl,
@@ -670,6 +810,8 @@ export function getPublishedPublicProfileBySlug(
     bookingTimezone: settingsRow?.timezone,
     bookingSlotDurationMinutes: settingsRow?.slot_duration_minutes,
     catalogItems: listPublishedCatalogItemsByProfileId(row.id),
+    customLinks: listActivePublicCustomLinks(row.id),
+    publicOrder: parsePublicOrderJson(row.public_order_json),
     theme: parseThemeJson(row.theme_json),
     updatedAt: row.updated_at,
   };

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildPreviewInstagramUrl } from "@/components/public/profile-visuals";
-import { GlassSurface } from "@/components/ui/GlassSurface";
+import { CollapsibleSection } from "./CollapsibleSection";
 import type {
   OrganicSocialProvider,
   Profile,
@@ -818,19 +818,11 @@ export function ConnectedChannelsPanel({
 
   return (
     <div id="canais-conectados">
-      <GlassSurface
-        as="section"
-        intensity="dense"
-        className="editor-section"
+      <CollapsibleSection
+        title="2. Canais conectados"
+        description="Gerencie em um único lugar WhatsApp, Instagram, TikTok e Facebook. Cada canal consulta seus dados somente quando você abre."
+        defaultOpen={false}
       >
-      <div className="editor-section-inner">
-        <div className="editor-section-header">
-          <h2 className="editor-section-title">2. Canais conectados</h2>
-          <p className="editor-section-desc">
-            Gerencie em um único lugar WhatsApp, Instagram, TikTok e Facebook.
-            Cada canal consulta seus dados somente quando você abre.
-          </p>
-        </div>
 
         {notice ? (
           <div
@@ -1875,8 +1867,7 @@ export function ConnectedChannelsPanel({
             ) : null}
           </div>
         </div>
-      </div>
-    </GlassSurface>
+      </CollapsibleSection>
     </div>
   );
 }

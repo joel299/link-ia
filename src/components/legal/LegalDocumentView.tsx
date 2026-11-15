@@ -207,3 +207,4 @@ export function LegalDocumentView({ document }: LegalDocumentViewProps) {
     </div>
   );
 }
+

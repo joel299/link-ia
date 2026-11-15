@@ -165,3 +165,4 @@ describe("Public demo/register removal & legal acceptance", () => {
     expect(afterHistoryCheck.history.length).toBe(4);
   });
 });
+

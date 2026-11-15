@@ -11,3 +11,4 @@ export const metadata: Metadata = {
 export default function TermosDeUsoPage() {
   return <LegalDocumentView document={TERMS_OF_USE_DOCUMENT} />;
 }
+

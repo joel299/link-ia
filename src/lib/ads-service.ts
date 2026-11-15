@@ -744,6 +744,12 @@ function requireAuthorizedProfile(profileId: string, ownerId: string) {
   if (check.error === "forbidden" || !check.profile) {
     throw new AdsServiceError("Acesso negado.", 403);
   }
+  if (check.profile.status !== "published") {
+    throw new AdsServiceError(
+      "Publique este perfil para configurar o tráfego pago.",
+      409
+    );
+  }
   return check.profile;
 }
 

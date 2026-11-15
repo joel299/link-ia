@@ -165,6 +165,86 @@
   padding-bottom: 12px;
 }
 
+.collapsible-trigger {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.collapsible-trigger:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.collapsible-trigger-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.collapsible-trigger-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collapsible-trigger-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.collapsible-trigger-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.collapsible-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  transition: transform 0.16s ease, border-color 0.16s ease;
+}
+
+.collapsible-chevron.is-open {
+  transform: rotate(180deg);
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.collapsible-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.collapsible-body[hidden] {
+  display: none;
+}
+
 .editor-section-title {
   margin: 0 0 4px;
   font-size: 1.125rem;

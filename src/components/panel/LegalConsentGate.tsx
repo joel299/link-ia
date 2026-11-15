@@ -257,3 +257,4 @@ export function LegalConsentGate({
     </div>
   );
 }
+

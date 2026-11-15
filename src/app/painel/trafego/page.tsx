@@ -117,7 +117,7 @@ export default function PainelTrafegoPage() {
           </p>
         </div>
 
-        {profiles.length > 1 ? (
+        {profiles.length > 0 ? (
           <div className="profile-tabs" aria-label="Selecionar perfil">
             {profiles.map((profile) => (
               <button
@@ -128,6 +128,15 @@ export default function PainelTrafegoPage() {
                 onClick={() => setSelectedId(profile.id)}
               >
                 <span>{profile.displayName || profile.slug}</span>
+                <span
+                  className={`badge ${
+                    profile.status === "published"
+                      ? "badge-published"
+                      : "badge-draft"
+                  }`}
+                >
+                  {profile.status === "published" ? "Publicado" : "Rascunho"}
+                </span>
               </button>
             ))}
           </div>
@@ -173,6 +182,33 @@ export default function PainelTrafegoPage() {
                 Ir para Configurações do perfil
               </Link>
             </div>
+          </div>
+        </GlassSurface>
+      ) : selectedProfile.status !== "published" ? (
+        <GlassSurface intensity="standard">
+          <div
+            role="status"
+            style={{
+              padding: "28px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+              alignItems: "flex-start",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <strong>{selectedProfile.displayName || selectedProfile.slug}</strong>
+              <span className="badge badge-draft">Rascunho</span>
+            </div>
+            <p style={{ margin: 0, color: "var(--color-text-muted)" }}>
+              Publique este perfil para configurar o tráfego pago.
+            </p>
+            <Link
+              href={`/painel?profileId=${encodeURIComponent(selectedProfile.id)}`}
+              className="btn btn-primary"
+            >
+              Ir para o editor e publicar
+            </Link>
           </div>
         </GlassSurface>
       ) : (

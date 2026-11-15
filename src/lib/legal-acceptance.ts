@@ -236,3 +236,4 @@ export function recordLegalAcceptanceForUser(params: {
   tx();
   return getLegalAcceptanceStatusForUser(params.userId);
 }
+

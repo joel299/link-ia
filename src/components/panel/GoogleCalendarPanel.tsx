@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type MutableRefObject } from "react";
-import { GlassSurface } from "@/components/ui/GlassSurface";
+import { CollapsibleSection } from "./CollapsibleSection";
 import {
   DEFAULT_WEEKLY_SCHEDULE,
   type BookingSettings,
@@ -379,24 +379,17 @@ export function GoogleCalendarPanel({
   const canActivate = isConnected && hasActiveDay && hasValidWhatsapp;
 
   return (
-    <GlassSurface as="section" intensity="dense">
-      <div className="editor-section-inner">
-        <div className="editor-section-header">
-          <div className="calendar-title-row">
-            <span className="calendar-icon-box" aria-hidden="true">
-              <GoogleCalendarIcon />
-            </span>
-            <div>
-              <h2 className="editor-section-title">
-                Configurações → Agendamento (Google Agenda)
-              </h2>
-              <p className="editor-section-desc">
-                Conecte sua agenda para exibir horários livres e receber reservas
-                direto no LinkIA.
-              </p>
-            </div>
-          </div>
-        </div>
+    <CollapsibleSection
+      id="secao-agendamento"
+      title="4. Agendamento (Google Agenda)"
+      description="Conecte sua agenda para exibir horários livres e receber reservas direto no LinkIA."
+      leadingIcon={
+        <span className="calendar-icon-box">
+          <GoogleCalendarIcon />
+        </span>
+      }
+      defaultOpen={Boolean(callbackNotice)}
+    >
 
         {loading ? (
           <p className="field-hint">Carregando status da Google Agenda...</p>
@@ -839,8 +832,7 @@ export function GoogleCalendarPanel({
             </div>
           </>
         )}
-      </div>
-    </GlassSurface>
+    </CollapsibleSection>
   );
 }
 

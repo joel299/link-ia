@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { getProfileByIdForOwner, updateProfile } from "@/lib/profiles";
+import {
+  deleteProfileForOwner,
+  getProfileByIdForOwner,
+  updateProfile,
+} from "@/lib/profiles";
 import type { ProfileUpdateInput } from "@/lib/types";
 
 export async function GET(
@@ -80,6 +84,13 @@ function isValidProfilePatchPayload(
   if (body.theme !== undefined && !isPlainObject(body.theme)) {
     return false;
   }
+  if (
+    body.publicOrder !== undefined &&
+    (!Array.isArray(body.publicOrder) ||
+      body.publicOrder.some((item) => typeof item !== "string"))
+  ) {
+    return false;
+  }
 
   return true;
 }
@@ -126,4 +137,43 @@ export async function PATCH(
   }
 
   return NextResponse.json({ profile: result.profile });
+}
+
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const user = await getSessionUser();
+  if (!user) {
+    return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+  const url = new URL(request.url);
+  let confirmPublished = url.searchParams.get("confirmPublished") === "true";
+
+  if (!confirmPublished) {
+    try {
+      const body = await request.json();
+      if (isPlainObject(body) && body.confirmPublished === true) {
+        confirmPublished = true;
+      }
+    } catch {
+      // Optional body; ignore empty/non-JSON body
+    }
+  }
+
+  const result = deleteProfileForOwner(id, user.id, { confirmPublished });
+  if (!result.deleted) {
+    return NextResponse.json(
+      {
+        error: result.error ?? "Não foi possível excluir o perfil.",
+        requiresConfirmation: result.requiresConfirmation ?? false,
+        activeBookingsCount: result.activeBookingsCount ?? 0,
+      },
+      { status: result.status }
+    );
+  }
+
+  return NextResponse.json({ deleted: true, deletedId: result.deletedId });
 }

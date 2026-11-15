@@ -11,12 +11,16 @@ import {
   type Profile,
   type ProfileTheme,
   type ProfileUpdateInput,
+  type PublicBlockKey,
+  type PublicCustomLinkItem,
   type ValidationErrors,
 } from "@/lib/types";
 import { AvatarUploader } from "./AvatarUploader";
+import { CollapsibleSection } from "./CollapsibleSection";
 import { ColorField } from "./ColorField";
 import { CatalogPanel } from "./CatalogPanel";
 import { ConnectedChannelsPanel } from "./ConnectedChannelsPanel";
+import { CustomLinksPanel } from "./CustomLinksPanel";
 import { GoogleCalendarPanel } from "./GoogleCalendarPanel";
 import { ProfilePreview } from "./ProfilePreview";
 import { PublishStatus, type SaveState } from "./PublishStatus";
@@ -24,6 +28,7 @@ import { PublishStatus, type SaveState } from "./PublishStatus";
 interface ProfileEditorProps {
   profile: Profile;
   onProfileUpdated: (updated: Profile) => void;
+  onProfileDeleted?: (deletedId: string) => void;
 }
 
 interface SlugCheckState {
@@ -49,11 +54,18 @@ const BUTTON_STYLES: { value: ButtonStyle; label: string }[] = [
 export function ProfileEditor({
   profile,
   onProfileUpdated,
+  onProfileDeleted,
 }: ProfileEditorProps) {
   const [draft, setDraft] = useState<Profile>(profile);
   const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isUnpublishing, setIsUnpublishing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmMessage, setDeleteConfirmMessage] = useState<string | null>(
+    null
+  );
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [bannerSuccess, setBannerSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
@@ -62,6 +74,7 @@ export function ProfileEditor({
   const [catalogItems, setCatalogItems] = useState<
     import("@/lib/types").PublicCatalogItem[]
   >([]);
+  const [customLinks, setCustomLinks] = useState<PublicCustomLinkItem[]>([]);
   const slugTimerRef = useRef<number | null>(null);
   const saveBookingRef = useRef<(() => Promise<boolean>) | null>(null);
 
@@ -186,6 +199,7 @@ export function ProfileEditor({
       bookingUrl: draft.bookingUrl,
       bookingLabel: draft.bookingLabel,
       bookingEnabled: draft.bookingEnabled,
+      publicOrder: draft.publicOrder,
       theme: draft.theme,
     };
   }
@@ -283,6 +297,71 @@ export function ProfileEditor({
     }
   }
 
+  async function handleUnpublish() {
+    setIsUnpublishing(true);
+    setBannerError(null);
+    setBannerSuccess(null);
+    try {
+      const res = await fetch(`/api/profiles/${draft.id}/publish`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.profile) {
+        setBannerError(
+          data.error || "Não foi possível despublicar o perfil."
+        );
+        return;
+      }
+      setDraft(data.profile);
+      onProfileUpdated(data.profile);
+      setDeleteConfirmOpen(false);
+      setBannerSuccess(
+        `Perfil "${data.profile.displayName || data.profile.slug}" voltou para rascunho. A página pública /${data.profile.slug} foi desativada.`
+      );
+    } catch {
+      setBannerError("Erro de conexão ao despublicar perfil.");
+    } finally {
+      setIsUnpublishing(false);
+    }
+  }
+
+  function handleRequestDelete() {
+    setBannerError(null);
+    setBannerSuccess(null);
+    setDeleteConfirmMessage(null);
+    setDeleteConfirmOpen(true);
+  }
+
+  async function handleConfirmDelete() {
+    setIsDeleting(true);
+    setBannerError(null);
+    setBannerSuccess(null);
+    try {
+      const res = await fetch(`/api/profiles/${draft.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          confirmPublished: draft.status === "published",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.deleted) {
+        setDeleteConfirmMessage(
+          data.error || "Não foi possível excluir este perfil."
+        );
+        return;
+      }
+      setDeleteConfirmOpen(false);
+      onProfileDeleted?.(draft.id);
+    } catch {
+      setDeleteConfirmMessage("Erro de conexão ao excluir perfil.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   const contrastRatio = getContrastRatio(
     draft.theme.bgColor,
     draft.theme.textColor
@@ -296,9 +375,80 @@ export function ProfileEditor({
         slug={draft.slug}
         saveState={saveState}
         isPublishing={isPublishing}
+        isUnpublishing={isUnpublishing}
+        isDeleting={isDeleting}
         onSave={saveProfile}
         onPublish={handlePublish}
+        onUnpublish={handleUnpublish}
+        onRequestDelete={handleRequestDelete}
       />
+
+      {deleteConfirmOpen ? (
+        <GlassSurface as="section" intensity="dense">
+          <div
+            role="dialog"
+            aria-modal="false"
+            aria-label="Confirmar exclusão de perfil"
+            style={{
+              padding: "18px 20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+              border: "1px solid var(--color-danger)",
+              borderRadius: "var(--radius-md)",
+            }}
+          >
+            <strong style={{ color: "var(--color-danger)" }}>
+              Excluir perfil &ldquo;{draft.displayName || draft.slug}&rdquo;?
+            </strong>
+            <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
+              {draft.status === "published"
+                ? `Este perfil está publicado em /${draft.slug}. Ao excluir permanentemente, o link público deixará de funcionar e os vínculos de agenda, canais e catálogo deste perfil serão removidos. Se quiser apenas tirar do ar sem apagar os dados, escolha "Despublicar".`
+                : `Este rascunho (/${draft.slug}) será removido permanentemente do seu painel.`}
+            </p>
+            {deleteConfirmMessage ? (
+              <div role="alert" className="alert-banner alert-error">
+                {deleteConfirmMessage}
+              </div>
+            ) : null}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="btn btn-secondary"
+                style={{
+                  borderColor: "var(--color-danger)",
+                  color: "var(--color-danger)",
+                }}
+              >
+                {isDeleting ? "Excluindo..." : "Confirmar exclusão"}
+              </button>
+              {draft.status === "published" ? (
+                <button
+                  type="button"
+                  onClick={handleUnpublish}
+                  disabled={isUnpublishing || isDeleting}
+                  className="btn btn-secondary"
+                >
+                  {isUnpublishing ? "Despublicando..." : "Despublicar (manter rascunho)"}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setDeleteConfirmMessage(null);
+                }}
+                disabled={isDeleting}
+                className="btn btn-secondary"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </GlassSurface>
+      ) : null}
 
       {bannerError ? (
         <div role="alert" className="alert-banner alert-error">
@@ -359,14 +509,12 @@ export function ProfileEditor({
       <div className="editor-workspace" data-mobile-tab={mobileTab}>
         <div className="editor-column">
           {/* Section 1: Identidade */}
-          <GlassSurface as="section" intensity="dense">
-            <div className="editor-section-inner">
-              <div className="editor-section-header">
-                <h2 className="editor-section-title">1. Identidade</h2>
-                <p className="editor-section-desc">
-                  Nome público, endereço curto (slug), bio e foto de perfil.
-                </p>
-              </div>
+          <CollapsibleSection
+            id="secao-identidade"
+            title="1. Identidade"
+            description="Nome público, endereço curto (slug), bio e foto de perfil."
+            defaultOpen={true}
+          >
 
               <div className="field-group">
                 <label htmlFor="displayName" className="field-label">
@@ -500,8 +648,7 @@ export function ProfileEditor({
                 onChange={(url) => updateField("avatarUrl", url)}
                 error={fieldErrors.avatarUrl}
               />
-            </div>
-          </GlassSurface>
+          </CollapsibleSection>
 
           {/* Section 2: Canais conectados (único local para WhatsApp, Instagram, TikTok e Facebook) */}
           <ConnectedChannelsPanel
@@ -517,15 +664,12 @@ export function ProfileEditor({
           />
 
           {/* Section 3: Aparência */}
-          <GlassSurface as="section" intensity="dense">
-            <div className="editor-section-inner">
-              <div className="editor-section-header">
-                <h2 className="editor-section-title">3. Aparência pública</h2>
-                <p className="editor-section-desc">
-                  Personalize o tema, cores, fonte e formato dos botões da sua
-                  página.
-                </p>
-              </div>
+          <CollapsibleSection
+            id="secao-aparencia"
+            title="3. Aparência pública"
+            description="Personalize o tema, cores, fonte e formato dos botões da sua página."
+            defaultOpen={false}
+          >
 
               <div className="field-group">
                 <span className="field-label">Temas prontos</span>
@@ -621,8 +765,7 @@ export function ProfileEditor({
                   ))}
                 </div>
               </div>
-            </div>
-          </GlassSurface>
+          </CollapsibleSection>
           {/* Section 4: Configurações -> Agendamento (Google Agenda) */}
           <GoogleCalendarPanel
             profileId={draft.id}
@@ -634,7 +777,13 @@ export function ProfileEditor({
             saveBookingRef={saveBookingRef}
           />
 
-          {/* Section 5: Catálogo de Serviços e Produtos */}
+          {/* Section 5: Links personalizados */}
+          <CustomLinksPanel
+            profileId={draft.id}
+            onLinksChange={setCustomLinks}
+          />
+
+          {/* Section 6: Catálogo de Serviços e Produtos */}
           <CatalogPanel
             profileId={draft.id}
             onCatalogChange={setCatalogItems}
@@ -645,6 +794,10 @@ export function ProfileEditor({
           draft={draft}
           internalBookingEnabled={internalBookingEnabled}
           catalogItems={catalogItems}
+          customLinks={customLinks}
+          onPublicOrderChange={(order: PublicBlockKey[]) =>
+            updateField("publicOrder", order)
+          }
         />
       </div>
     </div>

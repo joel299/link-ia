@@ -11,3 +11,4 @@ export const metadata: Metadata = {
 export default function PoliticaDePrivacidadePage() {
   return <LegalDocumentView document={PRIVACY_POLICY_DOCUMENT} />;
 }
+

@@ -63,3 +63,4 @@ export function LegalFooter({ maxWidth = "1200px" }: LegalFooterProps) {
     </footer>
   );
 }
+

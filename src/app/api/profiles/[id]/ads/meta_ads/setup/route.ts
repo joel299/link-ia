@@ -21,8 +21,14 @@ export async function GET(
   if (result.error === "not_found") {
     return NextResponse.json({ error: "Perfil não encontrado." }, { status: 404 });
   }
-  if (result.error === "forbidden") {
+  if (result.error === "forbidden" || !result.profile) {
     return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+  }
+  if (result.profile.status !== "published") {
+    return NextResponse.json(
+      { error: "Publique este perfil para configurar o tráfego pago." },
+      { status: 409 }
+    );
   }
 
   const validation = getMetaAdsEnvValidation();
@@ -53,8 +59,14 @@ export async function POST(
   if (result.error === "not_found") {
     return NextResponse.json({ error: "Perfil não encontrado." }, { status: 404 });
   }
-  if (result.error === "forbidden") {
+  if (result.error === "forbidden" || !result.profile) {
     return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+  }
+  if (result.profile.status !== "published") {
+    return NextResponse.json(
+      { error: "Publique este perfil para configurar o tráfego pago." },
+      { status: 409 }
+    );
   }
 
   try {

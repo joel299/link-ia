@@ -312,3 +312,4 @@ export function getLegalDocumentContentHash(type: LegalDocumentType): string {
 
   return crypto.createHash("sha256").update(payload, "utf8").digest("hex");
 }
+

@@ -40,6 +40,15 @@ export async function POST(
   if (check.error === "forbidden" || !check.profile) {
     return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
   }
+  if (
+    (provider === "meta_ads" || provider === "tiktok_ads") &&
+    check.profile.status !== "published"
+  ) {
+    return NextResponse.json(
+      { error: "Publique este perfil para configurar o tráfego pago." },
+      { status: 409 }
+    );
+  }
 
   try {
     if (provider === "meta_ads") {

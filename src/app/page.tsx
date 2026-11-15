@@ -73,7 +73,7 @@ export default function HomePage() {
               color: "var(--color-accent)",
             }}
           >
-            LinkIA MVP · Página de Bio
+            LinkIA · Página de Bio Profissional
           </span>
           <h1
             style={{

@@ -11,8 +11,12 @@ interface PublishStatusProps {
   slug: string;
   saveState: SaveState;
   isPublishing: boolean;
+  isUnpublishing?: boolean;
+  isDeleting?: boolean;
   onSave: () => void;
   onPublish: () => void;
+  onUnpublish?: () => void;
+  onRequestDelete?: () => void;
 }
 
 export function PublishStatus({
@@ -20,11 +24,16 @@ export function PublishStatus({
   slug,
   saveState,
   isPublishing,
+  isUnpublishing = false,
+  isDeleting = false,
   onSave,
   onPublish,
+  onUnpublish,
+  onRequestDelete,
 }: PublishStatusProps) {
   const isPublished = status === "published";
-  const isBusy = saveState === "saving" || isPublishing;
+  const isBusy =
+    saveState === "saving" || isPublishing || isUnpublishing || isDeleting;
   const publicPath = slug ? `/${slug}` : "";
 
   return (
@@ -85,14 +94,26 @@ export function PublishStatus({
 
         <div className="editor-status-actions">
           {isPublished ? (
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={isBusy}
-              className="btn btn-primary"
-            >
-              {saveState === "saving" ? "Salvando..." : "Salvar alterações"}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={onSave}
+                disabled={isBusy}
+                className="btn btn-primary"
+              >
+                {saveState === "saving" ? "Salvando..." : "Salvar alterações"}
+              </button>
+              {onUnpublish ? (
+                <button
+                  type="button"
+                  onClick={onUnpublish}
+                  disabled={isBusy}
+                  className="btn btn-secondary"
+                >
+                  {isUnpublishing ? "Despublicando..." : "Despublicar"}
+                </button>
+              ) : null}
+            </>
           ) : (
             <>
               <button
@@ -113,6 +134,20 @@ export function PublishStatus({
               </button>
             </>
           )}
+          {onRequestDelete ? (
+            <button
+              type="button"
+              onClick={onRequestDelete}
+              disabled={isBusy}
+              className="btn btn-secondary"
+              style={{
+                borderColor: "var(--color-danger)",
+                color: "var(--color-danger)",
+              }}
+            >
+              Excluir
+            </button>
+          ) : null}
         </div>
       </div>
     </GlassSurface>

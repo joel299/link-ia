@@ -1,7 +1,7 @@
 # Estado atual — LinkIA
 
 **Última atualização:** 15/11/2026  
-**Status:** MVP + Google Calendar (Composio) + Agendamento público + Catálogo/Carrossel + Destaques do Instagram acima do catálogo + Canais conectados consolidados + Tráfego Pago (`/painel/trafego`, Meta Ads / TikTok Ads com seletor de período e tratamento de `ConnectedAccount_ToolkitMismatch`) validados localmente em `http://localhost:3000`. Pendente atualização externa de `COMPOSIO_META_ADS_AUTH_CONFIG_ID` para uma auth config do toolkit `metaads` (hoje aponta para `facebook`), teste em Docker Linux e descoberta da plataforma Qualify.
+**Status:** MVP + Google Calendar (Composio) + Agendamento público + Catálogo/Carrossel + Destaques do Instagram + Canais conectados + Tráfego Pago (`/painel/trafego`, restrito a perfis publicados) + Páginas legais públicas (`/termos-de-uso`, `/politica-de-privacidade`) + Correções finais de painel (remoção de badge MVP e campo URL de foto, CRUD completo com despublicar e exclusão confirmada, seções 1–4 colapsáveis, links personalizados HTTPS e ordenação configurável da prévia e página pública) implementados e validados localmente em `http://127.0.0.1:3000`. Pendente preenchimento dos dados empresariais/jurídicos nas minutas legais, atualização externa de `COMPOSIO_META_ADS_AUTH_CONFIG_ID` para `metaads`, teste em Docker Linux e descoberta da plataforma Qualify.
 
 ## Retomada rápida
 
