@@ -7,6 +7,10 @@ import {
   SocialValidationError,
   syncSocialMedia,
 } from "@/lib/composio-social";
+import {
+  requireUserFeature,
+  socialProviderToFeatureKey,
+} from "@/lib/permissions";
 import { getProfileByIdForOwner } from "@/lib/profiles";
 
 export async function POST(
@@ -25,6 +29,11 @@ export async function POST(
       { status: 400 }
     );
   }
+  const denied = await requireUserFeature(
+    user.id,
+    socialProviderToFeatureKey(provider)
+  );
+  if (denied) return denied;
 
   const check = getProfileByIdForOwner(id, user.id);
   if (check.error === "not_found") {

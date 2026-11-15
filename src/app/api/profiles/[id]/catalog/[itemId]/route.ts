@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
+import { requireUserFeature } from "@/lib/permissions";
 import {
   CatalogError,
   CatalogItemInput,
@@ -16,6 +17,8 @@ export async function PATCH(
   if (!user) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
+  const denied = await requireUserFeature(user.id, "catalog");
+  if (denied) return denied;
 
   const { id, itemId } = await context.params;
   let body: unknown;
@@ -61,6 +64,8 @@ export async function DELETE(
   if (!user) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
+  const denied = await requireUserFeature(user.id, "catalog");
+  if (denied) return denied;
 
   const { id, itemId } = await context.params;
   try {

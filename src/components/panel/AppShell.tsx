@@ -6,22 +6,40 @@ import { useState, type ReactNode } from "react";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import type { UserPermissions, UserRole } from "@/lib/types";
 import "./panel.css";
 
 interface AppShellProps {
   userName: string;
+  userRole?: UserRole;
+  permissions?: UserPermissions;
   children: ReactNode;
 }
 
-const NAV_ITEMS = [
-  { href: "/painel", label: "Configurações do perfil", matchExact: true },
-  { href: "/painel/trafego", label: "Tráfego pago", matchExact: false },
-];
-
-export function AppShell({ userName, children }: AppShellProps) {
+export function AppShell({
+  userName,
+  userRole,
+  permissions,
+  children,
+}: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const canAccessPaidTraffic = Boolean(
+    permissions?.meta_ads || permissions?.tiktok_ads
+  );
+  const isAdmin = userRole === "admin";
+
+  const navItems = [
+    { href: "/painel", label: "Configurações do perfil", matchExact: true },
+    ...(canAccessPaidTraffic
+      ? [{ href: "/painel/trafego", label: "Tráfego pago", matchExact: false }]
+      : []),
+    ...(isAdmin
+      ? [{ href: "/painel/admin", label: "Administração", matchExact: false }]
+      : []),
+  ];
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -48,7 +66,7 @@ export function AppShell({ userName, children }: AppShellProps) {
           <div className="app-header-brand-nav">
             <BrandMark href="/painel" size="sm" />
             <nav className="app-nav" aria-label="Navegação do painel">
-              {NAV_ITEMS.map((item) => {
+              {navItems.map((item) => {
                 const isActive = item.matchExact
                   ? pathname === item.href
                   : pathname === item.href ||

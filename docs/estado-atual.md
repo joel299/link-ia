@@ -124,3 +124,18 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
 - O Meta App `stark-hermes` já tinha a URI Composio na lista OAuth. O erro reproduzido vinha do domínio LinkIA ausente em App Domains; adicionado `linkia.iainfinito.com.br` e alinhado o URL do site ao host oficial de produção.
 - A configuração antiga `COMPOSIO_META_ADS_REDIRECT_URI` no Coolify foi alinhada à URI v3 do Composio. A rota de conexão agora sincroniza a Auth Config `metaads` antes de iniciar OAuth.
 - Próximo passo: repetir a conexão Meta Ads no painel; validar que o `redirect_uri` do Facebook é `https://backend.composio.dev/api/v3/toolkits/auth/callback` e que, ao concluir ou cancelar, o navegador volta ao tráfego pago do LinkIA.
+
+### Painel administrativo e controle de funcionalidades por usuário (15/11/2026)
+- **Modelo de dados e permissões (`src/lib/types.ts`, `src/lib/db.ts`, `src/lib/permissions.ts`):**
+  - Criadas as tabelas `user_feature_permissions` (`user_id`, `permissions_json`, `version`, `updated_by`, `updated_at`) e `admin_audit_logs` (`id`, `actor_user_id`, `target_user_id`, `action`, `details_json`, `created_at`), além da migração idempotente `users.is_active` e `users.updated_at`.
+  - Definidas 8 chaves explícitas e independentes (`FeatureKey`): `whatsapp`, `instagram`, `facebook_social`, `meta_ads`, `tiktok_organic`, `tiktok_ads`, `google_calendar` e `catalog`.
+  - Contas legadas sem registro em `user_feature_permissions` mantêm todas as 8 funcionalidades liberadas; contas novas criadas pelo admin recebem apenas as permissões explicitamente marcadas (todas desmarcadas por padrão no formulário de criação).
+- **Autenticação, bootstrap e APIs administrativas (`src/lib/auth.ts`, `src/lib/admin-users.ts`, `src/app/api/admin/users/**`):**
+  - `getSessionUser()` anexa `role`, `isActive` e `permissions` à sessão e invalida sessões de contas suspensas (`is_active === 0`); `authenticateUser()` também bloqueia login de contas suspensas.
+  - Adicionado `ensureAdminBootstrapFromEnv()` com `ADMIN_BOOTSTRAP_EMAIL` e `ADMIN_BOOTSTRAP_PASSWORD` documentados em `.env.example` sem valores reais.
+  - Rotas `GET/POST /api/admin/users` e `GET/PATCH /api/admin/users/[userId]` protegidas por `requireAdminUser()` (`403` para não-admins), rejeitando escalonamento de papel (`role !== 'client'`) e nunca expondo `password_hash` ou segredos.
+- **Enforcement no servidor e filtragem no cliente:**
+  - `requireUserFeature()` aplicado com resposta `403` em todas as rotas de WhatsApp, Social (`instagram`, `tiktok`, `facebook_social`), Tráfego Pago (`meta_ads`, `tiktok_ads`), Google Agenda / Agendamento (`google-calendar`, `booking-settings`), Catálogo (`catalog`) e `PATCH /api/profiles/[id]`; `getPublishedPublicProfileBySlug()` também filtra elementos públicos conforme as permissões do dono.
+  - Criada a página `/painel/admin` (`src/app/painel/admin/page.tsx` + `src/components/panel/AdminUsersPanel.tsx`) e link condicional `"Administração"` no `AppShell.tsx`.
+  - `ProfileEditor.tsx`, `ConnectedChannelsPanel.tsx`, `ProfilePreview.tsx`, `src/app/painel/trafego/page.tsx` e `PaidTrafficPanel.tsx` ocultam abas/canais não liberados para o usuário autenticado.
+- **Validações concluídas:** `npm test` (8 arquivos, 68/68 testes incluindo `tests/admin-permissions.test.ts`), `npm run typecheck` (0 erros), `npm run lint` (0 erros), `npm run build` (exit 0) e verificação HTTP E2E local em `http://127.0.0.1:3000` (unauth redirect `307`, admin `200`, criação de cliente com permissões parciais, `403` para cliente em `/api/admin/users` e rotas não liberadas, `200` nas liberadas, suspensão `isActive: false` bloqueando login com `401`).

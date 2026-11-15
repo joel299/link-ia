@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
+import { getUserPermissions } from "@/lib/permissions";
 import {
   deleteProfileForOwner,
   getProfileByIdForOwner,
@@ -120,6 +121,31 @@ export async function PATCH(
     return NextResponse.json(
       { error: "Payload inválido." },
       { status: 400 }
+    );
+  }
+
+  const perms = getUserPermissions(user.id);
+  const attemptsWhatsapp =
+    body.whatsappEnabled === true ||
+    (typeof body.whatsappNumber === "string" &&
+      body.whatsappNumber.trim().length > 0) ||
+    (typeof body.whatsappMessage === "string" &&
+      body.whatsappMessage.trim().length > 0);
+  if (!perms.whatsapp && attemptsWhatsapp) {
+    return NextResponse.json(
+      { error: "Recurso WhatsApp não liberado para esta conta." },
+      { status: 403 }
+    );
+  }
+
+  const attemptsInstagram =
+    body.instagramEnabled === true ||
+    (typeof body.instagramInput === "string" &&
+      body.instagramInput.trim().length > 0);
+  if (!perms.instagram && attemptsInstagram) {
+    return NextResponse.json(
+      { error: "Recurso Instagram não liberado para esta conta." },
+      { status: 403 }
     );
   }
 

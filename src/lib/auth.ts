@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import { ensureDemoSeed, getDb } from "./db";
+import { getUserPermissions } from "./permissions";
+import type { UserPermissions } from "./types";
 import { sanitizePlainText } from "./validation";
 
 export const SESSION_COOKIE_NAME = "linkia_session";
@@ -12,6 +14,8 @@ export interface SessionUser {
   email: string;
   name: string;
   role?: "admin" | "client";
+  isActive?: boolean;
+  permissions?: UserPermissions;
 }
 
 interface SessionPayload {
@@ -125,17 +129,27 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
     const db = getDb();
     const row = db
-      .prepare("SELECT id, email, name, role FROM users WHERE id = ?")
+      .prepare("SELECT id, email, name, role, is_active FROM users WHERE id = ?")
       .get(decoded.id) as
-      | { id: string; email: string; name: string; role?: string }
+      | {
+          id: string;
+          email: string;
+          name: string;
+          role?: string;
+          is_active?: number;
+        }
       | undefined;
 
     if (!row) return null;
+    if (row.is_active === 0) return null;
+
     return {
       id: row.id,
       email: row.email,
       name: row.name,
       role: row.role === "admin" ? "admin" : "client",
+      isActive: true,
+      permissions: getUserPermissions(row.id),
     };
   } catch {
     return null;
@@ -255,6 +269,34 @@ export function registerUser(
   };
 }
 
+export function ensureAdminBootstrapFromEnv(): void {
+  const rawEmail = process.env.ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase();
+  const rawPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+  if (!rawEmail || !rawPassword || rawPassword.length < 8) {
+    return;
+  }
+  const db = getDb();
+  const existing = db
+    .prepare("SELECT id, role FROM users WHERE email = ?")
+    .get(rawEmail) as { id: string; role?: string } | undefined;
+
+  if (existing) {
+    if (existing.role !== "admin") {
+      db.prepare("UPDATE users SET role = 'admin', is_active = 1 WHERE id = ?").run(
+        existing.id
+      );
+    }
+    return;
+  }
+
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const passwordHash = hashPassword(rawPassword);
+  db.prepare(
+    "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) VALUES (?, ?, ?, ?, 'admin', 1, ?)"
+  ).run(id, rawEmail, "Administrador LinkIA", passwordHash, now);
+}
+
 export function authenticateUser(
   rawEmail: string,
   password: string
@@ -264,19 +306,43 @@ export function authenticateUser(
     return { error: "Informe e-mail e senha." };
   }
 
+  ensureAdminBootstrapFromEnv();
+
   const db = getDb();
   const row = db
-    .prepare("SELECT id, email, name, password_hash FROM users WHERE email = ?")
+    .prepare(
+      "SELECT id, email, name, password_hash, role, is_active FROM users WHERE email = ?"
+    )
     .get(email) as
-    | { id: string; email: string; name: string; password_hash: string }
+    | {
+        id: string;
+        email: string;
+        name: string;
+        password_hash: string;
+        role?: string;
+        is_active?: number;
+      }
     | undefined;
 
   if (!row || !verifyPassword(password, row.password_hash)) {
     return { error: "E-mail ou senha inválidos." };
   }
 
+  if (row.is_active === 0) {
+    return {
+      error: "Sua conta está suspensa. Entre em contato com a administração.",
+    };
+  }
+
   return {
-    user: { id: row.id, email: row.email, name: row.name },
+    user: {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      role: row.role === "admin" ? "admin" : "client",
+      isActive: true,
+      permissions: getUserPermissions(row.id),
+    },
   };
 }
 

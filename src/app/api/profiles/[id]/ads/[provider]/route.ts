@@ -7,6 +7,10 @@ import {
   validateAdsDateRange,
 } from "@/lib/ads-service";
 import { getSessionUser } from "@/lib/auth";
+import {
+  adsProviderToFeatureKey,
+  requireUserFeature,
+} from "@/lib/permissions";
 
 export async function GET(
   request: Request,
@@ -24,6 +28,11 @@ export async function GET(
       { status: 400 }
     );
   }
+  const denied = await requireUserFeature(
+    user.id,
+    adsProviderToFeatureKey(provider)
+  );
+  if (denied) return denied;
 
   const url = new URL(request.url);
   const sync = url.searchParams.get("sync") === "1";
@@ -74,6 +83,11 @@ export async function POST(
       { status: 400 }
     );
   }
+  const denied = await requireUserFeature(
+    user.id,
+    adsProviderToFeatureKey(provider)
+  );
+  if (denied) return denied;
 
   let body: unknown;
   try {

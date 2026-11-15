@@ -10,6 +10,10 @@ import {
   updatePublicSocialMediaSelection,
 } from "@/lib/composio-social";
 import { getProfileByIdForOwner } from "@/lib/profiles";
+import {
+  requireUserFeature,
+  socialProviderToFeatureKey,
+} from "@/lib/permissions";
 
 export async function GET(
   _request: Request,
@@ -27,6 +31,11 @@ export async function GET(
       { status: 400 }
     );
   }
+  const denied = await requireUserFeature(
+    user.id,
+    socialProviderToFeatureKey(provider)
+  );
+  if (denied) return denied;
 
   const check = getProfileByIdForOwner(id, user.id);
   if (check.error === "not_found") {
@@ -63,6 +72,11 @@ export async function PATCH(
       { status: 400 }
     );
   }
+  const denied = await requireUserFeature(
+    user.id,
+    socialProviderToFeatureKey(provider)
+  );
+  if (denied) return denied;
 
   const check = getProfileByIdForOwner(id, user.id);
   if (check.error === "not_found") {
@@ -136,6 +150,11 @@ export async function DELETE(
       { status: 400 }
     );
   }
+  const denied = await requireUserFeature(
+    user.id,
+    socialProviderToFeatureKey(provider)
+  );
+  if (denied) return denied;
 
   const check = getProfileByIdForOwner(id, user.id);
   if (check.error === "not_found") {

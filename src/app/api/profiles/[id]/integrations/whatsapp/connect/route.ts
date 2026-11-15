@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAppBaseUrl } from "@/lib/app-url";
 import { getSessionUser } from "@/lib/auth";
+import { requireUserFeature } from "@/lib/permissions";
 import { getProfileByIdForOwner } from "@/lib/profiles";
 import {
   finalizeWhatsAppEmbeddedSignup,
@@ -27,6 +28,8 @@ export async function POST(
   if (!user) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
+  const denied = await requireUserFeature(user.id, "whatsapp");
+  if (denied) return denied;
 
   const { id } = await context.params;
   const check = getProfileByIdForOwner(id, user.id);

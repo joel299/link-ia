@@ -5,6 +5,10 @@ import {
   isAdsProvider,
 } from "@/lib/ads-service";
 import { getSessionUser } from "@/lib/auth";
+import {
+  adsProviderToFeatureKey,
+  requireUserFeature,
+} from "@/lib/permissions";
 
 export async function POST(
   request: Request,
@@ -24,6 +28,11 @@ export async function POST(
       { status: 400 }
     );
   }
+  const denied = await requireUserFeature(
+    user.id,
+    adsProviderToFeatureKey(provider)
+  );
+  if (denied) return denied;
 
   let body: unknown;
   try {

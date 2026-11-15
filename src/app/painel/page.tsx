@@ -9,12 +9,19 @@ import {
 } from "@/components/panel/LegalConsentGate";
 import { ProfileEditor } from "@/components/panel/ProfileEditor";
 import { GlassSurface } from "@/components/ui/GlassSurface";
-import type { Profile, ValidationErrors } from "@/lib/types";
+import type {
+  Profile,
+  UserPermissions,
+  UserRole,
+  ValidationErrors,
+} from "@/lib/types";
 
 interface AuthUser {
   id: string;
   email: string;
   name: string;
+  role?: UserRole;
+  permissions?: UserPermissions;
 }
 
 interface PanelSnapshot {
@@ -244,7 +251,11 @@ export default function PainelPage() {
 
   if (legalStatus?.requiresAcceptance) {
     return (
-      <AppShell userName={user?.name || ""}>
+      <AppShell
+        userName={user?.name || ""}
+        userRole={user?.role}
+        permissions={user?.permissions}
+      >
         <LegalConsentGate
           profileId={activeProfile?.id ?? null}
           status={legalStatus}
@@ -255,7 +266,11 @@ export default function PainelPage() {
   }
 
   return (
-    <AppShell userName={user?.name || ""}>
+    <AppShell
+      userName={user?.name || ""}
+      userRole={user?.role}
+      permissions={user?.permissions}
+    >
       <section aria-label="Seus perfis" className="profile-bar">
         <div className="profile-tabs">
           {profiles.map((p) => (
@@ -418,6 +433,7 @@ export default function PainelPage() {
         <ProfileEditor
           key={activeProfile.id}
           profile={activeProfile}
+          permissions={user?.permissions}
           onProfileUpdated={handleProfileUpdated}
           onProfileDeleted={handleProfileDeleted}
         />

@@ -349,6 +349,28 @@ function initSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_profile_custom_links_profile_pos
       ON profile_custom_links(profile_id, position ASC, created_at ASC);
+
+    CREATE TABLE IF NOT EXISTS user_feature_permissions (
+      user_id TEXT PRIMARY KEY,
+      permissions_json TEXT NOT NULL,
+      version INTEGER NOT NULL DEFAULT 1,
+      updated_by TEXT,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS admin_audit_logs (
+      id TEXT PRIMARY KEY,
+      actor_user_id TEXT NOT NULL,
+      target_user_id TEXT,
+      action TEXT NOT NULL,
+      details_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at
+      ON admin_audit_logs(created_at DESC);
   `);
 
   try {
@@ -361,6 +383,8 @@ function initSchema(db: Database.Database): void {
 
   for (const alterSql of [
     "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'client'",
+    "ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE users ADD COLUMN updated_at TEXT",
     "ALTER TABLE bookings ADD COLUMN service_public_id TEXT",
     "ALTER TABLE bookings ADD COLUMN service_title TEXT",
     "ALTER TABLE bookings ADD COLUMN service_price_cents INTEGER",

@@ -13,6 +13,7 @@ import {
   type ProfileUpdateInput,
   type PublicBlockKey,
   type PublicCustomLinkItem,
+  type UserPermissions,
   type ValidationErrors,
 } from "@/lib/types";
 import { AvatarUploader } from "./AvatarUploader";
@@ -27,6 +28,7 @@ import { PublishStatus, type SaveState } from "./PublishStatus";
 
 interface ProfileEditorProps {
   profile: Profile;
+  permissions?: UserPermissions;
   onProfileUpdated: (updated: Profile) => void;
   onProfileDeleted?: (deletedId: string) => void;
 }
@@ -53,6 +55,7 @@ const BUTTON_STYLES: { value: ButtonStyle; label: string }[] = [
 
 export function ProfileEditor({
   profile,
+  permissions,
   onProfileUpdated,
   onProfileDeleted,
 }: ProfileEditorProps) {
@@ -654,6 +657,7 @@ export function ProfileEditor({
           <ConnectedChannelsPanel
             key={draft.id}
             profileId={draft.id}
+            permissions={permissions}
             whatsappEnabled={draft.whatsappEnabled}
             whatsappNumber={draft.whatsappNumber}
             whatsappMessage={draft.whatsappMessage}
@@ -767,15 +771,17 @@ export function ProfileEditor({
               </div>
           </CollapsibleSection>
           {/* Section 4: Configurações -> Agendamento (Google Agenda) */}
-          <GoogleCalendarPanel
-            profileId={draft.id}
-            profileSlug={draft.slug}
-            hasValidWhatsapp={
-              draft.whatsappNumber.replace(/\D/g, "").length >= 10
-            }
-            onInternalBookingChange={setInternalBookingEnabled}
-            saveBookingRef={saveBookingRef}
-          />
+          {!permissions || permissions.google_calendar ? (
+            <GoogleCalendarPanel
+              profileId={draft.id}
+              profileSlug={draft.slug}
+              hasValidWhatsapp={
+                draft.whatsappNumber.replace(/\D/g, "").length >= 10
+              }
+              onInternalBookingChange={setInternalBookingEnabled}
+              saveBookingRef={saveBookingRef}
+            />
+          ) : null}
 
           {/* Section 5: Links personalizados */}
           <CustomLinksPanel
@@ -784,16 +790,24 @@ export function ProfileEditor({
           />
 
           {/* Section 6: Catálogo de Serviços e Produtos */}
-          <CatalogPanel
-            profileId={draft.id}
-            onCatalogChange={setCatalogItems}
-          />
+          {!permissions || permissions.catalog ? (
+            <CatalogPanel
+              profileId={draft.id}
+              onCatalogChange={setCatalogItems}
+            />
+          ) : null}
         </div>
 
         <ProfilePreview
           draft={draft}
-          internalBookingEnabled={internalBookingEnabled}
-          catalogItems={catalogItems}
+          permissions={permissions}
+          internalBookingEnabled={
+            (!permissions || permissions.google_calendar) &&
+            internalBookingEnabled
+          }
+          catalogItems={
+            !permissions || permissions.catalog ? catalogItems : []
+          }
           customLinks={customLinks}
           onPublicOrderChange={(order: PublicBlockKey[]) =>
             updateField("publicOrder", order)

@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { CatalogError, reorderCatalogItemsForOwner } from "@/lib/catalog";
+import { requireUserFeature } from "@/lib/permissions";
 
 export async function PUT(
   request: Request,
@@ -11,6 +12,8 @@ export async function PUT(
   if (!user) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
+  const denied = await requireUserFeature(user.id, "catalog");
+  if (denied) return denied;
 
   const { id } = await context.params;
   let body: unknown;

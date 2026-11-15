@@ -406,4 +406,107 @@ export interface AdCampaignOperationView {
   createdAt: string;
 }
 
+export type UserRole = "admin" | "client";
+
+export type FeatureKey =
+  | "whatsapp"
+  | "instagram"
+  | "facebook_social"
+  | "meta_ads"
+  | "tiktok_organic"
+  | "tiktok_ads"
+  | "google_calendar"
+  | "catalog";
+
+export const ALL_FEATURE_KEYS: FeatureKey[] = [
+  "whatsapp",
+  "instagram",
+  "facebook_social",
+  "meta_ads",
+  "tiktok_organic",
+  "tiktok_ads",
+  "google_calendar",
+  "catalog",
+];
+
+export type UserPermissions = Record<FeatureKey, boolean>;
+
+export interface FeatureDescriptor {
+  key: FeatureKey;
+  label: string;
+  description: string;
+  category: "Canais sociais" | "Tráfego pago" | "Agenda e catálogo";
+}
+
+export const FEATURE_CATALOG: FeatureDescriptor[] = [
+  {
+    key: "whatsapp",
+    label: "WhatsApp",
+    description:
+      "Link público de conversa (wa.me) e conexão do WhatsApp Business com coexistência.",
+    category: "Canais sociais",
+  },
+  {
+    key: "instagram",
+    label: "Instagram",
+    description:
+      "Link oficial do perfil, conexão da conta e exibição de destaques na página pública.",
+    category: "Canais sociais",
+  },
+  {
+    key: "facebook_social",
+    label: "Facebook social",
+    description:
+      "Conexão orgânica da página/perfil do Facebook em Canais conectados (separado de Meta Ads).",
+    category: "Canais sociais",
+  },
+  {
+    key: "tiktok_organic",
+    label: "TikTok orgânico",
+    description:
+      "Conexão orgânica do perfil TikTok e exibição do link público (separado de TikTok Ads).",
+    category: "Canais sociais",
+  },
+  {
+    key: "meta_ads",
+    label: "Meta Ads (Tráfego pago)",
+    description:
+      "Acesso à aba Tráfego pago para contas de anúncios e campanhas Meta Ads.",
+    category: "Tráfego pago",
+  },
+  {
+    key: "tiktok_ads",
+    label: "TikTok Ads (Tráfego pago)",
+    description:
+      "Acesso à aba Tráfego pago para contas de anunciante e campanhas TikTok Ads.",
+    category: "Tráfego pago",
+  },
+  {
+    key: "google_calendar",
+    label: "Google Agenda / Agendamento",
+    description:
+      "Conexão com Google Agenda, grade de horários e página pública de reservas.",
+    category: "Agenda e catálogo",
+  },
+  {
+    key: "catalog",
+    label: "Catálogo de serviços e produtos",
+    description:
+      "Cadastro e gerenciamento de serviços/produtos com carrossel na página pública.",
+    category: "Agenda e catálogo",
+  },
+];
+
+export interface AdminUserView {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  permissions: UserPermissions;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+
 

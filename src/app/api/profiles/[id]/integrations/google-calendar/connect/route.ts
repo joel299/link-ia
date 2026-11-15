@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAppBaseUrl } from "@/lib/app-url";
 import { getSessionUser } from "@/lib/auth";
 import { ComposioConfigError, ComposioProviderError } from "@/lib/composio";
+import { requireUserFeature } from "@/lib/permissions";
 import { getProfileByIdForOwner } from "@/lib/profiles";
 import { initiateCalendarConnection } from "@/lib/scheduling";
 
@@ -13,6 +14,8 @@ export async function POST(
   if (!user) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
+  const denied = await requireUserFeature(user.id, "google_calendar");
+  if (denied) return denied;
 
   const { id } = await context.params;
   const check = getProfileByIdForOwner(id, user.id);

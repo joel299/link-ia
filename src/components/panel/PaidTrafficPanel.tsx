@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import type {
   AdCampaignOperationView,
@@ -10,10 +10,12 @@ import type {
   Profile,
   SocialAssetView,
   SocialConnectionStatus,
+  UserPermissions,
 } from "@/lib/types";
 
 interface PaidTrafficPanelProps {
   profile: Profile;
+  permissions?: UserPermissions;
 }
 
 interface AdsOverviewPayload {
@@ -187,19 +189,27 @@ async function fetchAdsOverviewSnapshot(
   }
 }
 
-export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
+export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps) {
+  const allowedTabs = PROVIDER_TABS.filter(
+    (tab) => !permissions || permissions[tab.id]
+  );
   const [initialReturn] = useState(readInitialTrafficReturn);
+  const resolvedInitialTab: AdsProvider = allowedTabs.some(
+    (tab) => tab.id === initialReturn.tab
+  )
+    ? initialReturn.tab
+    : (allowedTabs[0]?.id ?? "meta_ads");
   const [activeTab, setActiveTab] = useState<AdsProvider>(
-    () => initialReturn.tab
+    () => resolvedInitialTab
   );
   const [tabs, setTabs] = useState<Record<AdsProvider, TabState>>(() => ({
     meta_ads: {
       ...createEmptyTabState(),
-      loading: initialReturn.tab === "meta_ads",
+      loading: allowedTabs.length > 0 && resolvedInitialTab === "meta_ads",
     },
     tiktok_ads: {
       ...createEmptyTabState(),
-      loading: initialReturn.tab === "tiktok_ads",
+      loading: allowedTabs.length > 0 && resolvedInitialTab === "tiktok_ads",
     },
   }));
 
@@ -234,46 +244,43 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
     };
   }, [datePreset, customSince, customUntil]);
 
-  const loadProvider = useCallback(
-    async (
-      targetProfileId: string,
-      provider: AdsProvider,
-      sync = false,
-      overrideRange?: { datePreset: AdsDatePreset; since?: string; until?: string }
-    ) => {
-      setTabs((prev) => ({
-        ...prev,
-        [provider]: { ...prev[provider], loading: true, error: null },
-      }));
-      const snap = await fetchAdsOverviewSnapshot(
-        targetProfileId,
-        provider,
-        sync,
-        overrideRange ?? dateRangeRef.current
+  async function loadProvider(
+    targetProfileId: string,
+    provider: AdsProvider,
+    sync = false,
+    overrideRange?: { datePreset: AdsDatePreset; since?: string; until?: string }
+  ) {
+    setTabs((prev) => ({
+      ...prev,
+      [provider]: { ...prev[provider], loading: true, error: null },
+    }));
+    const snap = await fetchAdsOverviewSnapshot(
+      targetProfileId,
+      provider,
+      sync,
+      overrideRange ?? dateRangeRef.current
+    );
+    if (activeProfileRef.current !== targetProfileId) return;
+
+    setTabs((prev) => ({
+      ...prev,
+      [provider]: {
+        loaded: true,
+        loading: false,
+        error: snap.error,
+        data: snap.data,
+      },
+    }));
+
+    if (snap.data) {
+      setSelectedAccountInput(
+        snap.data.connection.selectedAdAccountId ||
+          snap.data.assets.find((a) => a.isSelected)?.externalId ||
+          snap.data.assets[0]?.externalId ||
+          ""
       );
-      if (activeProfileRef.current !== targetProfileId) return;
-
-      setTabs((prev) => ({
-        ...prev,
-        [provider]: {
-          loaded: true,
-          loading: false,
-          error: snap.error,
-          data: snap.data,
-        },
-      }));
-
-      if (snap.data) {
-        setSelectedAccountInput(
-          snap.data.connection.selectedAdAccountId ||
-            snap.data.assets.find((a) => a.isSelected)?.externalId ||
-            snap.data.assets[0]?.externalId ||
-            ""
-        );
-      }
-    },
-    []
-  );
+    }
+  }
 
   // Clean OAuth return query params if present and load ONLY the initial active tab
   useEffect(() => {
@@ -286,7 +293,12 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
     }
 
     let cancelled = false;
-    const targetTab = initialReturn.tab;
+    if (allowedTabs.length === 0) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    const targetTab = resolvedInitialTab;
     void fetchAdsOverviewSnapshot(
       profile.id,
       targetTab,
@@ -315,7 +327,7 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
     return () => {
       cancelled = true;
     };
-  }, [profile.id, initialReturn]);
+  }, [profile.id, initialReturn, allowedTabs.length, resolvedInitialTab]);
 
   function handleTabChange(nextTab: AdsProvider) {
     setActiveTab(nextTab);
@@ -482,26 +494,40 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
   const isConnected = overview?.connection.status === "connected";
   const hasSelectedAccount = Boolean(overview?.connection.selectedAdAccountId);
 
+  if (allowedTabs.length === 0) {
+    return (
+      <GlassSurface intensity="subtle" className="editor-section">
+        <div className="editor-section-inner">
+          <p className="field-hint">
+            Nenhum provedor de tráfego pago está habilitado para a sua conta.
+          </p>
+        </div>
+      </GlassSurface>
+    );
+  }
+
   return (
     <div className="traffic-workspace">
-      <div className="traffic-tabs" role="tablist" aria-label="Provedores de tráfego pago">
-        {PROVIDER_TABS.map((tab) => {
-          const selected = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              className={`traffic-tab-btn${selected ? " is-active" : ""}`}
-              onClick={() => handleTabChange(tab.id)}
-            >
-              <span className="traffic-tab-title">{tab.label}</span>
-              <span className="traffic-tab-subtitle">{tab.subtitle}</span>
-            </button>
-          );
-        })}
-      </div>
+      {allowedTabs.length > 1 ? (
+        <div className="traffic-tabs" role="tablist" aria-label="Provedores de tráfego pago">
+          {allowedTabs.map((tab) => {
+            const selected = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                className={`traffic-tab-btn${selected ? " is-active" : ""}`}
+                onClick={() => handleTabChange(tab.id)}
+              >
+                <span className="traffic-tab-title">{tab.label}</span>
+                <span className="traffic-tab-subtitle">{tab.subtitle}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       {notice ? (
         <div

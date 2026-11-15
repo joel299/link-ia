@@ -6,12 +6,14 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/panel/AppShell";
 import { PaidTrafficPanel } from "@/components/panel/PaidTrafficPanel";
 import { GlassSurface } from "@/components/ui/GlassSurface";
-import type { Profile } from "@/lib/types";
+import type { Profile, UserPermissions, UserRole } from "@/lib/types";
 
 interface AuthUser {
   id: string;
   email: string;
   name: string;
+  role?: UserRole;
+  permissions?: UserPermissions;
 }
 
 interface TrafficSnapshot {
@@ -103,9 +105,17 @@ export default function PainelTrafegoPage() {
 
   const selectedProfile =
     profiles.find((profile) => profile.id === selectedId) ?? null;
+  const hasTrafficPermission =
+    !user?.permissions ||
+    user.permissions.meta_ads ||
+    user.permissions.tiktok_ads;
 
   return (
-    <AppShell userName={user?.name ?? ""}>
+    <AppShell
+      userName={user?.name ?? ""}
+      userRole={user?.role}
+      permissions={user?.permissions}
+    >
       <div className="traffic-page-header">
         <div>
           <h1 className="section-title" style={{ fontSize: "1.35rem" }}>
@@ -147,6 +157,22 @@ export default function PainelTrafegoPage() {
         <GlassSurface intensity="subtle" className="editor-section">
           <div className="editor-section-inner">
             <p className="field-hint">Carregando área de tráfego pago...</p>
+          </div>
+        </GlassSurface>
+      ) : !hasTrafficPermission ? (
+        <GlassSurface intensity="standard" className="editor-section">
+          <div className="editor-section-inner">
+            <h2 className="section-title">Funcionalidade não liberada</h2>
+            <p className="field-hint">
+              Os módulos de tráfego pago não estão habilitados para a sua conta.
+              Solicite acesso ao administrador caso precise utilizar Meta Ads ou
+              TikTok Ads.
+            </p>
+            <div>
+              <Link href="/painel" className="btn btn-primary">
+                Voltar ao painel
+              </Link>
+            </div>
           </div>
         </GlassSurface>
       ) : loadError ? (
@@ -212,7 +238,11 @@ export default function PainelTrafegoPage() {
           </div>
         </GlassSurface>
       ) : (
-        <PaidTrafficPanel key={selectedProfile.id} profile={selectedProfile} />
+        <PaidTrafficPanel
+          key={selectedProfile.id}
+          profile={selectedProfile}
+          permissions={user?.permissions}
+        />
       )}
     </AppShell>
   );

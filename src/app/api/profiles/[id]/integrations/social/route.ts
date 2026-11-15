@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { listOrganicSocialConnections } from "@/lib/composio-social";
+import {
+  getUserPermissions,
+  socialProviderToFeatureKey,
+} from "@/lib/permissions";
 import { getProfileByIdForOwner } from "@/lib/profiles";
 
 export async function GET(
@@ -24,6 +28,9 @@ export async function GET(
     return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
   }
 
-  const connections = listOrganicSocialConnections(check.profile.id);
+  const perms = getUserPermissions(user.id);
+  const connections = listOrganicSocialConnections(check.profile.id).filter(
+    (conn) => perms[socialProviderToFeatureKey(conn.provider)] === true
+  );
   return NextResponse.json({ connections });
 }

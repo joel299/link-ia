@@ -14,10 +14,12 @@ import {
   type PublicCatalogItem,
   type PublicCustomLinkItem,
   type PublicProfile,
+  type UserPermissions,
 } from "@/lib/types";
 
 interface ProfilePreviewProps {
   draft: Profile;
+  permissions?: UserPermissions;
   internalBookingEnabled?: boolean;
   catalogItems?: PublicCatalogItem[];
   customLinks?: PublicCustomLinkItem[];
@@ -36,6 +38,7 @@ const BLOCK_LABELS: Record<PublicBlockKey, string> = {
 
 export function ProfilePreview({
   draft,
+  permissions,
   internalBookingEnabled = false,
   catalogItems = [],
   customLinks = [],
@@ -43,12 +46,14 @@ export function ProfilePreview({
 }: ProfilePreviewProps) {
   const [draggingKey, setDraggingKey] = useState<PublicBlockKey | null>(null);
 
-  const instagramUrl = draft.instagramEnabled
-    ? buildPreviewInstagramUrl(draft.instagramInput)
-    : null;
-  const whatsappUrl = draft.whatsappEnabled
-    ? buildPreviewWhatsappUrl(draft.whatsappNumber, draft.whatsappMessage)
-    : null;
+  const instagramUrl =
+    (!permissions || permissions.instagram) && draft.instagramEnabled
+      ? buildPreviewInstagramUrl(draft.instagramInput)
+      : null;
+  const whatsappUrl =
+    (!permissions || permissions.whatsapp) && draft.whatsappEnabled
+      ? buildPreviewWhatsappUrl(draft.whatsappNumber, draft.whatsappMessage)
+      : null;
 
   const currentOrder: PublicBlockKey[] = (() => {
     const raw = draft.publicOrder ?? DEFAULT_PUBLIC_ORDER;

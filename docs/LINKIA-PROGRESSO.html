@@ -208,8 +208,8 @@
       </article>
     </section>
 
-    <aside class="note surface"><strong>Base dos 85%:</strong> Código implementado (painel, prévia, página pública, Composio Google Calendar e fluxo <code>/{slug}/agendar</code> com sincronização de salvamento), <code>npm run lint</code> (0 erros), <code>npm run typecheck</code> (0 erros), <code>npm test</code> (21/21), <code>next build</code>, leitura real <code>GOOGLECALENDAR_FREE_BUSY_QUERY</code> no Composio, validação HTTP em <code>localhost:3000</code> e smoke test Docker no Windows concluídos. Os 15% restantes correspondem à validação visual interativa no navegador (Chrome DevTools não estava ativo no host), criação real de evento no navegador, teste em Docker Linux, descoberta da plataforma Qualify e rate limiting.</aside>
-    <footer>Atualizado em 12/11/2026 · Fonte: Code Review, QA HTTP, Vitest e Docker Desktop (Windows).</footer>
+    <aside class="note surface"><strong>Base dos 85%:</strong> Código implementado (painel, prévia, página pública, Composio Google Calendar, canais conectados, tráfego pago, páginas legais e painel administrativo `/painel/admin` com controle granular de 8 permissões por usuário no servidor e UI), <code>npm run lint</code> (0 erros), <code>npm run typecheck</code> (0 erros), <code>npm test</code> (8 arquivos / 68 testes), <code>next build</code>, validação HTTP E2E em <code>127.0.0.1:3000</code> e smoke test Docker no Windows concluídos. Os 15% restantes correspondem à validação OAuth real em produção com contas externas, teste em Docker Linux, descoberta da plataforma Qualify e rate limiting.</aside>
+    <footer>Atualizado em 15/11/2026 · Fonte: Code Review, QA HTTP, Vitest (68/68), Next Build e Docker Desktop (Windows).</footer>
   </main>
   <script>
     const steps = [

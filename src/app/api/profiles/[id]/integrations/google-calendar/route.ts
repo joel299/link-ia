@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
+import { requireUserFeature } from "@/lib/permissions";
 import { getProfileByIdForOwner } from "@/lib/profiles";
 import {
   disconnectCalendarConnection,
@@ -14,6 +15,8 @@ export async function GET(
   if (!user) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
+  const denied = await requireUserFeature(user.id, "google_calendar");
+  if (denied) return denied;
 
   const { id } = await context.params;
   const check = getProfileByIdForOwner(id, user.id);
@@ -36,6 +39,8 @@ export async function DELETE(
   if (!user) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
+  const denied = await requireUserFeature(user.id, "google_calendar");
+  if (denied) return denied;
 
   const { id } = await context.params;
   const check = getProfileByIdForOwner(id, user.id);

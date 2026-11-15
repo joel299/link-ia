@@ -11,6 +11,7 @@ import type {
   SocialConnectionView,
   SocialMediaItemView,
   SocialProvider,
+  UserPermissions,
   ValidationErrors,
   WhatsAppConnectionStatus,
   WhatsAppConnectionView,
@@ -18,6 +19,7 @@ import type {
 
 interface ConnectedChannelsPanelProps {
   profileId: string;
+  permissions?: UserPermissions;
   whatsappEnabled: boolean;
   whatsappNumber: string;
   whatsappMessage: string;
@@ -323,6 +325,7 @@ async function fetchSocialSnapshot(
 
 export function ConnectedChannelsPanel({
   profileId,
+  permissions,
   whatsappEnabled,
   whatsappNumber,
   whatsappMessage,
@@ -816,6 +819,15 @@ export function ConnectedChannelsPanel({
     ? igData.media.filter((item) => item.publicEnabled).length
     : 0;
 
+  const allowWhatsapp = !permissions || permissions.whatsapp;
+  const allowInstagram = !permissions || permissions.instagram;
+  const allowTiktok = !permissions || permissions.tiktok_organic;
+  const allowFacebook = !permissions || permissions.facebook_social;
+
+  if (!allowWhatsapp && !allowInstagram && !allowTiktok && !allowFacebook) {
+    return null;
+  }
+
   return (
     <div id="canais-conectados">
       <CollapsibleSection
@@ -841,6 +853,7 @@ export function ConnectedChannelsPanel({
 
         <div className="channel-accordion">
           {/* 1. WhatsApp */}
+          {allowWhatsapp ? (
           <div className="channel-item">
             <button
               type="button"
@@ -1133,8 +1146,10 @@ export function ConnectedChannelsPanel({
               </div>
             ) : null}
           </div>
+          ) : null}
 
           {/* 2. Instagram */}
+          {allowInstagram ? (
           <div className="channel-item">
             <button
               type="button"
@@ -1497,8 +1512,10 @@ export function ConnectedChannelsPanel({
               </div>
             ) : null}
           </div>
+          ) : null}
 
           {/* 3. TikTok */}
+          {allowTiktok ? (
           <div className="channel-item">
             <button
               type="button"
@@ -1702,8 +1719,10 @@ export function ConnectedChannelsPanel({
               </div>
             ) : null}
           </div>
+          ) : null}
 
           {/* 4. Facebook */}
+          {allowFacebook ? (
           <div className="channel-item">
             <button
               type="button"
@@ -1866,6 +1885,7 @@ export function ConnectedChannelsPanel({
               </div>
             ) : null}
           </div>
+          ) : null}
         </div>
       </CollapsibleSection>
     </div>

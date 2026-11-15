@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { listPublishedCatalogItemsByProfileId } from "./catalog";
 import { listActivePublicCustomLinks } from "./custom-links";
 import { getDb } from "./db";
+import { getUserPermissions } from "./permissions";
 import {
   DEFAULT_LIGHT_THEME,
   DEFAULT_PUBLIC_ORDER,
@@ -283,6 +284,7 @@ export function createProfile(
   }
 
   const db = getDb();
+  const perms = getUserPermissions(ownerId);
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
 
@@ -304,10 +306,10 @@ export function createProfile(
       null,
       "",
       null,
-      1,
+      perms.instagram ? 1 : 0,
       "",
       "",
-      1,
+      perms.whatsapp ? 1 : 0,
       null,
       "Agendar horário",
       0,
@@ -787,29 +789,41 @@ export function getPublishedPublicProfileBySlug(
     commentCount: m.comment_count ?? null,
   }));
 
+  const ownerPerms = getUserPermissions(row.owner_id);
+
   return {
     slug: row.slug,
     displayName: row.display_name,
     bio: row.bio,
     avatarUrl: row.avatar_url,
-    instagramUrl: resolvedInstagramUrl,
-    tiktokUrl: connectedTiktokRow?.canonical_url ?? null,
-    socialMediaItems,
-    instagramConnectedPendingSync: Boolean(
-      connectedInstagramRow &&
-      !connectedInstagramRow.last_synced_at &&
-      socialMediaItems.length === 0
-    ),
-    whatsappUrl,
-    bookingUrl,
+    instagramUrl: ownerPerms.instagram ? resolvedInstagramUrl : null,
+    tiktokUrl: ownerPerms.tiktok_organic
+      ? (connectedTiktokRow?.canonical_url ?? null)
+      : null,
+    socialMediaItems: ownerPerms.instagram ? socialMediaItems : [],
+    instagramConnectedPendingSync: ownerPerms.instagram
+      ? Boolean(
+          connectedInstagramRow &&
+            !connectedInstagramRow.last_synced_at &&
+            socialMediaItems.length === 0
+        )
+      : false,
+    whatsappUrl: ownerPerms.whatsapp ? whatsappUrl : null,
+    bookingUrl: ownerPerms.google_calendar ? bookingUrl : null,
     bookingLabel: row.booking_label || "Agendar horário",
-    internalBookingEnabled,
-    internalBookingReason,
+    internalBookingEnabled: ownerPerms.google_calendar
+      ? internalBookingEnabled
+      : false,
+    internalBookingReason: ownerPerms.google_calendar
+      ? internalBookingReason
+      : "disabled",
     bookingHorizonDays: settingsRow?.horizon_days,
     bookingServiceName: settingsRow?.service_name ?? undefined,
     bookingTimezone: settingsRow?.timezone,
     bookingSlotDurationMinutes: settingsRow?.slot_duration_minutes,
-    catalogItems: listPublishedCatalogItemsByProfileId(row.id),
+    catalogItems: ownerPerms.catalog
+      ? listPublishedCatalogItemsByProfileId(row.id)
+      : [],
     customLinks: listActivePublicCustomLinks(row.id),
     publicOrder: parsePublicOrderJson(row.public_order_json),
     theme: parseThemeJson(row.theme_json),
