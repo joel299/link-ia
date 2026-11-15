@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PublicProfileView } from "@/components/public/PublicProfileView";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { GlassSurface } from "@/components/ui/GlassSurface";
+import { LegalFooter } from "@/components/ui/LegalFooter";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { DEFAULT_DARK_THEME, type PublicProfile } from "@/lib/types";
 
@@ -102,16 +103,19 @@ export default function HomePage() {
             style={{
               display: "flex",
               flexWrap: "wrap",
+              alignItems: "center",
               gap: "12px",
               paddingTop: "4px",
             }}
           >
             <Link href="/login" className="btn btn-primary">
-              Começar agora
+              Entrar no painel
             </Link>
-            <Link href="/login?demo=1" className="btn btn-secondary">
-              Testar demonstração
-            </Link>
+            <span
+              style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}
+            >
+              Acesso exclusivo para clientes autorizados pela administração.
+            </span>
           </div>
 
           <div
@@ -187,6 +191,7 @@ export default function HomePage() {
           </GlassSurface>
         </section>
       </main>
+      <LegalFooter />
     </div>
   );
 }

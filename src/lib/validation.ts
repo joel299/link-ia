@@ -26,6 +26,8 @@ export const RESERVED_SLUGS = new Set([
   "_next",
   "favicon.ico",
   "robots.txt",
+  "termos-de-uso",
+  "politica-de-privacidade",
 ]);
 
 export const TEXT_LIMITS = {

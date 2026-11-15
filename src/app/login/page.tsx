@@ -1,25 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, type FormEvent } from "react";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { GlassSurface } from "@/components/ui/GlassSurface";
+import { LegalFooter } from "@/components/ui/LegalFooter";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
-type AuthMode = "login" | "register";
-
-function LoginContent() {
+export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const isDemoShortcut = searchParams.get("demo") === "1";
-
-  const [mode, setMode] = useState<AuthMode>("login");
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,60 +25,28 @@ function LoginContent() {
         }
       })
       .catch(() => {
-        // Ignora erro silenciosamente; usuário pode prosseguir com login/cadastro.
+        // Ignora erro silenciosamente; usuário pode prosseguir com login.
       });
     return () => {
       active = false;
     };
   }, [router]);
 
-  async function handleDemoLogin() {
-    setError(null);
-    setDemoLoading(true);
-    try {
-      const res = await fetch("/api/auth/demo", {
-        method: "POST",
-        credentials: "include",
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error || "Não foi possível entrar no modo demonstração.");
-        setDemoLoading(false);
-        return;
-      }
-      router.push("/painel");
-      router.refresh();
-    } catch {
-      setError("Erro de conexão ao iniciar a demonstração.");
-      setDemoLoading(false);
-    }
-  }
-
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
 
-    const endpoint =
-      mode === "login" ? "/api/auth/login" : "/api/auth/register";
-    const payload =
-      mode === "login" ? { email, password } : { name, email, password };
-
     try {
-      const res = await fetch(endpoint, {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ email, password }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(
-          data.error ||
-            (mode === "login"
-              ? "E-mail ou senha inválidos."
-              : "Não foi possível criar sua conta.")
-        );
+        setError(data.error || "E-mail ou senha inválidos.");
         setSubmitting(false);
         return;
       }
@@ -137,7 +98,7 @@ function LoginContent() {
           >
             <div>
               <h1 style={{ margin: "0 0 6px", fontSize: "1.5rem", fontWeight: 700 }}>
-                {mode === "login" ? "Entrar no LinkIA" : "Criar conta no LinkIA"}
+                Entrar no LinkIA
               </h1>
               <p
                 style={{
@@ -146,94 +107,9 @@ function LoginContent() {
                   color: "var(--color-text-muted)",
                 }}
               >
-                {isDemoShortcut
-                  ? "Use o acesso rápido de demonstração ou entre com sua conta."
-                  : "Configure sua página de bio, pré-visualize e publique em minutos."}
+                Acesso exclusivo para clientes e administradores autorizados
+                pelo LinkIA.
               </p>
-            </div>
-
-            {/* Demo quick access */}
-            <div
-              style={{
-                padding: "14px",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid var(--color-accent)",
-                background: "var(--color-warning-bg)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-              }}
-            >
-              <div style={{ fontSize: "0.875rem", fontWeight: 600 }}>
-                Quer testar sem cadastro?
-              </div>
-              <button
-                type="button"
-                onClick={handleDemoLogin}
-                disabled={demoLoading || submitting}
-                className="btn btn-accent"
-                style={{ width: "100%" }}
-              >
-                {demoLoading
-                  ? "Abrindo demonstração..."
-                  : "Entrar no modo demonstração"}
-              </button>
-            </div>
-
-            {/* Mode tabs */}
-            <div
-              role="tablist"
-              aria-label="Modo de acesso"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "6px",
-                padding: "4px",
-                borderRadius: "var(--radius-md)",
-                background: "var(--color-surface-subtle)",
-                border: "1px solid var(--color-border)",
-              }}
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === "login"}
-                onClick={() => {
-                  setMode("login");
-                  setError(null);
-                }}
-                className="btn"
-                style={{
-                  minHeight: "40px",
-                  background:
-                    mode === "login" ? "var(--color-surface)" : "transparent",
-                  borderColor:
-                    mode === "login" ? "var(--color-border-strong)" : "transparent",
-                }}
-              >
-                Entrar
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === "register"}
-                onClick={() => {
-                  setMode("register");
-                  setError(null);
-                }}
-                className="btn"
-                style={{
-                  minHeight: "40px",
-                  background:
-                    mode === "register" ? "var(--color-surface)" : "transparent",
-                  borderColor:
-                    mode === "register"
-                      ? "var(--color-border-strong)"
-                      : "transparent",
-                }}
-              >
-                Criar conta
-              </button>
             </div>
 
             {error ? (
@@ -257,24 +133,6 @@ function LoginContent() {
               onSubmit={handleSubmit}
               style={{ display: "flex", flexDirection: "column", gap: "14px" }}
             >
-              {mode === "register" ? (
-                <div className="field-group">
-                  <label htmlFor="auth-name" className="field-label">
-                    Seu nome
-                  </label>
-                  <input
-                    id="auth-name"
-                    type="text"
-                    required
-                    autoComplete="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ex.: Joel Quintana"
-                    className="input"
-                  />
-                </div>
-              ) : null}
-
               <div className="field-group">
                 <label htmlFor="auth-email" className="field-label">
                   E-mail
@@ -300,29 +158,21 @@ function LoginContent() {
                   type="password"
                   required
                   minLength={6}
-                  autoComplete={
-                    mode === "login" ? "current-password" : "new-password"
-                  }
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Sua senha"
                   className="input"
                 />
               </div>
 
               <button
                 type="submit"
-                disabled={submitting || demoLoading}
+                disabled={submitting}
                 className="btn btn-primary"
                 style={{ width: "100%", marginTop: "4px" }}
               >
-                {submitting
-                  ? mode === "login"
-                    ? "Entrando..."
-                    : "Criando conta..."
-                  : mode === "login"
-                    ? "Entrar"
-                    : "Criar conta e ir ao painel"}
+                {submitting ? "Entrando..." : "Entrar"}
               </button>
             </form>
 
@@ -340,28 +190,7 @@ function LoginContent() {
           </div>
         </GlassSurface>
       </main>
+      <LegalFooter maxWidth="1040px" />
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense
-      fallback={
-        <div
-          style={{
-            minHeight: "100vh",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          Carregando acesso...
-        </div>
-      }
-    >
-      <LoginContent />
-    </Suspense>
   );
 }

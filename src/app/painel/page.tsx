@@ -3,6 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { AppShell } from "@/components/panel/AppShell";
+import {
+  LegalConsentGate,
+  type LegalStatusClientView,
+} from "@/components/panel/LegalConsentGate";
 import { ProfileEditor } from "@/components/panel/ProfileEditor";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import type { Profile, ValidationErrors } from "@/lib/types";
@@ -18,6 +22,7 @@ interface PanelSnapshot {
   error?: string;
   user?: AuthUser;
   profiles?: Profile[];
+  legalStatus?: LegalStatusClientView | null;
 }
 
 async function loadPanelSnapshot(): Promise<PanelSnapshot> {
@@ -31,7 +36,10 @@ async function loadPanelSnapshot(): Promise<PanelSnapshot> {
     }
     const meData = await meRes.json();
 
-    const profRes = await fetch("/api/profiles", { credentials: "include" });
+    const [profRes, legalRes] = await Promise.all([
+      fetch("/api/profiles", { credentials: "include" }),
+      fetch("/api/legal/acceptance", { credentials: "include" }),
+    ]);
     if (!profRes.ok) {
       return {
         user: meData.user,
@@ -42,7 +50,10 @@ async function loadPanelSnapshot(): Promise<PanelSnapshot> {
     const list: Profile[] = Array.isArray(profData.profiles)
       ? profData.profiles
       : [];
-    return { user: meData.user, profiles: list };
+    const legalStatus = legalRes.ok
+      ? ((await legalRes.json()) as LegalStatusClientView)
+      : null;
+    return { user: meData.user, profiles: list, legalStatus };
   } catch {
     return { error: "Erro de conexão ao carregar o painel." };
   }
@@ -53,6 +64,9 @@ export default function PainelPage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [legalStatus, setLegalStatus] = useState<LegalStatusClientView | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -80,6 +94,7 @@ export default function PainelPage() {
     }
     const list = snapshot.profiles ?? [];
     setProfiles(list);
+    setLegalStatus(snapshot.legalStatus ?? null);
     if (list.length > 0) {
       const urlProfileId =
         typeof window !== "undefined"
@@ -213,6 +228,18 @@ export default function PainelPage() {
             </button>
           </div>
         </GlassSurface>
+      </AppShell>
+    );
+  }
+
+  if (legalStatus?.requiresAcceptance) {
+    return (
+      <AppShell userName={user?.name || ""}>
+        <LegalConsentGate
+          profileId={activeProfile?.id ?? null}
+          status={legalStatus}
+          onAccepted={(updated) => setLegalStatus(updated)}
+        />
       </AppShell>
     );
   }

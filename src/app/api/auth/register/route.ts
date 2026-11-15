@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server";
-import { registerUser, setSessionCookie } from "@/lib/auth";
+import { isAdminAuthorizedRequest, registerUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
+  const authorized = await isAdminAuthorizedRequest(request);
+  if (!authorized) {
+    return NextResponse.json(
+      {
+        error:
+          "Cadastro público desativado. Contas são provisionadas pela administração do LinkIA.",
+      },
+      { status: 403 }
+    );
+  }
+
   let body: { email?: unknown; name?: unknown; password?: unknown };
   try {
     body = await request.json();
@@ -19,12 +30,10 @@ export async function POST(request: Request) {
   const result = registerUser(email, name, password);
   if (!result.user) {
     return NextResponse.json(
-      { error: result.error ?? "Não foi possível criar a conta." },
+      { error: result.error ?? "Não foi possível provisionar a conta." },
       { status: result.status ?? 400 }
     );
   }
 
-  const response = NextResponse.json({ user: result.user }, { status: 201 });
-  await setSessionCookie(result.user, response);
-  return response;
+  return NextResponse.json({ user: result.user }, { status: 201 });
 }

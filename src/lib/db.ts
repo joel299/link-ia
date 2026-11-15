@@ -313,6 +313,23 @@ function initSchema(db: Database.Database): void {
       provider TEXT NOT NULL,
       received_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS legal_acceptances (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      profile_id TEXT,
+      document_type TEXT NOT NULL CHECK (document_type IN ('terms_of_use', 'privacy_policy', 'optional_product_updates')),
+      document_version TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      action TEXT NOT NULL CHECK (action IN ('accepted', 'acknowledged', 'declined', 'revoked')),
+      outcome TEXT NOT NULL DEFAULT 'recorded',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_legal_acceptances_user_doc
+      ON legal_acceptances(user_id, document_type, created_at DESC);
   `);
 
   try {
@@ -324,6 +341,7 @@ function initSchema(db: Database.Database): void {
   }
 
   for (const alterSql of [
+    "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'client'",
     "ALTER TABLE bookings ADD COLUMN service_public_id TEXT",
     "ALTER TABLE bookings ADD COLUMN service_title TEXT",
     "ALTER TABLE bookings ADD COLUMN service_price_cents INTEGER",

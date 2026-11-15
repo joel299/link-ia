@@ -11,6 +11,7 @@ export interface SessionUser {
   id: string;
   email: string;
   name: string;
+  role?: "admin" | "client";
 }
 
 interface SessionPayload {
@@ -124,13 +125,46 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
     const db = getDb();
     const row = db
-      .prepare("SELECT id, email, name FROM users WHERE id = ?")
-      .get(decoded.id) as SessionUser | undefined;
+      .prepare("SELECT id, email, name, role FROM users WHERE id = ?")
+      .get(decoded.id) as
+      | { id: string; email: string; name: string; role?: string }
+      | undefined;
 
-    return row ?? null;
+    if (!row) return null;
+    return {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      role: row.role === "admin" ? "admin" : "client",
+    };
   } catch {
     return null;
   }
+}
+
+export async function isAdminAuthorizedRequest(
+  request: Request
+): Promise<boolean> {
+  const adminSecret = process.env.ADMIN_PROVISION_SECRET?.trim();
+  if (adminSecret && adminSecret.length >= 16) {
+    const headerSecret =
+      request.headers.get("x-admin-secret")?.trim() ||
+      request.headers
+        .get("authorization")
+        ?.replace(/^Bearer\s+/i, "")
+        .trim() ||
+      "";
+    if (headerSecret) {
+      const a = Buffer.from(headerSecret, "utf8");
+      const b = Buffer.from(adminSecret, "utf8");
+      if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+        return true;
+      }
+    }
+  }
+
+  const user = await getSessionUser();
+  return user?.role === "admin";
 }
 
 function getCookieOptions(maxAge: number) {

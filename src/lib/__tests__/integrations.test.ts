@@ -690,7 +690,7 @@ describe("Meta Ads safe credential validation and Composio auth config setup", (
     expect(getMetaAdsRedirectUri()).toBe(
       "https://backend.composio.dev/api/v3/toolkits/auth/callback"
     );
-    expect(getMetaAdsReturnBaseUrl("http://localhost:3000")).toBe(
+    expect(getMetaAdsReturnBaseUrl("https://linka.infinito.com.br")).toBe(
       "https://linka.infinito.com.br/api/integrations/social/callback"
     );
     expect(status.missingForConnection).toEqual([
