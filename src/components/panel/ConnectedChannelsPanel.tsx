@@ -1,21 +1,36 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { buildPreviewInstagramUrl } from "@/components/public/profile-visuals";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import type {
   OrganicSocialProvider,
+  Profile,
   SocialConnectionStatus,
   SocialConnectionView,
   SocialMediaItemView,
+  SocialProvider,
+  ValidationErrors,
   WhatsAppConnectionStatus,
   WhatsAppConnectionView,
 } from "@/lib/types";
 
 interface ConnectedChannelsPanelProps {
   profileId: string;
+  whatsappEnabled: boolean;
+  whatsappNumber: string;
+  whatsappMessage: string;
+  instagramEnabled: boolean;
+  instagramInput: string;
+  fieldErrors: ValidationErrors;
+  onFieldChange: <K extends keyof Profile>(
+    field: K,
+    value: Profile[K]
+  ) => void;
 }
 
-type ChannelKey = "whatsapp" | "instagram" | "tiktok";
+type ChannelKey = "whatsapp" | "instagram" | "tiktok" | "facebook";
 
 interface ChannelLoadState<T> {
   loaded: boolean;
@@ -34,21 +49,34 @@ interface NoticeBanner {
   message: string;
 }
 
+function sanitizeUiText(
+  raw: string | null | undefined,
+  fallback: string
+): string {
+  if (!raw || !raw.trim()) return fallback;
+  const trimmed = raw.trim();
+  if (
+    /zernio|composio|cloud api|api oficial|auth config|ig_user_id|invalid request data|following fields are missing|error executing the tool|econnrefused|etimedout|stack|syntaxerror|\b[45]\d{2}\b|COMPOSIO_|ZERNIO_|META_ADS_/i.test(
+      trimmed
+    )
+  ) {
+    return fallback;
+  }
+  return trimmed;
+}
+
 const WHATSAPP_STATUS_META: Record<
   WhatsAppConnectionStatus,
   { label: string; badgeClass: string }
 > = {
   disconnected: { label: "Desconectado", badgeClass: "badge-draft" },
-  connecting: { label: "Conectando", badgeClass: "badge-draft" },
-  incomplete: { label: "Onboarding incompleto", badgeClass: "badge-error" },
+  connecting: { label: "Ação necessária", badgeClass: "badge-draft" },
+  incomplete: { label: "Ação necessária", badgeClass: "badge-error" },
   connected: { label: "Conectado", badgeClass: "badge-published" },
-  expired: { label: "Sessão expirada", badgeClass: "badge-error" },
-  failed: { label: "Falha na conexão", badgeClass: "badge-error" },
-  ineligible: { label: "Número inelegível", badgeClass: "badge-error" },
-  pending_config: {
-    label: "Aguardando configuração",
-    badgeClass: "badge-draft",
-  },
+  expired: { label: "Ação necessária", badgeClass: "badge-error" },
+  failed: { label: "Ação necessária", badgeClass: "badge-error" },
+  ineligible: { label: "Ação necessária", badgeClass: "badge-error" },
+  pending_config: { label: "Ação necessária", badgeClass: "badge-draft" },
 };
 
 const SOCIAL_STATUS_META: Record<
@@ -56,19 +84,35 @@ const SOCIAL_STATUS_META: Record<
   { label: string; badgeClass: string }
 > = {
   disconnected: { label: "Desconectado", badgeClass: "badge-draft" },
-  pending: { label: "Aguardando autorização", badgeClass: "badge-draft" },
-  incomplete: { label: "Conexão incompleta", badgeClass: "badge-error" },
+  pending: { label: "Ação necessária", badgeClass: "badge-draft" },
+  incomplete: { label: "Ação necessária", badgeClass: "badge-error" },
   connected: { label: "Conectado", badgeClass: "badge-published" },
-  expired: { label: "Expirado ou revogado", badgeClass: "badge-error" },
-  failed: { label: "Falha na conexão", badgeClass: "badge-error" },
-  pending_config: {
-    label: "Aguardando configuração",
-    badgeClass: "badge-draft",
-  },
+  expired: { label: "Ação necessária", badgeClass: "badge-error" },
+  failed: { label: "Ação necessária", badgeClass: "badge-error" },
+  pending_config: { label: "Ação necessária", badgeClass: "badge-draft" },
 };
 
 function createEmptyChannelState<T>(): ChannelLoadState<T> {
   return { loaded: false, loading: false, error: null, data: null };
+}
+
+function channelToSocialProvider(
+  channel: "instagram" | "tiktok" | "facebook"
+): SocialProvider {
+  return channel === "facebook" ? "meta_ads" : channel;
+}
+
+function getChannelDisplayName(channel: ChannelKey): string {
+  switch (channel) {
+    case "whatsapp":
+      return "WhatsApp";
+    case "instagram":
+      return "Instagram";
+    case "tiktok":
+      return "TikTok";
+    case "facebook":
+      return "Facebook";
+  }
 }
 
 function buildReturnNotice(params: URLSearchParams): {
@@ -96,7 +140,7 @@ function buildReturnNotice(params: URLSearchParams): {
         notice: {
           tone: "warning",
           message:
-            "Conexão com o WhatsApp Business em andamento. Aguarde a confirmação da Meta/Zernio.",
+            "Conexão com o WhatsApp Business em andamento. Aguarde a confirmação da conta.",
         },
       };
     }
@@ -105,9 +149,10 @@ function buildReturnNotice(params: URLSearchParams): {
         channel: "whatsapp",
         notice: {
           tone: "warning",
-          message:
-            reason ||
-            "Conexão cancelada antes da conclusão. Você pode tentar novamente quando quiser.",
+          message: sanitizeUiText(
+            reason,
+            "Conexão cancelada antes da conclusão. Você pode tentar novamente quando quiser."
+          ),
         },
       };
     }
@@ -120,9 +165,10 @@ function buildReturnNotice(params: URLSearchParams): {
         channel: "whatsapp",
         notice: {
           tone: "error",
-          message:
-            reason ||
-            "Este número de WhatsApp já está vinculado a outro perfil/conexão. Reutilize ou desvincule a conexão existente antes de tentar novamente.",
+          message: sanitizeUiText(
+            reason,
+            "Este número de WhatsApp já está vinculado a outro perfil. Reutilize ou desvincule a conexão existente antes de tentar novamente."
+          ),
         },
       };
     }
@@ -131,9 +177,10 @@ function buildReturnNotice(params: URLSearchParams): {
         channel: "whatsapp",
         notice: {
           tone: "error",
-          message:
-            reason ||
-            "Este número foi considerado inelegível pela Meta para coexistência.",
+          message: sanitizeUiText(
+            reason,
+            "Esta conta ou número não pode concluir essa forma de conexão no momento."
+          ),
         },
       };
     }
@@ -141,18 +188,23 @@ function buildReturnNotice(params: URLSearchParams): {
       channel: "whatsapp",
       notice: {
         tone: "error",
-        message:
-          reason ||
-          `Não foi possível concluir a conexão do WhatsApp Business (${waStatus}).`,
+        message: sanitizeUiText(
+          reason,
+          "Não foi possível concluir a conexão do WhatsApp Business. Tente novamente."
+        ),
       },
     };
   }
 
-  if (socialStatus && (provider === "instagram" || provider === "tiktok")) {
-    const label = provider === "instagram" ? "Instagram" : "TikTok";
+  if (
+    socialStatus &&
+    (provider === "instagram" || provider === "tiktok" || provider === "meta_ads")
+  ) {
+    const channel: ChannelKey = provider === "meta_ads" ? "facebook" : provider;
+    const label = getChannelDisplayName(channel);
     if (socialStatus === "connected") {
       return {
-        channel: provider,
+        channel,
         notice: {
           tone: "success",
           message: `${label} conectado com sucesso.`,
@@ -160,12 +212,13 @@ function buildReturnNotice(params: URLSearchParams): {
       };
     }
     return {
-      channel: provider,
+      channel,
       notice: {
         tone: socialStatus === "pending" ? "warning" : "error",
-        message:
-          reason ||
-          `Retorno do ${label} com estado "${socialStatus}". Verifique as permissões e tente novamente.`,
+        message: sanitizeUiText(
+          reason,
+          `Não foi possível concluir a conexão com ${label}. Verifique as permissões e tente novamente.`
+        ),
       },
     };
   }
@@ -175,9 +228,10 @@ function buildReturnNotice(params: URLSearchParams): {
       channel: null,
       notice: {
         tone: "error",
-        message:
-          reason ||
-          `Não foi possível concluir a autorização social (${socialStatus}).`,
+        message: sanitizeUiText(
+          reason,
+          "Não foi possível concluir a autorização. Tente novamente."
+        ),
       },
     };
   }
@@ -207,7 +261,10 @@ async function fetchWhatsAppSnapshot(targetProfileId: string): Promise<{
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.connection) {
       return {
-        error: data.error || "Não foi possível consultar o status do WhatsApp.",
+        error: sanitizeUiText(
+          data.error,
+          "Não foi possível consultar o status do WhatsApp."
+        ),
         data: null,
       };
     }
@@ -217,7 +274,7 @@ async function fetchWhatsAppSnapshot(targetProfileId: string): Promise<{
     };
   } catch {
     return {
-      error: "Erro de conexão ao consultar o WhatsApp Business.",
+      error: "Erro de conexão ao consultar o WhatsApp.",
       data: null,
     };
   }
@@ -225,11 +282,13 @@ async function fetchWhatsAppSnapshot(targetProfileId: string): Promise<{
 
 async function fetchSocialSnapshot(
   targetProfileId: string,
-  provider: OrganicSocialProvider
+  channel: "instagram" | "tiktok" | "facebook"
 ): Promise<{
   error: string | null;
   data: SocialChannelData | null;
 }> {
+  const provider = channelToSocialProvider(channel);
+  const label = getChannelDisplayName(channel);
   try {
     const res = await fetch(
       `/api/profiles/${targetProfileId}/integrations/social/${provider}`,
@@ -238,9 +297,10 @@ async function fetchSocialSnapshot(
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.connection) {
       return {
-        error:
-          data.error ||
-          `Não foi possível consultar o status do ${provider === "instagram" ? "Instagram" : "TikTok"}.`,
+        error: sanitizeUiText(
+          data.error,
+          `Não foi possível consultar o status do ${label}.`
+        ),
         data: null,
       };
     }
@@ -255,7 +315,7 @@ async function fetchSocialSnapshot(
     };
   } catch {
     return {
-      error: "Erro de conexão ao consultar o canal social.",
+      error: `Erro de conexão ao consultar ${label}.`,
       data: null,
     };
   }
@@ -263,12 +323,20 @@ async function fetchSocialSnapshot(
 
 export function ConnectedChannelsPanel({
   profileId,
+  whatsappEnabled,
+  whatsappNumber,
+  whatsappMessage,
+  instagramEnabled,
+  instagramInput,
+  fieldErrors,
+  onFieldChange,
 }: ConnectedChannelsPanelProps) {
   const [initialReturn] = useState(readInitialReturnState);
   const [expanded, setExpanded] = useState<Record<ChannelKey, boolean>>(() => ({
     whatsapp: initialReturn.channel === "whatsapp",
     instagram: initialReturn.channel === "instagram",
     tiktok: initialReturn.channel === "tiktok",
+    facebook: initialReturn.channel === "facebook",
   }));
 
   const [whatsappState, setWhatsappState] = useState<
@@ -289,6 +357,12 @@ export function ConnectedChannelsPanel({
     ...createEmptyChannelState(),
     loading: initialReturn.channel === "tiktok",
   }));
+  const [facebookState, setFacebookState] = useState<
+    ChannelLoadState<SocialChannelData>
+  >(() => ({
+    ...createEmptyChannelState(),
+    loading: initialReturn.channel === "facebook",
+  }));
 
   const [notice, setNotice] = useState<NoticeBanner | null>(
     () => initialReturn.notice
@@ -305,6 +379,22 @@ export function ConnectedChannelsPanel({
     activeProfileRef.current = profileId;
   }, [profileId]);
 
+  const setSocialState = useCallback(
+    (
+      channel: "instagram" | "tiktok" | "facebook",
+      updater:
+        | ChannelLoadState<SocialChannelData>
+        | ((
+            prev: ChannelLoadState<SocialChannelData>
+          ) => ChannelLoadState<SocialChannelData>)
+    ) => {
+      if (channel === "instagram") setInstagramState(updater);
+      else if (channel === "tiktok") setTiktokState(updater);
+      else setFacebookState(updater);
+    },
+    []
+  );
+
   const loadWhatsApp = useCallback(async (targetProfileId: string) => {
     setWhatsappState((prev) => ({ ...prev, loading: true, error: null }));
     const snap = await fetchWhatsAppSnapshot(targetProfileId);
@@ -318,20 +408,21 @@ export function ConnectedChannelsPanel({
   }, []);
 
   const loadSocialChannel = useCallback(
-    async (targetProfileId: string, provider: OrganicSocialProvider) => {
-      const setTarget =
-        provider === "instagram" ? setInstagramState : setTiktokState;
-      setTarget((prev) => ({ ...prev, loading: true, error: null }));
-      const snap = await fetchSocialSnapshot(targetProfileId, provider);
+    async (
+      targetProfileId: string,
+      channel: "instagram" | "tiktok" | "facebook"
+    ) => {
+      setSocialState(channel, (prev) => ({ ...prev, loading: true, error: null }));
+      const snap = await fetchSocialSnapshot(targetProfileId, channel);
       if (activeProfileRef.current !== targetProfileId) return;
-      setTarget({
+      setSocialState(channel, {
         loaded: true,
         loading: false,
         error: snap.error,
         data: snap.data,
       });
     },
-    []
+    [setSocialState]
   );
 
   // Clean OAuth return query params and fetch ONLY the returned channel if present
@@ -359,11 +450,9 @@ export function ConnectedChannelsPanel({
       });
     } else if (initialReturn.channel) {
       const targetChannel = initialReturn.channel;
-      const setTarget =
-        targetChannel === "instagram" ? setInstagramState : setTiktokState;
       void fetchSocialSnapshot(profileId, targetChannel).then((snap) => {
         if (cancelled) return;
-        setTarget({
+        setSocialState(targetChannel, {
           loaded: true,
           loading: false,
           error: snap.error,
@@ -375,7 +464,7 @@ export function ConnectedChannelsPanel({
     return () => {
       cancelled = true;
     };
-  }, [profileId, initialReturn]);
+  }, [profileId, initialReturn, setSocialState]);
 
   function handleToggleChannel(channel: ChannelKey) {
     const nextOpen = !expanded[channel];
@@ -398,6 +487,12 @@ export function ConnectedChannelsPanel({
       !tiktokState.loading
     ) {
       void loadSocialChannel(profileId, "tiktok");
+    } else if (
+      channel === "facebook" &&
+      !facebookState.loaded &&
+      !facebookState.loading
+    ) {
+      void loadSocialChannel(profileId, "facebook");
     }
   }
 
@@ -426,9 +521,10 @@ export function ConnectedChannelsPanel({
             data: data.connection as WhatsAppConnectionView,
           });
         }
-        const errMsg =
-          data.error ||
-          "Não foi possível iniciar a conexão do WhatsApp Business.";
+        const errMsg = sanitizeUiText(
+          data.error,
+          "Não foi possível iniciar a conexão do WhatsApp Business. Tente novamente."
+        );
         setWaConnectError(errMsg);
         setNotice({
           tone: res.status === 503 ? "warning" : "error",
@@ -443,26 +539,22 @@ export function ConnectedChannelsPanel({
         return;
       }
 
-      const fallbackMsg = "URL de redirecionamento não recebida do servidor.";
+      const fallbackMsg =
+        "Não foi possível abrir a autorização do WhatsApp. Tente novamente.";
       setWaConnectError(fallbackMsg);
-      setNotice({
-        tone: "error",
-        message: fallbackMsg,
-      });
+      setNotice({ tone: "error", message: fallbackMsg });
     } catch {
       const connErr =
-        "Erro de conexão ao iniciar onboarding do WhatsApp Business.";
+        "Erro de conexão ao iniciar a vinculação do WhatsApp Business.";
       setWaConnectError(connErr);
-      setNotice({
-        tone: "error",
-        message: connErr,
-      });
+      setNotice({ tone: "error", message: connErr });
     } finally {
       setActionBusy(null);
     }
   }
 
   async function handleDisconnectWhatsApp() {
+    if (actionBusy === "whatsapp:disconnect") return;
     setActionBusy("whatsapp:disconnect");
     setNotice(null);
     try {
@@ -474,8 +566,10 @@ export function ConnectedChannelsPanel({
       if (!res.ok) {
         setNotice({
           tone: "error",
-          message:
-            data.error || "Não foi possível desconectar o WhatsApp do LinkIA.",
+          message: sanitizeUiText(
+            data.error,
+            "Não foi possível desconectar o WhatsApp deste perfil."
+          ),
         });
       } else {
         setWhatsappState({
@@ -487,22 +581,26 @@ export function ConnectedChannelsPanel({
         setConfirmDisconnect(null);
         setNotice({
           tone: "success",
-          message:
-            "WhatsApp desconectado do LinkIA. Seu número não foi desregistrado da Cloud API.",
+          message: "WhatsApp desconectado deste perfil.",
         });
       }
     } catch {
       setNotice({
         tone: "error",
-        message: "Erro de conexão ao desconectar WhatsApp.",
+        message: "Erro de conexão ao desconectar o WhatsApp.",
       });
     } finally {
       setActionBusy(null);
     }
   }
 
-  async function handleConnectSocial(provider: OrganicSocialProvider) {
-    setActionBusy(`${provider}:connect`);
+  async function handleConnectSocial(
+    channel: "instagram" | "tiktok" | "facebook"
+  ) {
+    if (actionBusy === `${channel}:connect`) return;
+    const provider = channelToSocialProvider(channel);
+    const label = getChannelDisplayName(channel);
+    setActionBusy(`${channel}:connect`);
     setNotice(null);
     try {
       const res = await fetch(
@@ -513,11 +611,12 @@ export function ConnectedChannelsPanel({
       if (!res.ok) {
         setNotice({
           tone: res.status === 503 ? "warning" : "error",
-          message:
-            data.error ||
-            `Não foi possível iniciar a conexão com ${provider === "instagram" ? "Instagram" : "TikTok"}.`,
+          message: sanitizeUiText(
+            data.error,
+            `Não foi possível iniciar a conexão com ${label}. Tente novamente.`
+          ),
         });
-        await loadSocialChannel(profileId, provider);
+        await loadSocialChannel(profileId, channel);
         setActionBusy(null);
         return;
       }
@@ -529,20 +628,25 @@ export function ConnectedChannelsPanel({
 
       setNotice({
         tone: "error",
-        message: "URL de autorização não recebida do servidor.",
+        message: `Não foi possível abrir a autorização do ${label}. Tente novamente.`,
       });
     } catch {
       setNotice({
         tone: "error",
-        message: "Erro de conexão ao iniciar autorização social.",
+        message: `Erro de conexão ao iniciar autorização do ${label}.`,
       });
     } finally {
       setActionBusy(null);
     }
   }
 
-  async function handleDisconnectSocial(provider: OrganicSocialProvider) {
-    setActionBusy(`${provider}:disconnect`);
+  async function handleDisconnectSocial(
+    channel: "instagram" | "tiktok" | "facebook"
+  ) {
+    if (actionBusy === `${channel}:disconnect`) return;
+    const provider = channelToSocialProvider(channel);
+    const label = getChannelDisplayName(channel);
+    setActionBusy(`${channel}:disconnect`);
     setNotice(null);
     try {
       const res = await fetch(
@@ -553,12 +657,13 @@ export function ConnectedChannelsPanel({
       if (!res.ok) {
         setNotice({
           tone: "error",
-          message: data.error || "Não foi possível desconectar o canal.",
+          message: sanitizeUiText(
+            data.error,
+            `Não foi possível desconectar ${label}.`
+          ),
         });
       } else {
-        const setTarget =
-          provider === "instagram" ? setInstagramState : setTiktokState;
-        setTarget({
+        setSocialState(channel, {
           loaded: true,
           loading: false,
           error: null,
@@ -570,13 +675,13 @@ export function ConnectedChannelsPanel({
         setConfirmDisconnect(null);
         setNotice({
           tone: "success",
-          message: `${provider === "instagram" ? "Instagram" : "TikTok"} desconectado deste perfil.`,
+          message: `${label} desconectado deste perfil.`,
         });
       }
     } catch {
       setNotice({
         tone: "error",
-        message: "Erro de conexão ao desconectar o canal.",
+        message: `Erro de conexão ao desconectar ${label}.`,
       });
     } finally {
       setActionBusy(null);
@@ -584,6 +689,8 @@ export function ConnectedChannelsPanel({
   }
 
   async function handleSyncSocial(provider: OrganicSocialProvider) {
+    if (actionBusy === `${provider}:sync`) return;
+    const label = getChannelDisplayName(provider);
     setActionBusy(`${provider}:sync`);
     setNotice(null);
     try {
@@ -600,13 +707,14 @@ export function ConnectedChannelsPanel({
       if (!res.ok) {
         setNotice({
           tone: res.status === 503 ? "warning" : "error",
-          message: data.error || "Não foi possível sincronizar as mídias.",
+          message: sanitizeUiText(
+            data.error,
+            "Não foi possível sincronizar as publicações."
+          ),
         });
         await loadSocialChannel(profileId, provider);
       } else {
-        const setTarget =
-          provider === "instagram" ? setInstagramState : setTiktokState;
-        setTarget({
+        setSocialState(provider, {
           loaded: true,
           loading: false,
           error: null,
@@ -619,13 +727,13 @@ export function ConnectedChannelsPanel({
         });
         setNotice({
           tone: "success",
-          message: `${provider === "instagram" ? "Instagram" : "TikTok"} sincronizado com sucesso.`,
+          message: `${label} sincronizado com sucesso.`,
         });
       }
     } catch {
       setNotice({
         tone: "error",
-        message: "Erro de conexão ao sincronizar mídias.",
+        message: "Erro de conexão ao sincronizar publicações.",
       });
     } finally {
       setActionBusy(null);
@@ -635,23 +743,22 @@ export function ConnectedChannelsPanel({
   async function handleToggleInstagramPublicItem(externalId: string) {
     if (!instagramState.data) return;
     const currentMedia = instagramState.data.media;
-    const currentSelected = currentMedia
+    const selectedIds = currentMedia
       .filter((item) => item.publicEnabled)
       .map((item) => item.externalId);
+    const isSelected = selectedIds.includes(externalId);
+    const nextIds = isSelected
+      ? selectedIds.filter((id) => id !== externalId)
+      : [...selectedIds, externalId];
 
-    const isSelected = currentSelected.includes(externalId);
-    if (!isSelected && currentSelected.length >= 3) {
+    if (nextIds.length > 3) {
       setNotice({
         tone: "warning",
         message:
-          "Você pode exibir no máximo 3 mídias do Instagram no perfil público. Desmarque uma antes de escolher outra.",
+          "Você pode exibir no máximo 3 publicações do Instagram no perfil público. Desmarque uma antes de escolher outra.",
       });
       return;
     }
-
-    const nextIds = isSelected
-      ? currentSelected.filter((id) => id !== externalId)
-      : [...currentSelected, externalId];
 
     setIgSavingSelection(true);
     setNotice(null);
@@ -662,15 +769,17 @@ export function ConnectedChannelsPanel({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ publicExternalIds: nextIds }),
+          body: JSON.stringify({ selectedExternalIds: nextIds }),
         }
       );
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !Array.isArray(data.media)) {
+      if (!res.ok) {
         setNotice({
           tone: "error",
-          message:
-            data.error || "Não foi possível salvar a seleção de mídias públicas.",
+          message: sanitizeUiText(
+            data.error,
+            "Não foi possível atualizar as publicações exibidas."
+          ),
         });
       } else {
         setInstagramState((prev) =>
@@ -679,7 +788,9 @@ export function ConnectedChannelsPanel({
                 ...prev,
                 data: {
                   ...prev.data,
-                  media: data.media as SocialMediaItemView[],
+                  media: Array.isArray(data.media)
+                    ? (data.media as SocialMediaItemView[])
+                    : prev.data.media,
                 },
               }
             : prev
@@ -688,7 +799,7 @@ export function ConnectedChannelsPanel({
     } catch {
       setNotice({
         tone: "error",
-        message: "Erro de conexão ao atualizar mídias públicas.",
+        message: "Erro de conexão ao salvar seleção do Instagram.",
       });
     } finally {
       setIgSavingSelection(false);
@@ -698,19 +809,26 @@ export function ConnectedChannelsPanel({
   const waConn = whatsappState.data;
   const igData = instagramState.data;
   const ttData = tiktokState.data;
+  const fbData = facebookState.data;
 
+  const resolvedIg = buildPreviewInstagramUrl(instagramInput);
   const igSelectedCount = igData
     ? igData.media.filter((item) => item.publicEnabled).length
     : 0;
 
   return (
-    <GlassSurface intensity="subtle" className="editor-section">
+    <div id="canais-conectados">
+      <GlassSurface
+        as="section"
+        intensity="dense"
+        className="editor-section"
+      >
       <div className="editor-section-inner">
-        <div>
-          <h2 className="section-title">Canais conectados</h2>
-          <p className="field-hint">
-            Conecte seu WhatsApp Business, Instagram e TikTok sob demanda. Cada
-            canal carrega seus dados somente quando você abre.
+        <div className="editor-section-header">
+          <h2 className="editor-section-title">2. Canais conectados</h2>
+          <p className="editor-section-desc">
+            Gerencie em um único lugar WhatsApp, Instagram, TikTok e Facebook.
+            Cada canal consulta seus dados somente quando você abre.
           </p>
         </div>
 
@@ -730,7 +848,7 @@ export function ConnectedChannelsPanel({
         ) : null}
 
         <div className="channel-accordion">
-          {/* 1. WhatsApp Business (Zernio) */}
+          {/* 1. WhatsApp */}
           <div className="channel-item">
             <button
               type="button"
@@ -739,9 +857,10 @@ export function ConnectedChannelsPanel({
               onClick={() => handleToggleChannel("whatsapp")}
             >
               <div className="channel-header-info">
-                <span className="channel-name">WhatsApp Business (Zernio)</span>
+                <span className="channel-name">WhatsApp</span>
                 <span className="channel-subtitle">
-                  Coexistência com WhatsApp Business App via Cloud API
+                  Vincule sua conta Business ou configure o número do botão
+                  público
                 </span>
               </div>
               <div className="channel-header-meta">
@@ -752,7 +871,7 @@ export function ConnectedChannelsPanel({
                     {WHATSAPP_STATUS_META[waConn.status].label}
                   </span>
                 ) : (
-                  <span className="badge badge-draft">Sob demanda</span>
+                  <span className="badge badge-draft">Conectar</span>
                 )}
                 <span className="channel-chevron" aria-hidden="true">
                   {expanded.whatsapp ? "▲" : "▼"}
@@ -762,207 +881,253 @@ export function ConnectedChannelsPanel({
 
             {expanded.whatsapp ? (
               <div className="channel-body">
-                {whatsappState.loading ? (
-                  <p className="field-hint">
-                    Consultando status do WhatsApp Business...
-                  </p>
-                ) : whatsappState.error ? (
-                  <div className="alert-banner alert-error">
-                    <p>{whatsappState.error}</p>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ marginTop: "8px", minHeight: "36px" }}
-                      onClick={() => void loadWhatsApp(profileId)}
-                    >
-                      Tentar novamente
-                    </button>
+                {/* Caminho 1: Vincular uma conta do WhatsApp Business */}
+                <div className="link-card-group">
+                  <div className="link-card-top">
+                    <strong>1. Vincular uma conta do WhatsApp Business</strong>
+                    {waConn ? (
+                      <span
+                        className={`badge ${WHATSAPP_STATUS_META[waConn.status].badgeClass}`}
+                      >
+                        {WHATSAPP_STATUS_META[waConn.status].label}
+                      </span>
+                    ) : null}
                   </div>
-                ) : waConn ? (
-                  <>
-                    <div className="channel-info-box">
-                      <p className="channel-info-title">
-                        Como funciona a coexistência
-                      </p>
-                      <ul className="channel-bullet-list">
-                        <li>
-                          Mantenha o <strong>WhatsApp Business App</strong>{" "}
-                          atualizado e o celular disponível durante o
-                          onboarding.
-                        </li>
-                        <li>
-                          A elegibilidade do número para coexistência é decidida
-                          pela Meta durante o fluxo.
-                        </li>
-                        <li>
-                          Grupos via API permanecem indisponíveis em números
-                          coexistentes.
-                        </li>
-                      </ul>
-                    </div>
 
-                    {waConn.status === "pending_config" ||
-                    !waConn.configReady ? (
-                      <div className="alert-banner alert-warning">
-                        <strong>Configuração pendente no servidor.</strong>
-                        {waConn.configRequirements.length > 0 ? (
-                          <ul className="channel-bullet-list">
-                            {waConn.configRequirements.map((req) => (
-                              <li key={req}>{req}</li>
-                            ))}
-                          </ul>
-                        ) : null}
-                      </div>
-                    ) : null}
-
-                    {waConnectError ? (
-                      <div className="alert-banner alert-error">
-                        <p style={{ margin: 0 }}>{waConnectError}</p>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          style={{ marginTop: "8px" }}
-                          disabled={actionBusy === "whatsapp:connect"}
-                          onClick={() => void handleConnectWhatsApp()}
-                        >
-                          Tentar novamente
-                        </button>
-                      </div>
-                    ) : null}
-
-                    {waConn.lastError && waConn.lastError !== waConnectError ? (
-                      <div className="alert-banner alert-error">
-                        {waConn.lastError}
-                      </div>
-                    ) : null}
-
-                    <div className="channel-kv-grid">
-                      <div>
-                        <span className="channel-kv-label">Número</span>
-                        <span className="channel-kv-value">
-                          {waConn.maskedPhone || "Não vinculado"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="channel-kv-label">Conta</span>
-                        <span className="channel-kv-value">
-                          {waConn.displayName || "—"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="channel-kv-label">Modo</span>
-                        <span className="channel-kv-value">
-                          {waConn.onboardingMode === "business_app"
-                            ? "Coexistência (Business App)"
-                            : "Cloud API"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="channel-kv-label">
-                          Composio (agentes)
-                        </span>
-                        <span className="channel-kv-value">
-                          Desabilitado / validação pendente
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="channel-capabilities">
-                      <span className="channel-kv-label">Capacidades</span>
-                      <div className="choice-row">
-                        <span className="badge badge-draft">
-                          Coexistência:{" "}
-                          {waConn.capabilities.coexistenceConfirmed
-                            ? "Confirmada"
-                            : "Não confirmada"}
-                        </span>
-                        <span className="badge badge-draft">
-                          Mensagens:{" "}
-                          {waConn.capabilities.messagingSupported
-                            ? "Disponível"
-                            : "Indisponível"}
-                        </span>
-                        <span className="badge badge-draft">
-                          Templates:{" "}
-                          {waConn.capabilities.templatesSupported
-                            ? "Disponível"
-                            : "Indisponível"}
-                        </span>
-                        <span className="badge badge-draft">
-                          Grupos API:{" "}
-                          {waConn.capabilities.groupsApiSupported
-                            ? "Disponível"
-                            : "Indisponível"}
-                        </span>
-                      </div>
-                      {waConn.composioNote ? (
-                        <p className="field-hint">{waConn.composioNote}</p>
-                      ) : null}
-                    </div>
-
-                    <div className="channel-actions">
+                  {whatsappState.loading ? (
+                    <p className="field-hint">
+                      Consultando status do WhatsApp Business...
+                    </p>
+                  ) : whatsappState.error ? (
+                    <div className="alert-banner alert-error">
+                      <p>{whatsappState.error}</p>
                       <button
                         type="button"
-                        className="btn btn-primary"
-                        disabled={
-                          actionBusy === "whatsapp:connect" ||
-                          !waConn.configReady
-                        }
-                        onClick={() => void handleConnectWhatsApp()}
+                        className="btn btn-secondary"
+                        style={{ marginTop: "8px", minHeight: "36px" }}
+                        onClick={() => void loadWhatsApp(profileId)}
                       >
-                        {actionBusy === "whatsapp:connect"
-                          ? "Abrindo Zernio..."
-                          : waConn.status === "connected"
-                            ? "Reconectar WhatsApp Business"
-                            : "Conectar meu WhatsApp Business"}
+                        Tentar novamente
                       </button>
+                    </div>
+                  ) : waConn ? (
+                    <>
+                      <p className="field-hint">
+                        Conecte sua conta empresarial mantendo o WhatsApp
+                        Business App no celular quando o número for elegível.
+                      </p>
 
-                      {waConn.status !== "disconnected" &&
-                      waConn.status !== "pending_config" ? (
-                        confirmDisconnect === "whatsapp" ? (
-                          <div className="channel-confirm-box">
-                            <p className="field-hint">
-                              Isso remove o vínculo no LinkIA, sem desregistrar
-                              seu número da Cloud API da Meta.
-                            </p>
-                            <div className="channel-actions">
-                              <button
-                                type="button"
-                                className="btn btn-danger"
-                                disabled={actionBusy === "whatsapp:disconnect"}
-                                onClick={() => void handleDisconnectWhatsApp()}
-                              >
-                                {actionBusy === "whatsapp:disconnect"
-                                  ? "Desconectando..."
-                                  : "Confirmar desconexão"}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-secondary"
-                                onClick={() => setConfirmDisconnect(null)}
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
+                      {waConn.status === "pending_config" ||
+                      !waConn.configReady ? (
+                        <div className="alert-banner alert-warning">
+                          Integração aguardando configuração do servidor. Você
+                          ainda pode informar seu número público abaixo.
+                        </div>
+                      ) : null}
+
+                      {waConn.status === "ineligible" ? (
+                        <div className="alert-banner alert-warning">
+                          Esta conta ou número não pôde concluir essa forma de
+                          conexão no momento. Você pode continuar usando o
+                          número público abaixo para receber mensagens ou tentar
+                          outro número elegível.
+                        </div>
+                      ) : null}
+
+                      {waConnectError ? (
+                        <div className="alert-banner alert-error">
+                          <p style={{ margin: 0 }}>{waConnectError}</p>
                           <button
                             type="button"
-                            className="btn btn-secondary"
-                            onClick={() => setConfirmDisconnect("whatsapp")}
+                            className="btn btn-secondary btn-sm"
+                            style={{ marginTop: "8px" }}
+                            disabled={actionBusy === "whatsapp:connect"}
+                            onClick={() => void handleConnectWhatsApp()}
                           >
-                            Desconectar do LinkIA
+                            Tentar novamente
                           </button>
-                        )
+                        </div>
                       ) : null}
-                    </div>
-                  </>
-                ) : null}
+
+                      {waConn.lastError &&
+                      waConn.lastError !== waConnectError ? (
+                        <div className="alert-banner alert-error">
+                          {sanitizeUiText(
+                            waConn.lastError,
+                            "Não foi possível concluir a conexão. Tente novamente."
+                          )}
+                        </div>
+                      ) : null}
+
+                      <div className="channel-kv-grid">
+                        <div>
+                          <span className="channel-kv-label">Número</span>
+                          <span className="channel-kv-value">
+                            {waConn.maskedPhone || "Não vinculado"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="channel-kv-label">Conta</span>
+                          <span className="channel-kv-value">
+                            {waConn.displayName || "—"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="channel-kv-label">Coexistência</span>
+                          <span className="channel-kv-value">
+                            {waConn.capabilities.coexistenceConfirmed
+                              ? "Confirmada"
+                              : "Validação durante a conexão"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="channel-actions">
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          disabled={
+                            actionBusy === "whatsapp:connect" ||
+                            !waConn.configReady
+                          }
+                          onClick={() => void handleConnectWhatsApp()}
+                        >
+                          {actionBusy === "whatsapp:connect"
+                            ? "Redirecionando..."
+                            : waConn.status === "connected"
+                              ? "Reconectar"
+                              : waConn.status === "connecting" ||
+                                  waConn.status === "incomplete"
+                                ? "Continuar"
+                                : "Conectar WhatsApp Business"}
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={whatsappState.loading}
+                          onClick={() => void loadWhatsApp(profileId)}
+                        >
+                          Atualizar status
+                        </button>
+
+                        {waConn.status !== "disconnected" &&
+                        waConn.status !== "pending_config" ? (
+                          confirmDisconnect === "whatsapp" ? (
+                            <div className="channel-confirm-box">
+                              <p className="field-hint">
+                                Desconectar remove apenas o vínculo deste perfil
+                                no LinkIA.
+                              </p>
+                              <div className="channel-actions">
+                                <button
+                                  type="button"
+                                  className="btn btn-danger"
+                                  disabled={actionBusy === "whatsapp:disconnect"}
+                                  onClick={() => void handleDisconnectWhatsApp()}
+                                >
+                                  {actionBusy === "whatsapp:disconnect"
+                                    ? "Desconectando..."
+                                    : "Confirmar desconexão"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary"
+                                  onClick={() => setConfirmDisconnect(null)}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => setConfirmDisconnect("whatsapp")}
+                            >
+                              Desconectar
+                            </button>
+                          )
+                        ) : null}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+
+                {/* Caminho 2: Informar um número para receber mensagens */}
+                <div className="link-card-group">
+                  <div className="link-card-top">
+                    <strong>2. Informar um número para receber mensagens</strong>
+                    <label className="switch-label">
+                      <input
+                        type="checkbox"
+                        checked={whatsappEnabled}
+                        onChange={(e) =>
+                          onFieldChange("whatsappEnabled", e.target.checked)
+                        }
+                        className="switch-input"
+                      />
+                      <span>{whatsappEnabled ? "Ativo" : "Desativado"}</span>
+                    </label>
+                  </div>
+                  <p className="field-hint">
+                    Define o número usado pelo botão público do seu perfil. Este
+                    preenchimento não vincula uma conta empresarial.
+                  </p>
+
+                  <div className="field-group">
+                    <label htmlFor="whatsappNumber" className="field-label">
+                      <span>Número com DDI</span>
+                    </label>
+                    <input
+                      id="whatsappNumber"
+                      type="tel"
+                      value={whatsappNumber}
+                      onChange={(e) =>
+                        onFieldChange("whatsappNumber", e.target.value)
+                      }
+                      placeholder="5511999999999"
+                      aria-invalid={Boolean(fieldErrors.whatsappNumber)}
+                      aria-describedby={
+                        fieldErrors.whatsappNumber
+                          ? "whatsappNumber-error"
+                          : "whatsappNumber-hint"
+                      }
+                      className="input"
+                    />
+                    <p id="whatsappNumber-hint" className="field-hint">
+                      Inclua o código do país (ex.: 55 para Brasil + DDD +
+                      número).
+                    </p>
+                    {fieldErrors.whatsappNumber ? (
+                      <p id="whatsappNumber-error" className="field-error">
+                        {fieldErrors.whatsappNumber}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="field-group">
+                    <label htmlFor="whatsappMessage" className="field-label">
+                      <span>Mensagem inicial (opcional)</span>
+                    </label>
+                    <input
+                      id="whatsappMessage"
+                      type="text"
+                      maxLength={200}
+                      value={whatsappMessage}
+                      onChange={(e) =>
+                        onFieldChange("whatsappMessage", e.target.value)
+                      }
+                      placeholder="Olá! Vim pelo seu LinkIA."
+                      className="input"
+                    />
+                  </div>
+                </div>
               </div>
             ) : null}
           </div>
 
-          {/* 2. Instagram orgânico (Composio) */}
+          {/* 2. Instagram */}
           <div className="channel-item">
             <button
               type="button"
@@ -971,10 +1136,9 @@ export function ConnectedChannelsPanel({
               onClick={() => handleToggleChannel("instagram")}
             >
               <div className="channel-header-info">
-                <span className="channel-name">Instagram orgânico</span>
+                <span className="channel-name">Instagram</span>
                 <span className="channel-subtitle">
-                  Conta profissional (Business/Creator) com até 3 mídias no
-                  perfil
+                  Link público e publicações recentes da conta conectada
                 </span>
               </div>
               <div className="channel-header-meta">
@@ -985,7 +1149,7 @@ export function ConnectedChannelsPanel({
                     {SOCIAL_STATUS_META[igData.connection.status].label}
                   </span>
                 ) : (
-                  <span className="badge badge-draft">Sob demanda</span>
+                  <span className="badge badge-draft">Conectar</span>
                 )}
                 <span className="channel-chevron" aria-hidden="true">
                   {expanded.instagram ? "▲" : "▼"}
@@ -995,6 +1159,57 @@ export function ConnectedChannelsPanel({
 
             {expanded.instagram ? (
               <div className="channel-body">
+                {/* Link público do Instagram */}
+                <div className="link-card-group">
+                  <div className="link-card-top">
+                    <strong>Link público do Instagram</strong>
+                    <label className="switch-label">
+                      <input
+                        type="checkbox"
+                        checked={instagramEnabled}
+                        onChange={(e) =>
+                          onFieldChange("instagramEnabled", e.target.checked)
+                        }
+                        className="switch-input"
+                      />
+                      <span>{instagramEnabled ? "Ativo" : "Desativado"}</span>
+                    </label>
+                  </div>
+
+                  <div className="field-group">
+                    <label htmlFor="instagramInput" className="field-label">
+                      <span>Usuário ou URL do Instagram</span>
+                    </label>
+                    <input
+                      id="instagramInput"
+                      type="text"
+                      value={instagramInput}
+                      onChange={(e) =>
+                        onFieldChange("instagramInput", e.target.value)
+                      }
+                      placeholder="@seuperfil ou https://instagram.com/seuperfil"
+                      aria-invalid={Boolean(fieldErrors.instagramInput)}
+                      aria-describedby={
+                        fieldErrors.instagramInput
+                          ? "instagramInput-error"
+                          : "instagramInput-hint"
+                      }
+                      className="input"
+                    />
+                    <p id="instagramInput-hint" className="field-hint">
+                      {resolvedIg
+                        ? `Destino: ${resolvedIg}`
+                        : "Informe seu @usuário ou o link completo do perfil."}
+                    </p>
+                    {fieldErrors.instagramInput ? (
+                      <p id="instagramInput-error" className="field-error">
+                        {fieldErrors.instagramInput}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Conexão da conta Instagram */}
                 {instagramState.loading ? (
                   <p className="field-hint">Consultando status do Instagram...</p>
                 ) : instagramState.error ? (
@@ -1016,29 +1231,28 @@ export function ConnectedChannelsPanel({
                     {igData.connection.status === "pending_config" ||
                     !igData.connection.configReady ? (
                       <div className="alert-banner alert-warning">
-                        <strong>
-                          Integração Instagram aguardando configuração no
-                          servidor.
-                        </strong>
-                        {igData.connection.configRequirements.length > 0 ? (
-                          <ul className="channel-bullet-list">
-                            {igData.connection.configRequirements.map((req) => (
-                              <li key={req}>{req}</li>
-                            ))}
-                          </ul>
-                        ) : null}
+                        Integração Instagram aguardando configuração no
+                        servidor.
                       </div>
                     ) : null}
 
                     {igData.connection.lastError ? (
                       <div className="alert-banner alert-error">
-                        <p>{igData.connection.lastError}</p>
-                        <p className="field-hint" style={{ marginTop: "4px" }}>
-                          Contas pessoais do Instagram não são elegíveis.
-                          Converta para conta Profissional (Business ou Creator)
-                          e conceda as permissões solicitadas.
+                        <p>
+                          {sanitizeUiText(
+                            igData.connection.lastError,
+                            "Não foi possível concluir a operação no Instagram. Tente novamente."
+                          )}
                         </p>
-                        <div className="channel-actions" style={{ marginTop: "8px" }}>
+                        <p className="field-hint" style={{ marginTop: "4px" }}>
+                          Contas pessoais do Instagram não são elegíveis. Use
+                          uma conta Business ou Creator e conceda as permissões
+                          solicitadas.
+                        </p>
+                        <div
+                          className="channel-actions"
+                          style={{ marginTop: "8px" }}
+                        >
                           {igData.connection.status === "connected" ? (
                             <button
                               type="button"
@@ -1119,7 +1333,7 @@ export function ConnectedChannelsPanel({
                         >
                           {actionBusy === "instagram:sync"
                             ? "Sincronizando..."
-                            : "Sincronizar mídias"}
+                            : "Sincronizar publicações"}
                         </button>
                       ) : null}
 
@@ -1167,7 +1381,7 @@ export function ConnectedChannelsPanel({
                       <div className="channel-media-section">
                         <div className="channel-media-header">
                           <span className="channel-kv-label">
-                            Mídias recentes ({igSelectedCount}/3 no perfil
+                            Publicações recentes ({igSelectedCount}/3 no perfil
                             público)
                           </span>
                           {igSavingSelection ? (
@@ -1179,13 +1393,16 @@ export function ConnectedChannelsPanel({
                           <p className="field-hint">
                             {igData.connection.lastSyncedAt
                               ? "Nenhuma publicação acessível encontrada."
-                              : "Nenhuma mídia carregada ainda. Clique em \u201CSincronizar mídias\u201D para buscar suas publicações recentes (fotos, vídeos, carrosséis e Reels)."}
+                              : "Nenhuma publicação carregada ainda. Clique em \u201CSincronizar publicações\u201D para buscar suas publicações recentes."}
                           </p>
                         ) : (
                           <>
                             {igData.connection.lastError ? (
-                              <p className="field-hint" style={{ marginBottom: "8px" }}>
-                                Exibindo últimas mídias carregadas.
+                              <p
+                                className="field-hint"
+                                style={{ marginBottom: "8px" }}
+                              >
+                                Exibindo últimas publicações carregadas.
                               </p>
                             ) : null}
                             <div className="social-media-grid">
@@ -1222,44 +1439,48 @@ export function ConnectedChannelsPanel({
                                       <p className="field-hint">
                                         Curtidas:{" "}
                                         {typeof item.likeCount === "number"
-                                          ? item.likeCount.toLocaleString("pt-BR")
+                                          ? item.likeCount.toLocaleString(
+                                              "pt-BR"
+                                            )
                                           : "Indisponível para esta conta/permissão"}
                                         {" · "}
                                         Comentários:{" "}
                                         {typeof item.commentCount === "number"
-                                          ? item.commentCount.toLocaleString("pt-BR")
+                                          ? item.commentCount.toLocaleString(
+                                              "pt-BR"
+                                            )
                                           : "Indisponível para esta conta/permissão"}
                                       </p>
                                       <div className="social-media-actions">
-                                      <label className="checkbox-inline">
-                                        <input
-                                          type="checkbox"
-                                          checked={item.publicEnabled}
-                                          disabled={
-                                            igSavingSelection || disableNew
-                                          }
-                                          onChange={() =>
-                                            void handleToggleInstagramPublicItem(
-                                              item.externalId
-                                            )
-                                          }
-                                        />
-                                        <span>Exibir no perfil</span>
-                                      </label>
-                                      <a
-                                        href={item.permalink}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="field-hint"
-                                      >
-                                        Ver original
-                                      </a>
+                                        <label className="checkbox-inline">
+                                          <input
+                                            type="checkbox"
+                                            checked={item.publicEnabled}
+                                            disabled={
+                                              igSavingSelection || disableNew
+                                            }
+                                            onChange={() =>
+                                              void handleToggleInstagramPublicItem(
+                                                item.externalId
+                                              )
+                                            }
+                                          />
+                                          <span>Exibir no perfil</span>
+                                        </label>
+                                        <a
+                                          href={item.permalink}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="field-hint"
+                                        >
+                                          Ver original
+                                        </a>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+                                );
+                              })}
+                            </div>
                           </>
                         )}
                       </div>
@@ -1270,7 +1491,7 @@ export function ConnectedChannelsPanel({
             ) : null}
           </div>
 
-          {/* 3. TikTok orgânico (Composio) */}
+          {/* 3. TikTok */}
           <div className="channel-item">
             <button
               type="button"
@@ -1279,9 +1500,9 @@ export function ConnectedChannelsPanel({
               onClick={() => handleToggleChannel("tiktok")}
             >
               <div className="channel-header-info">
-                <span className="channel-name">TikTok orgânico</span>
+                <span className="channel-name">TikTok</span>
                 <span className="channel-subtitle">
-                  Perfil, URL canônica e vídeos autorizados pelo app
+                  Perfil conectado e publicações recentes autorizadas
                 </span>
               </div>
               <div className="channel-header-meta">
@@ -1292,7 +1513,7 @@ export function ConnectedChannelsPanel({
                     {SOCIAL_STATUS_META[ttData.connection.status].label}
                   </span>
                 ) : (
-                  <span className="badge badge-draft">Sob demanda</span>
+                  <span className="badge badge-draft">Conectar</span>
                 )}
                 <span className="channel-chevron" aria-hidden="true">
                   {expanded.tiktok ? "▲" : "▼"}
@@ -1323,22 +1544,17 @@ export function ConnectedChannelsPanel({
                     {ttData.connection.status === "pending_config" ||
                     !ttData.connection.configReady ? (
                       <div className="alert-banner alert-warning">
-                        <strong>
-                          TikTok aguardando app e escopos configurados.
-                        </strong>
-                        {ttData.connection.configRequirements.length > 0 ? (
-                          <ul className="channel-bullet-list">
-                            {ttData.connection.configRequirements.map((req) => (
-                              <li key={req}>{req}</li>
-                            ))}
-                          </ul>
-                        ) : null}
+                        TikTok aguardando configuração de aplicativo e
+                        permissões no servidor.
                       </div>
                     ) : null}
 
                     {ttData.connection.lastError ? (
                       <div className="alert-banner alert-error">
-                        {ttData.connection.lastError}
+                        {sanitizeUiText(
+                          ttData.connection.lastError,
+                          "Não foi possível concluir a operação no TikTok. Tente novamente."
+                        )}
                       </div>
                     ) : null}
 
@@ -1350,7 +1566,7 @@ export function ConnectedChannelsPanel({
                         </span>
                       </div>
                       <div>
-                        <span className="channel-kv-label">URL canônica</span>
+                        <span className="channel-kv-label">Perfil público</span>
                         <span className="channel-kv-value">
                           {ttData.connection.canonicalUrl ? (
                             <a
@@ -1366,16 +1582,6 @@ export function ConnectedChannelsPanel({
                         </span>
                       </div>
                     </div>
-
-                    {ttData.connection.scopesSummary.length > 0 ? (
-                      <div className="choice-row">
-                        {ttData.connection.scopesSummary.map((scope) => (
-                          <span key={scope} className="badge badge-draft">
-                            {scope}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
 
                     <div className="channel-actions">
                       <button
@@ -1403,7 +1609,7 @@ export function ConnectedChannelsPanel({
                         >
                           {actionBusy === "tiktok:sync"
                             ? "Sincronizando..."
-                            : "Sincronizar vídeos"}
+                            : "Sincronizar publicações"}
                         </button>
                       ) : null}
 
@@ -1447,45 +1653,203 @@ export function ConnectedChannelsPanel({
                       ) : null}
                     </div>
 
-                    {ttData.connection.status === "connected" &&
-                    ttData.media.length > 0 ? (
+                    {ttData.connection.status === "connected" ? (
                       <div className="channel-media-section">
                         <span className="channel-kv-label">
-                          Vídeos sincronizados ({ttData.media.length})
+                          Publicações recentes ({Math.min(ttData.media.length, 3)})
                         </span>
-                        <div className="social-media-grid">
-                          {ttData.media.map((item) => (
-                            <div key={item.id} className="social-media-card">
-                              <div className="social-media-thumb">
-                                {item.thumbnailUrl ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img
-                                    src={item.thumbnailUrl}
-                                    alt={item.caption || "Vídeo TikTok"}
-                                    loading="lazy"
-                                  />
-                                ) : (
-                                  <span>{item.mediaType}</span>
-                                )}
+                        {ttData.media.length === 0 ? (
+                          <p className="field-hint">
+                            {ttData.connection.lastSyncedAt
+                              ? "Nenhuma publicação acessível encontrada."
+                              : "Nenhuma publicação carregada ainda. Clique em \u201CSincronizar publicações\u201D."}
+                          </p>
+                        ) : (
+                          <div className="social-media-grid">
+                            {ttData.media.slice(0, 3).map((item) => (
+                              <div key={item.id} className="social-media-card">
+                                <div className="social-media-meta">
+                                  <span className="badge badge-draft">
+                                    {item.mediaType}
+                                  </span>
+                                  <p className="social-media-caption">
+                                    {item.caption || "Sem legenda"}
+                                  </p>
+                                  <a
+                                    href={item.permalink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="field-hint"
+                                  >
+                                    Ver original
+                                  </a>
+                                </div>
                               </div>
-                              <div className="social-media-meta">
-                                <p className="social-media-caption">
-                                  {item.caption || "Vídeo sem descrição"}
-                                </p>
-                                <a
-                                  href={item.permalink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="field-hint"
-                                >
-                                  Abrir no TikTok
-                                </a>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ) : null}
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          {/* 4. Facebook */}
+          <div className="channel-item">
+            <button
+              type="button"
+              className="channel-header"
+              aria-expanded={expanded.facebook}
+              onClick={() => handleToggleChannel("facebook")}
+            >
+              <div className="channel-header-info">
+                <span className="channel-name">Facebook</span>
+                <span className="channel-subtitle">
+                  Conta e página conectadas para recursos da plataforma e
+                  anúncios
+                </span>
+              </div>
+              <div className="channel-header-meta">
+                {fbData ? (
+                  <span
+                    className={`badge ${SOCIAL_STATUS_META[fbData.connection.status].badgeClass}`}
+                  >
+                    {SOCIAL_STATUS_META[fbData.connection.status].label}
+                  </span>
+                ) : (
+                  <span className="badge badge-draft">Conectar</span>
+                )}
+                <span className="channel-chevron" aria-hidden="true">
+                  {expanded.facebook ? "▲" : "▼"}
+                </span>
+              </div>
+            </button>
+
+            {expanded.facebook ? (
+              <div className="channel-body">
+                {facebookState.loading ? (
+                  <p className="field-hint">
+                    Consultando status do Facebook...
+                  </p>
+                ) : facebookState.error ? (
+                  <div className="alert-banner alert-error">
+                    <p>{facebookState.error}</p>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ marginTop: "8px", minHeight: "36px" }}
+                      onClick={() =>
+                        void loadSocialChannel(profileId, "facebook")
+                      }
+                    >
+                      Tentar novamente
+                    </button>
+                  </div>
+                ) : fbData ? (
+                  <>
+                    {fbData.connection.status === "pending_config" ||
+                    !fbData.connection.configReady ? (
+                      <div className="alert-banner alert-warning">
+                        Integração Facebook aguardando configuração no servidor.
+                      </div>
+                    ) : null}
+
+                    {fbData.connection.lastError ? (
+                      <div className="alert-banner alert-error">
+                        {sanitizeUiText(
+                          fbData.connection.lastError,
+                          "Não foi possível concluir a conexão com o Facebook. Tente novamente."
+                        )}
+                      </div>
+                    ) : null}
+
+                    <div className="channel-kv-grid">
+                      <div>
+                        <span className="channel-kv-label">Conta conectada</span>
+                        <span className="channel-kv-value">
+                          {fbData.connection.accountLabel || "Não conectada"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="channel-kv-label">
+                          Conta / página ativa
+                        </span>
+                        <span className="channel-kv-value">
+                          {fbData.connection.selectedAssetName ||
+                            (fbData.connection.status === "connected"
+                              ? "Disponível na aba Tráfego pago"
+                              : "—")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="channel-actions">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={
+                          actionBusy === "facebook:connect" ||
+                          !fbData.connection.configReady
+                        }
+                        onClick={() => void handleConnectSocial("facebook")}
+                      >
+                        {actionBusy === "facebook:connect"
+                          ? "Redirecionando..."
+                          : fbData.connection.status === "connected"
+                            ? "Reconectar Facebook"
+                            : "Conectar Facebook"}
+                      </button>
+
+                      {fbData.connection.status === "connected" ? (
+                        <Link
+                          href="/painel/trafego"
+                          className="btn btn-secondary"
+                        >
+                          Abrir Tráfego pago
+                        </Link>
+                      ) : null}
+
+                      {fbData.connection.status !== "disconnected" &&
+                      fbData.connection.status !== "pending_config" ? (
+                        confirmDisconnect === "facebook" ? (
+                          <div className="channel-confirm-box">
+                            <p className="field-hint">
+                              Desconectar remove o vínculo da conta Facebook
+                              neste perfil.
+                            </p>
+                            <div className="channel-actions">
+                              <button
+                                type="button"
+                                className="btn btn-danger"
+                                disabled={actionBusy === "facebook:disconnect"}
+                                onClick={() =>
+                                  void handleDisconnectSocial("facebook")
+                                }
+                              >
+                                Confirmar desconexão
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => setConfirmDisconnect(null)}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => setConfirmDisconnect("facebook")}
+                          >
+                            Desconectar
+                          </button>
+                        )
+                      ) : null}
+                    </div>
                   </>
                 ) : null}
               </div>
@@ -1494,5 +1858,6 @@ export function ConnectedChannelsPanel({
         </div>
       </div>
     </GlassSurface>
+    </div>
   );
 }

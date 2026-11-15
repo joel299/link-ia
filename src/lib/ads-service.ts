@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { Composio } from "@composio/core";
 import { deriveComposioUserId } from "./composio";
+import { sanitizeStoredSocialError } from "./composio-social";
 import { getDb } from "./db";
 import { recordIntegrationAudit } from "./integration-audit";
 import { getProfileByIdForOwner } from "./profiles";
@@ -24,6 +25,65 @@ export class AdsServiceError extends Error {
     this.status = status;
     this.errors = errors;
   }
+}
+
+function sanitizeAdsErrorMessage(
+  err: unknown,
+  context: string
+): { message: string; status: number } {
+  const raw = err instanceof Error ? err.message : String(err ?? "");
+  const correlationId = crypto.randomUUID().slice(0, 12);
+  console.error("[Ads]", {
+    correlationId,
+    context,
+    error: raw.slice(0, 400),
+  });
+
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("expired") ||
+    lower.includes("expirad") ||
+    lower.includes("revoked") ||
+    lower.includes("unauthorized") ||
+    lower.includes("401") ||
+    lower.includes("403") ||
+    lower.includes("permission") ||
+    lower.includes("permiss")
+  ) {
+    return {
+      message:
+        "A conexão expirou ou falta autorização. Conecte novamente em Canais conectados.",
+      status: 401,
+    };
+  }
+  if (
+    lower.includes("no ad account") ||
+    lower.includes("ad account") && lower.includes("not found")
+  ) {
+    return {
+      message: "Não encontramos uma conta de anúncios disponível para este acesso.",
+      status: 404,
+    };
+  }
+  if (
+    lower.includes("timeout") ||
+    lower.includes("etimedout") ||
+    lower.includes("econnrefused") ||
+    lower.includes("502") ||
+    lower.includes("503") ||
+    lower.includes("504")
+  ) {
+    return {
+      message:
+        "O serviço de anúncios está temporariamente indisponível. Tente novamente mais tarde.",
+      status: 503,
+    };
+  }
+  return {
+    message:
+      "Não foi possível consultar os dados de anúncios no momento. Tente novamente.",
+    status: 502,
+  };
 }
 
 export interface AdAccountInfo {
@@ -762,10 +822,8 @@ export async function listAdAccountsForOwner(
       details: { message: err instanceof Error ? err.message : "unknown_error" },
     });
     if (err instanceof AdsServiceError) throw err;
-    throw new AdsServiceError(
-      err instanceof Error ? err.message : "Falha ao listar contas de anúncios.",
-      502
-    );
+    const mapped = sanitizeAdsErrorMessage(err, `${params.provider}.list_accounts`);
+    throw new AdsServiceError(mapped.message, mapped.status);
   }
 }
 
@@ -1050,7 +1108,9 @@ export async function getAdsOverviewForOwner(
         );
       } catch (err) {
         campaignsError =
-          err instanceof Error ? err.message : "Não foi possível carregar contas de anúncios.";
+          err instanceof AdsServiceError
+            ? err.message
+            : sanitizeAdsErrorMessage(err, `${params.provider}.overview_accounts`).message;
       }
     }
 
@@ -1066,7 +1126,9 @@ export async function getAdsOverviewForOwner(
         );
       } catch (err) {
         campaignsError =
-          err instanceof Error ? err.message : "Não foi possível carregar campanhas.";
+          err instanceof AdsServiceError
+            ? err.message
+            : sanitizeAdsErrorMessage(err, `${params.provider}.overview_campaigns`).message;
       }
     }
   }
@@ -1080,7 +1142,7 @@ export async function getAdsOverviewForOwner(
       selectedAdAccountId: connection.selected_asset_id,
       selectedAdAccountName: connection.selected_asset_name,
       lastSyncedAt: connection.last_synced_at,
-      lastError: connection.last_error,
+      lastError: sanitizeStoredSocialError(connection.last_error),
       updatedAt: connection.updated_at,
     },
     assets,

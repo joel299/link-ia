@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import type {
@@ -62,13 +63,13 @@ const STATUS_META: Record<
   { label: string; badgeClass: string }
 > = {
   disconnected: { label: "Desconectado", badgeClass: "badge-draft" },
-  pending: { label: "Aguardando autorização", badgeClass: "badge-draft" },
-  incomplete: { label: "Conexão incompleta", badgeClass: "badge-error" },
+  pending: { label: "Ação necessária", badgeClass: "badge-draft" },
+  incomplete: { label: "Ação necessária", badgeClass: "badge-error" },
   connected: { label: "Conectado", badgeClass: "badge-published" },
-  expired: { label: "Expirado ou revogado", badgeClass: "badge-error" },
-  failed: { label: "Falha na conexão", badgeClass: "badge-error" },
+  expired: { label: "Ação necessária", badgeClass: "badge-error" },
+  failed: { label: "Ação necessária", badgeClass: "badge-error" },
   pending_config: {
-    label: "Aguardando configuração",
+    label: "Ação necessária",
     badgeClass: "badge-draft",
   },
 };
@@ -380,12 +381,9 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
         return;
       }
 
-      const actionLabel = data.created
-        ? "Auth config Meta Ads criada no Composio"
-        : "Auth config Meta Ads validada";
       setNotice({
         tone: "success",
-        message: `${actionLabel} (${data.authConfigId}). Callback: ${data.redirectUri}. ${data.envHint || ""}`,
+        message: "Configuração de anúncios validada com sucesso.",
       });
       await loadProvider(profile.id, "meta_ads", false);
     } catch {
@@ -666,13 +664,10 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
               overview.connection.status === "pending_config" ? (
                 <div className="alert-banner alert-warning">
                   <strong>Configuração pendente no servidor.</strong>
-                  {overview.config.configRequirements.length > 0 ? (
-                    <ul className="channel-bullet-list">
-                      {overview.config.configRequirements.map((req) => (
-                        <li key={req}>{req}</li>
-                      ))}
-                    </ul>
-                  ) : null}
+                  <p className="field-hint" style={{ marginTop: "4px" }}>
+                    Entre em contato com o administrador para concluir a
+                    configuração deste canal de anúncios.
+                  </p>
                   {activeTab === "meta_ads" && !overview.config.configReady ? (
                     <div style={{ marginTop: "0.75rem" }}>
                       <button
@@ -682,8 +677,8 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
                         onClick={() => void handleSetupMetaAds()}
                       >
                         {busyAction === "setup_meta_ads"
-                          ? "Validando/criando auth config..."
-                          : "Criar/Validar Auth Config Meta Ads"}
+                          ? "Verificando configuração..."
+                          : "Verificar configuração"}
                       </button>
                     </div>
                   ) : null}
@@ -728,20 +723,33 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
               </div>
 
               <div className="channel-actions">
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={
-                    busyAction === "connect" || !overview.config.configReady
-                  }
-                  onClick={() => void handleConnect(activeTab)}
-                >
-                  {busyAction === "connect"
-                    ? "Redirecionando..."
-                    : isConnected
-                      ? "Reconectar conta"
-                      : "Conectar conta"}
-                </button>
+                {activeTab === "meta_ads" ? (
+                  <Link
+                    href="/painel#canais-conectados"
+                    className={
+                      isConnected ? "btn btn-secondary" : "btn btn-primary"
+                    }
+                  >
+                    {isConnected
+                      ? "Gerenciar conexão em Canais conectados"
+                      : "Conectar Facebook em Canais conectados"}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={
+                      busyAction === "connect" || !overview.config.configReady
+                    }
+                    onClick={() => void handleConnect(activeTab)}
+                  >
+                    {busyAction === "connect"
+                      ? "Redirecionando..."
+                      : isConnected
+                        ? "Reconectar conta"
+                        : "Conectar conta"}
+                  </button>
+                )}
 
                 {isConnected ? (
                   <button
@@ -759,7 +767,8 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
                   </button>
                 ) : null}
 
-                {overview.connection.status !== "disconnected" &&
+                {activeTab !== "meta_ads" &&
+                overview.connection.status !== "disconnected" &&
                 overview.connection.status !== "pending_config" ? (
                   confirmDisconnect ? (
                     <div className="channel-confirm-box">
@@ -803,14 +812,14 @@ export function PaidTrafficPanel({ profile }: PaidTrafficPanelProps) {
                 >
                   <label htmlFor="adAccountSelect" className="field-label">
                     {activeTab === "meta_ads"
-                      ? "Selecionar conta de anúncios (Meta Ad Account)"
-                      : "Selecionar Advertiser (TikTok Ads)"}
+                      ? "Selecionar conta de anúncios"
+                      : "Selecionar conta de anunciante"}
                   </label>
                   {overview.assets.length === 0 ? (
                     <p className="field-hint">
-                      Nenhuma conta de anúncios encontrada ainda. Clique em
-                      &ldquo;Atualizar dados&rdquo; para sincronizar as contas
-                      autorizadas.
+                      Não encontramos uma conta de anúncios disponível para este
+                      acesso. Verifique as permissões da conta conectada ou
+                      clique em &ldquo;Atualizar dados&rdquo;.
                     </p>
                   ) : (
                     <div className="traffic-account-row">

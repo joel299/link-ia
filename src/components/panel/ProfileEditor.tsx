@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  buildPreviewInstagramUrl,
-  getContrastRatio,
-} from "@/components/public/profile-visuals";
+import { getContrastRatio } from "@/components/public/profile-visuals";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import {
   DEFAULT_DARK_THEME,
@@ -286,7 +283,6 @@ export function ProfileEditor({
     }
   }
 
-  const resolvedIg = buildPreviewInstagramUrl(draft.instagramInput);
   const contrastRatio = getContrastRatio(
     draft.theme.bgColor,
     draft.theme.textColor
@@ -507,138 +503,18 @@ export function ProfileEditor({
             </div>
           </GlassSurface>
 
-          {/* Section 2: Links */}
-          <GlassSurface as="section" intensity="dense">
-            <div className="editor-section-inner">
-              <div className="editor-section-header">
-                <h2 className="editor-section-title">2. Links de ação</h2>
-                <p className="editor-section-desc">
-                  Ative apenas os canais que deseja exibir na página pública. O
-                  agendamento integrado é configurado na seção{" "}
-                  <strong>Google Agenda</strong> abaixo.
-                </p>
-              </div>
-
-              {/* WhatsApp */}
-              <div className="link-card-group">
-                <div className="link-card-top">
-                  <strong>WhatsApp</strong>
-                  <label className="switch-label">
-                    <input
-                      type="checkbox"
-                      checked={draft.whatsappEnabled}
-                      onChange={(e) =>
-                        updateField("whatsappEnabled", e.target.checked)
-                      }
-                      className="switch-input"
-                    />
-                    <span>
-                      {draft.whatsappEnabled ? "Ativo" : "Desativado"}
-                    </span>
-                  </label>
-                </div>
-
-                <div className="field-group">
-                  <label htmlFor="whatsappNumber" className="field-label">
-                    <span>Número com DDI</span>
-                  </label>
-                  <input
-                    id="whatsappNumber"
-                    type="tel"
-                    value={draft.whatsappNumber}
-                    onChange={(e) =>
-                      updateField("whatsappNumber", e.target.value)
-                    }
-                    placeholder="5511999999999"
-                    aria-invalid={Boolean(fieldErrors.whatsappNumber)}
-                    aria-describedby={
-                      fieldErrors.whatsappNumber
-                        ? "whatsappNumber-error"
-                        : "whatsappNumber-hint"
-                    }
-                    className="input"
-                  />
-                  <p id="whatsappNumber-hint" className="field-hint">
-                    Inclua o código do país (ex.: 55 para Brasil + DDD + número).
-                  </p>
-                  {fieldErrors.whatsappNumber ? (
-                    <p id="whatsappNumber-error" className="field-error">
-                      {fieldErrors.whatsappNumber}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="field-group">
-                  <label htmlFor="whatsappMessage" className="field-label">
-                    <span>Mensagem inicial (opcional)</span>
-                  </label>
-                  <input
-                    id="whatsappMessage"
-                    type="text"
-                    maxLength={200}
-                    value={draft.whatsappMessage}
-                    onChange={(e) =>
-                      updateField("whatsappMessage", e.target.value)
-                    }
-                    placeholder="Olá! Vim pelo seu LinkIA."
-                    className="input"
-                  />
-                </div>
-              </div>
-
-              {/* Instagram */}
-              <div className="link-card-group">
-                <div className="link-card-top">
-                  <strong>Instagram</strong>
-                  <label className="switch-label">
-                    <input
-                      type="checkbox"
-                      checked={draft.instagramEnabled}
-                      onChange={(e) =>
-                        updateField("instagramEnabled", e.target.checked)
-                      }
-                      className="switch-input"
-                    />
-                    <span>
-                      {draft.instagramEnabled ? "Ativo" : "Desativado"}
-                    </span>
-                  </label>
-                </div>
-
-                <div className="field-group">
-                  <label htmlFor="instagramInput" className="field-label">
-                    <span>Usuário ou URL do Instagram</span>
-                  </label>
-                  <input
-                    id="instagramInput"
-                    type="text"
-                    value={draft.instagramInput}
-                    onChange={(e) =>
-                      updateField("instagramInput", e.target.value)
-                    }
-                    placeholder="@seuperfil ou https://instagram.com/seuperfil"
-                    aria-invalid={Boolean(fieldErrors.instagramInput)}
-                    aria-describedby={
-                      fieldErrors.instagramInput
-                        ? "instagramInput-error"
-                        : "instagramInput-hint"
-                    }
-                    className="input"
-                  />
-                  <p id="instagramInput-hint" className="field-hint">
-                    {resolvedIg
-                      ? `Destino: ${resolvedIg}`
-                      : "Informe seu @usuário ou o link completo do perfil."}
-                  </p>
-                  {fieldErrors.instagramInput ? (
-                    <p id="instagramInput-error" className="field-error">
-                      {fieldErrors.instagramInput}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          </GlassSurface>
+          {/* Section 2: Canais conectados (único local para WhatsApp, Instagram, TikTok e Facebook) */}
+          <ConnectedChannelsPanel
+            key={draft.id}
+            profileId={draft.id}
+            whatsappEnabled={draft.whatsappEnabled}
+            whatsappNumber={draft.whatsappNumber}
+            whatsappMessage={draft.whatsappMessage}
+            instagramEnabled={draft.instagramEnabled}
+            instagramInput={draft.instagramInput}
+            fieldErrors={fieldErrors}
+            onFieldChange={updateField}
+          />
 
           {/* Section 3: Aparência */}
           <GlassSurface as="section" intensity="dense">
@@ -763,9 +639,6 @@ export function ProfileEditor({
             profileId={draft.id}
             onCatalogChange={setCatalogItems}
           />
-
-          {/* Section 6: Canais conectados (sob demanda) */}
-          <ConnectedChannelsPanel key={draft.id} profileId={draft.id} />
         </div>
 
         <ProfilePreview

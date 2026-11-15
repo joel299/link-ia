@@ -47,9 +47,11 @@ import {
   AdsToolAdapter,
   confirmCampaignOperationForOwner,
   createCampaignDraftForOwner,
+  getAdsOverviewForOwner,
   listAdAccountsForOwner,
   selectAdAccountForOwner,
 } from "../ads-service";
+import { cleanupStaleIntegrationStates } from "../integration-cleanup";
 import {
   ensureMetaAdsAuthConfig,
   getMetaAdsEnvValidation,
@@ -1107,7 +1109,7 @@ describe("Zernio live HTTP profile resolution, connect URL, error mapping & call
       const msgTimeout = await runScenario(async () => {
         throw new DOMException("Aborted", "TimeoutError");
       });
-      expect(msgTimeout).toContain("Não foi possível conectar ao serviço da Zernio");
+      expect(msgTimeout).toContain("Não foi possível conectar ao serviço no momento");
     } finally {
       globalThis.fetch = origFetch;
     }
@@ -1494,6 +1496,129 @@ describe("Instagram Composio Sync & Sanitization", () => {
         "INSTAGRAM_GET_IG_USER_MEDIA failed: token xyz"
       )
     ).toBe("Não foi possível concluir a operação com o provedor. Tente novamente.");
+  });
+});
+
+describe("Session 2 Consolidation: Idempotent Cleanup & Ads Error Sanitization", () => {
+  it("cleans up expired OAuth states and stale connecting/pending records idempotently without touching connected accounts", () => {
+    const { userA, profileA } = createTwoTenants();
+    const db = getDb();
+    const now = new Date("2026-11-15T18:00:00.000Z");
+    const stale5h = new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString();
+    const expired30h = new Date(now.getTime() - 30 * 60 * 60 * 1000).toISOString();
+
+    // Connected Instagram (must remain untouched)
+    db.prepare(
+      `INSERT INTO social_connections (
+        id, profile_id, owner_id, provider, toolkit_slug, composio_user_id,
+        composio_connected_account_id, status, account_label, created_at, updated_at
+      ) VALUES (?, ?, ?, 'instagram', 'INSTAGRAM', ?, 'ca_valid_ig', 'connected', '@valid', ?, ?)`
+    ).run(crypto.randomUUID(), profileA.id, userA.id, `u_${userA.id}`, stale5h, stale5h);
+
+    // Stale pending TikTok (> 2h without active state)
+    db.prepare(
+      `INSERT INTO social_connections (
+        id, profile_id, owner_id, provider, toolkit_slug, composio_user_id,
+        status, created_at, updated_at
+      ) VALUES (?, ?, ?, 'tiktok', 'TIKTOK', ?, 'pending', ?, ?)`
+    ).run(crypto.randomUUID(), profileA.id, userA.id, `u_${userA.id}`, stale5h, stale5h);
+
+    // Expired OAuth state (> 24h)
+    db.prepare(
+      `INSERT INTO social_oauth_states (
+        state_hash, profile_id, owner_id, provider, composio_user_id,
+        is_mock, expires_at, created_at
+      ) VALUES (?, ?, ?, 'tiktok', ?, 1, ?, ?)`
+    ).run(hashOAuthState("old_state"), profileA.id, userA.id, `u_${userA.id}`, expired30h, expired30h);
+
+    // Stale connecting WhatsApp (> 2h) + expired attempt
+    db.prepare(
+      `INSERT INTO whatsapp_connections (
+        id, profile_id, owner_id, provider, zernio_profile_id, onboarding_mode,
+        status, created_at, updated_at
+      ) VALUES (?, ?, ?, 'zernio', '6af9ec39050caa7f477817c5', 'business_app', 'connecting', ?, ?)`
+    ).run(crypto.randomUUID(), profileA.id, userA.id, stale5h, stale5h);
+
+    db.prepare(
+      `INSERT INTO whatsapp_connection_attempts (
+        state_hash, profile_id, owner_id, zernio_profile_id,
+        status, expires_at, created_at
+      ) VALUES (?, ?, ?, '6af9ec39050caa7f477817c5', 'initiated', ?, ?)`
+    ).run(hashOAuthState("old_wa"), profileA.id, userA.id, stale5h, stale5h);
+
+    const first = cleanupStaleIntegrationStates(db, now);
+    expect(first.expiredOAuthStatesDeleted).toBe(1);
+    expect(first.expiredWhatsAppAttemptsMarked).toBe(1);
+    expect(first.staleConnectingWhatsAppUpdated).toBe(1);
+    expect(first.stalePendingSocialUpdated).toBe(1);
+
+    // Second run must be 100% idempotent
+    const second = cleanupStaleIntegrationStates(db, now);
+    expect(second).toEqual({
+      expiredOAuthStatesDeleted: 0,
+      expiredWhatsAppAttemptsMarked: 0,
+      oldWhatsAppAttemptsDeleted: 0,
+      staleConnectingWhatsAppUpdated: 0,
+      stalePendingSocialUpdated: 0,
+    });
+
+    // Connected Instagram untouched
+    const igRow = db
+      .prepare(
+        "SELECT status, composio_connected_account_id FROM social_connections WHERE profile_id = ? AND provider = 'instagram'"
+      )
+      .get(profileA.id) as { status: string; composio_connected_account_id: string };
+    expect(igRow.status).toBe("connected");
+    expect(igRow.composio_connected_account_id).toBe("ca_valid_ig");
+
+    // WhatsApp zernio_profile_id preserved
+    const waRow = db
+      .prepare(
+        "SELECT status, zernio_profile_id FROM whatsapp_connections WHERE profile_id = ?"
+      )
+      .get(profileA.id) as { status: string; zernio_profile_id: string };
+    expect(waRow.status).toBe("expired");
+    expect(waRow.zernio_profile_id).toBe("6af9ec39050caa7f477817c5");
+  });
+
+  it("sanitizes raw provider errors in getAdsOverview without exposing tool names", async () => {
+    const { userA, profileA } = createTwoTenants();
+    const db = getDb();
+    const now = new Date().toISOString();
+    db.prepare(
+      `INSERT INTO social_connections (
+        id, profile_id, owner_id, provider, toolkit_slug, composio_user_id,
+        composio_connected_account_id, status, account_label, created_at, updated_at
+      ) VALUES (?, ?, ?, 'meta_ads', 'METAADS', ?, 'ca_meta_1', 'connected', 'Meta Ads', ?, ?)`
+    ).run(crypto.randomUUID(), profileA.id, userA.id, `linkia_u_${userA.id}_p_${profileA.id}`, now, now);
+
+    const failingAdapter: AdsToolAdapter = {
+      async listAdAccounts() {
+        throw new Error("METAADS_GET_AD_ACCOUNTS failed: 403 Missing permission");
+      },
+      async listCampaignsAndMetrics() {
+        return [];
+      },
+      async createPausedCampaign() {
+        return { externalCampaignId: "c1" };
+      },
+      async activateCampaign() {},
+    };
+
+    const overview = await getAdsOverviewForOwner(
+      {
+        profileId: profileA.id,
+        ownerId: userA.id,
+        provider: "meta_ads",
+        sync: true,
+      },
+      failingAdapter
+    );
+
+    expect(overview.campaignsError).toBeTruthy();
+    expect(overview.campaignsError).not.toContain("METAADS_GET_AD_ACCOUNTS");
+    expect(overview.campaignsError).not.toContain("403");
+    expect(overview.campaignsError).toContain("autorização");
   });
 });
 

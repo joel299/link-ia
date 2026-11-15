@@ -232,21 +232,21 @@ function mapZernioHttpError(params: {
 
   if (params.status === 401 || params.status === 403) {
     return new ZernioProviderError(
-      "Credencial da Zernio inválida ou sem permissão para conectar o WhatsApp.",
+      "Credencial de integração inválida ou sem permissão para conectar o WhatsApp.",
       502
     );
   }
 
   if (params.status === 402) {
     return new ZernioProviderError(
-      "A conta Zernio precisa de configuração de cobrança ou plano ativo para conectar o WhatsApp.",
+      "A conta de integração precisa de configuração de cobrança ou plano ativo para conectar o WhatsApp.",
       402
     );
   }
 
   if (params.status === 404) {
     return new ZernioProviderError(
-      "O perfil de conexão da Zernio não foi localizado. Verifique a configuração da conta.",
+      "O perfil de conexão não foi localizado. Verifique a configuração da conta.",
       404
     );
   }
@@ -268,20 +268,20 @@ function mapZernioHttpError(params: {
     combined.includes("whatsapp_number_pinned_to_profile")
   ) {
     return new ZernioProviderError(
-      "Este número de WhatsApp já está vinculado a uma conexão existente na Zernio. Reutilize ou desvincule a conexão anterior antes de tentar novamente.",
+      "Este número de WhatsApp já está vinculado a uma conexão existente. Reutilize ou desvincule a conexão anterior antes de tentar novamente.",
       409
     );
   }
 
   if (params.status >= 500) {
     return new ZernioProviderError(
-      `A Zernio retornou erro temporário (${params.status}) ao comunicar com o serviço.`,
+      "O serviço de conexão está temporariamente indisponível. Tente novamente em instantes.",
       502
     );
   }
 
   return new ZernioProviderError(
-    "Não foi possível iniciar a conexão do WhatsApp Business na Zernio. Tente novamente.",
+    "Não foi possível iniciar a conexão do WhatsApp Business. Tente novamente.",
     400
   );
 }
@@ -543,7 +543,7 @@ class DefaultZernioWhatsAppProvider implements ZernioWhatsAppProvider {
         });
       } catch {
         throw new ZernioProviderError(
-          "Não foi possível conectar ao serviço da Zernio no momento. Tente novamente.",
+          "Não foi possível conectar ao serviço no momento. Tente novamente.",
           502
         );
       }
@@ -613,7 +613,7 @@ class DefaultZernioWhatsAppProvider implements ZernioWhatsAppProvider {
       });
     } catch {
       throw new ZernioProviderError(
-        "Não foi possível conectar ao serviço da Zernio no momento. Tente novamente.",
+        "Não foi possível conectar ao serviço no momento. Tente novamente.",
         502
       );
     }
@@ -723,7 +723,7 @@ class DefaultZernioWhatsAppProvider implements ZernioWhatsAppProvider {
       });
     } catch {
       throw new ZernioProviderError(
-        "Não foi possível conectar ao serviço da Zernio no momento. Tente novamente."
+        "Não foi possível conectar ao serviço no momento. Tente novamente."
       );
     }
 
@@ -1541,7 +1541,7 @@ export async function completeWhatsAppCallback(params: {
       ownerId: params.ownerId,
       zernioProfileId: attempt.zernio_profile_id,
       status: "expired",
-      lastError: "Sessão expirada durante o fluxo na Meta/Zernio.",
+      lastError: "Sessão expirada durante o fluxo de autorização.",
     });
     recordIntegrationAudit({
       profileId: attempt.profile_id,
@@ -1633,7 +1633,7 @@ export async function completeWhatsAppCallback(params: {
       conflictCode === "one_whatsapp_per_profile"
         ? "Este perfil já possui uma conta WhatsApp Business vinculada. Desconecte a conexão atual antes de vincular outra."
         : conflictCode === "whatsapp_number_pinned_to_profile"
-          ? "Este número está fixado a outro perfil na Zernio. Utilize o perfil original ou desvincule o número na Zernio."
+          ? "Este número está fixado a outro perfil. Utilize o perfil original ou desvincule o número antes de tentar novamente."
           : "Este número de WhatsApp já está conectado em outra conta. Reutilize ou desvincule o número antes de tentar novamente.";
 
     upsertWhatsAppConnectionRow({
@@ -1660,7 +1660,7 @@ export async function completeWhatsAppCallback(params: {
       ownerId: params.ownerId,
       zernioProfileId: attempt.zernio_profile_id,
       status: "failed",
-      lastError: "Não foi possível concluir a verificação do WhatsApp na Zernio.",
+      lastError: "Não foi possível concluir a verificação do WhatsApp.",
     });
     recordIntegrationAudit({
       profileId: attempt.profile_id,
@@ -1685,7 +1685,7 @@ export async function completeWhatsAppCallback(params: {
     const safeMsg =
       err instanceof Error
         ? err.message
-        : "Erro ao confirmar conexão com o servidor da Zernio.";
+        : "Erro ao confirmar conexão com o provedor.";
     upsertWhatsAppConnectionRow({
       profileId: attempt.profile_id,
       ownerId: params.ownerId,
@@ -1711,7 +1711,7 @@ export async function completeWhatsAppCallback(params: {
       zernioProfileId: attempt.zernio_profile_id,
       status: "incomplete",
       lastError:
-        "Retorno recebido, mas a conta ainda não foi confirmada na Zernio. Conclua o fluxo e tente novamente.",
+        "Retorno recebido, mas a conta ainda não foi confirmada. Conclua o fluxo e tente novamente.",
     });
     recordIntegrationAudit({
       profileId: attempt.profile_id,

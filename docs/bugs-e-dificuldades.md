@@ -113,6 +113,15 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
   - `profile_social_media` ganhou colunas `like_count` e `comment_count` (`src/lib/db.ts`, `src/lib/types.ts`, `src/lib/profiles.ts`), exibidas em `ConnectedChannelsPanel.tsx` e `PublicSocialSection.tsx`.
   - Sanitização centralizada via `mapSocialProviderError()` e `sanitizeStoredSocialError()` com `correlationId` apenas em logs do servidor, preservação das mídias em cache e de `last_synced_at` em caso de falha, e botões **"Tentar novamente"** / **"Reconectar"** no painel.
 
+### BUG-011 — Duplicação de blocos de WhatsApp/Instagram/Facebook entre sessões e exibição de termos técnicos na UI
+- **Data:** 15/11/2026
+- **Estado:** corrigido e validado localmente
+- **Causa confirmada:** `ProfileEditor.tsx` mantinha uma seção "2. Links de ação" (com campos públicos de WhatsApp e Instagram) separada da seção 6 ("Canais conectados"), enquanto `PaidTrafficPanel.tsx` duplicava botões de conexão/desconexão para `meta_ads` (Facebook) e textos técnicos internos ("Zernio", "Composio", "Cloud API", nomes de variáveis de ambiente) eram exibidos ao usuário.
+- **Correção aplicada:**
+  - Consolidado tudo em **2. Canais conectados** (`ConnectedChannelsPanel.tsx` com `#canais-conectados`), preservando os campos de link público de WhatsApp e Instagram dentro de seus respectivos canais e incluindo o canal Facebook (`meta_ads`).
+  - Removidos os botões duplicados de conexão do Facebook em `PaidTrafficPanel.tsx`, com link direto para `/painel#canais-conectados` e sanitização de erros em `src/lib/ads-service.ts` e `src/lib/zernio-whatsapp.ts`.
+  - Criado `src/lib/integration-cleanup.ts` (`cleanupStaleIntegrationStates`) para limpeza idempotente de estados OAuth expirados e tentativas antigas sem apagar conexões válidas.
+
 ## Riscos e questões em aberto — não são bugs
 
 ### RISCO-001 — Integração com mídia do Instagram

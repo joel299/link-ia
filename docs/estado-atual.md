@@ -93,6 +93,12 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
   - **Correção Instagram Composio (`ig_user_id`) e Sanitização de Erros (`15/11/2026`):**
     - Causa confirmada (`BUG-010`): `INSTAGRAM_GET_IG_USER_MEDIA` exige `ig_user_id` real (obtido via `INSTAGRAM_GET_USER_INFO` com `ig_user_id: "me"`), e falhas do provedor estavam sendo persistidas/exibidas em texto técnico bruto.
     - `src/lib/composio-social.ts`, `src/lib/db.ts`, `src/lib/types.ts`, `src/lib/profiles.ts`, `src/app/api/profiles/[id]/integrations/social/[provider]/sync/route.ts`, `ConnectedChannelsPanel.tsx` e `PublicSocialSection.tsx` atualizados para resolver/persistir `ig_user_id`, sincronizar até 3 publicações/Reels recentes com `likeCount`/`commentCount` (`null` quando indisponível), preservar cache e `last_synced_at` em falhas e sanitizar mensagens de erro com `correlationId` apenas em logs internos.
+  - **Consolidação da Sessão 2 ("2. Canais conectados") e Limpeza Idempotente (`15/11/2026`):**
+    - `ProfileEditor.tsx` e `ConnectedChannelsPanel.tsx` consolidados para que **2. Canais conectados** (`#canais-conectados`) seja o único local de gerenciamento de WhatsApp, Instagram, TikTok e Facebook, removendo a seção redundante "2. Links de ação" e a antiga seção 6, preservando os campos de link público (`whatsappNumber`, `whatsappMessage`, `whatsappEnabled`, `instagramInput`, `instagramEnabled`) dentro de seus respectivos canais.
+    - WhatsApp unificado com os dois caminhos explícitos (vincular conta WhatsApp Business com coexistência quando elegível vs informar número público para mensagens), sem QR Code fictício e sem termos técnicos internos (`Zernio`, `Composio`, `Cloud API`, `API oficial`, códigos HTTP).
+    - `PaidTrafficPanel.tsx` (`/painel/trafego`) ajustado para remover botões duplicados de conexão do Facebook (`meta_ads`), direcionando para `/painel#canais-conectados` e sanitizando mensagens de erro em `src/lib/ads-service.ts`.
+    - Criada rotina idempotente `cleanupStaleIntegrationStates()` (`src/lib/integration-cleanup.ts`) para expirar/limpar estados OAuth vencidos e tentativas incompletas antigas sem afetar conexões `connected` ou IDs válidos.
+    - Google Agenda (`GoogleCalendarPanel.tsx`, `src/lib/composio.ts`, `src/lib/scheduling.ts`) preservada sem alterações.
   - **Validações:** `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` e validação HTTP local em `http://localhost:3000` executados após as alterações.
 
 ## Próxima ação
