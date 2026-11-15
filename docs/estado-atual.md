@@ -112,3 +112,8 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
 - Produção confirmada pela documentação do Coolify: `APP_BASE_URL=https://linkia.iainfinito.com.br`. Corrigido o exemplo de URL que usava o host `linka.infinito.com.br`.
 - `getMetaAdsReturnBaseUrl` agora restringe callback ao mesmo domínio de `APP_BASE_URL` e à rota exata do callback, rejeitando host, caminho, query ou fragmento arbitrários. `getMetaAdsRedirectUri` rejeita URI de provedor diferente da URI v3 requerida.
 - Testes de allowlist e URI exata adicionados. A URI v3 foi salva na lista de URIs OAuth válidas no Meta Developers; o app já aparece publicado. As duas variáveis foram salvas no Coolify e estão pendentes de aplicar. Nenhum deploy foi executado. A Auth Config do Composio ainda depende das credenciais Meta; o endpoint de setup agora valida o toolkit e atualiza o oauth_redirect_uri exato antes de reutilizar a configuração.
+### Atualização da revisão do callback Meta Ads (15/11/2026)
+- O erro observado após o deploy mostrou o Facebook recebendo um `redirect_uri` do LinkIA. A sincronização da Auth Config existia apenas no endpoint de setup; o endpoint de conexão não garantia essa atualização.
+- `POST /api/profiles/[id]/integrations/social/[provider]/connect` agora chama `ensureMetaAdsAuthConfig` antes de iniciar Meta Ads OAuth. Assim, a Auth Config `metaads` é validada e recebe a URI v3 canônica a cada nova tentativa.
+- A variável legada `COMPOSIO_META_ADS_REDIRECT_URI` no Coolify também será alinhada a `https://backend.composio.dev/api/v3/toolkits/auth/callback`.
+- Próxima ação: publicar a versão corrigida, repetir o OAuth e verificar o redirecionamento final para `/painel/trafego`.

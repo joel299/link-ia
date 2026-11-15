@@ -7,6 +7,10 @@ import {
   SocialConfigError,
   SocialProviderError,
 } from "@/lib/composio-social";
+import {
+  ensureMetaAdsAuthConfig,
+  MetaAdsConfigError,
+} from "@/lib/meta-ads-config";
 import { getProfileByIdForOwner } from "@/lib/profiles";
 
 export async function POST(
@@ -38,6 +42,13 @@ export async function POST(
   }
 
   try {
+    if (provider === "meta_ads") {
+      await ensureMetaAdsAuthConfig({
+        profileId: check.profile.id,
+        ownerId: user.id,
+      });
+    }
+
     const result = await initiateSocialConnection({
       profileId: check.profile.id,
       ownerId: user.id,
@@ -59,6 +70,12 @@ export async function POST(
     if (err instanceof SocialProviderError) {
       return NextResponse.json(
         { error: err.message },
+        { status: err.statusCode }
+      );
+    }
+    if (err instanceof MetaAdsConfigError) {
+      return NextResponse.json(
+        { error: err.message, missingVariables: err.missingVariables },
         { status: err.statusCode }
       );
     }

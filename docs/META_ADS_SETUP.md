@@ -77,7 +77,7 @@ No **Coolify**:
 
 ## 5. Como criar/validar a auth config `metaads` no Composio
 
-O LinkIA **não** cria auth configs automaticamente no boot do servidor. Ao executar o setup autenticado, ele valida que o ID configurado pertence ao toolkit `metaads`, corrige o `oauth_redirect_uri` para a URI v3 canônica e reutiliza uma auth config habilitada; sem uma config reutilizável, cria uma nova usando as credenciais do Meta app.
+O LinkIA **não** cria auth configs automaticamente no boot do servidor. O setup autenticado valida que o ID configurado pertence ao toolkit `metaads`, corrige o `oauth_redirect_uri` para a URI v3 canônica e reutiliza uma auth config habilitada; sem uma config reutilizável, cria uma nova usando as credenciais do Meta app. Agora o endpoint de conexão executa essa validação e sincroniza o callback antes de iniciar cada novo OAuth Meta Ads, evitando usar uma configuração antiga sem correção.
 
 Com o servidor rodando e autenticado no painel:
 
