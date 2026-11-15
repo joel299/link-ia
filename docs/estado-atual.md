@@ -81,6 +81,12 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
     - Criado `src/lib/meta-ads-config.ts` (`getMetaAdsEnvValidation`, `ensureMetaAdsAuthConfig`) e a rota autenticada `GET`/`POST /api/profiles/[id]/ads/meta_ads/setup`, com deduplicação de auth configs existentes no Composio, auditoria redigida e sem criação automática no boot.
     - `src/lib/ads-service.ts` (`getAdsConfigStatus`) e `src/components/panel/PaidTrafficPanel.tsx` atualizados para orientar a criação/validação sob demanda da auth config Meta Ads.
     - Documentação detalhada publicada em `docs/META_ADS_SETUP.md`.
+  - **Webhook da Zernio e Acesso Local (`15/11/2026`):**
+    - `.env.example` atualizado com `ZERNIO_WEBHOOK_SECRET=` vazio; `.gitignore` reforçado com `.secrets/`, `*.secret`, `*.key`, `*.pem`.
+    - Criado `src/instrumentation.ts` para registrar aviso seguro no boot quando `ZERNIO_WEBHOOK_SECRET` estiver ausente (sem gerar segredo em runtime).
+    - `src/app/api/webhooks/zernio/whatsapp/route.ts` e `src/lib/zernio-whatsapp.ts` atualizados para também aceitar `X-Zernio-Event` e `X-Zernio-Event-Id` como fallback junto a `X-Zernio-Signature` (HMAC-SHA256 sobre `rawBody` com `crypto.timingSafeEqual`).
+    - Documentação de cadastro externo e testes publicada em `docs/ZERNIO_WEBHOOK_SETUP.md`.
+    - `next.config.ts` (`allowedDevOrigins: ["127.0.0.1", "localhost"]`) e `src/app/login/page.tsx` ajustados para destravar acesso local via `127.0.0.1:3000`.
   - **Validações:** `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` e validação Docker Compose executados após as alterações (detalhes registrados na entrega atual).
 
 ## Próxima ação

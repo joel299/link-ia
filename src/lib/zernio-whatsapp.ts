@@ -1454,6 +1454,8 @@ export function verifyZernioWebhookSignature(params: {
 export function processZernioWebhookEvent(params: {
   rawBody: string;
   signatureHeader: string | null | undefined;
+  eventIdHeader?: string | null | undefined;
+  eventTypeHeader?: string | null | undefined;
 }): {
   ok: boolean;
   statusCode: number;
@@ -1505,7 +1507,12 @@ export function processZernioWebhookEvent(params: {
       : {};
 
   const eventIdRaw =
-    payload.id ?? payload.eventId ?? payload.event_id ?? data.eventId ?? data.id;
+    params.eventIdHeader?.trim() ||
+    payload.id ||
+    payload.eventId ||
+    payload.event_id ||
+    data.eventId ||
+    data.id;
   const eventId =
     typeof eventIdRaw === "string" && eventIdRaw.trim()
       ? eventIdRaw.trim()
@@ -1525,7 +1532,11 @@ export function processZernioWebhookEvent(params: {
   }
 
   const eventType = String(
-    payload.event ?? payload.type ?? payload.eventType ?? "unknown"
+    params.eventTypeHeader?.trim() ||
+      payload.event ||
+      payload.type ||
+      payload.eventType ||
+      "unknown"
   )
     .trim()
     .toLowerCase();

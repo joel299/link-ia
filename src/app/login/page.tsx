@@ -21,7 +21,6 @@ function LoginContent() {
   const [submitting, setSubmitting] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -30,12 +29,10 @@ function LoginContent() {
         if (!active) return;
         if (res.ok) {
           router.replace("/painel");
-          return;
         }
-        setCheckingSession(false);
       })
       .catch(() => {
-        if (active) setCheckingSession(false);
+        // Ignora erro silenciosamente; usuário pode prosseguir com login/cadastro.
       });
     return () => {
       active = false;
@@ -173,7 +170,7 @@ function LoginContent() {
               <button
                 type="button"
                 onClick={handleDemoLogin}
-                disabled={demoLoading || submitting || checkingSession}
+                disabled={demoLoading || submitting}
                 className="btn btn-accent"
                 style={{ width: "100%" }}
               >
@@ -315,7 +312,7 @@ function LoginContent() {
 
               <button
                 type="submit"
-                disabled={submitting || demoLoading || checkingSession}
+                disabled={submitting || demoLoading}
                 className="btn btn-primary"
                 style={{ width: "100%", marginTop: "4px" }}
               >

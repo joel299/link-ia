@@ -13,9 +13,13 @@ export async function POST(request: Request) {
   }
 
   const signatureHeader = request.headers.get("x-zernio-signature");
+  const eventIdHeader = request.headers.get("x-zernio-event-id");
+  const eventTypeHeader = request.headers.get("x-zernio-event");
   const result = processZernioWebhookEvent({
     rawBody,
     signatureHeader,
+    eventIdHeader,
+    eventTypeHeader,
   });
 
   if (!result.ok) {

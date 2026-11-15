@@ -55,6 +55,8 @@ import {
   MetaAdsAuthConfigClient,
   MetaAdsConfigError,
 } from "../meta-ads-config";
+import { POST as zernioWebhookPost } from "../../app/api/webhooks/zernio/whatsapp/route";
+import { register as registerInstrumentation } from "../../instrumentation";
 
 let tempDir: string;
 
@@ -797,5 +799,125 @@ describe("Meta Ads safe credential validation and Composio auth config setup", (
     ).rejects.toThrow(MetaAdsConfigError);
   });
 });
+
+describe("Zernio webhook endpoint & signature validation", () => {
+  it("rejects with 503 when ZERNIO_WEBHOOK_SECRET is absent and logs safe startup warning", async () => {
+    const prevRuntime = process.env.NEXT_RUNTIME;
+    process.env.NEXT_RUNTIME = "nodejs";
+    const warnings: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map(String).join(" "));
+    };
+
+    try {
+      await registerInstrumentation();
+    } finally {
+      console.warn = origWarn;
+      if (prevRuntime === undefined) {
+        delete process.env.NEXT_RUNTIME;
+      } else {
+        process.env.NEXT_RUNTIME = prevRuntime;
+      }
+    }
+
+    expect(warnings.some((w) => w.includes("ZERNIO_WEBHOOK_SECRET"))).toBe(true);
+
+    const req = new Request("http://localhost:3000/api/webhooks/zernio/whatsapp", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ event: "webhook.test", id: "evt_missing_secret" }),
+    });
+    const res = await zernioWebhookPost(req);
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toBe("ZERNIO_WEBHOOK_SECRET não configurado.");
+  });
+
+  it("rejects missing or invalid X-Zernio-Signature with 401 without leaking secret", async () => {
+    const fakeSecret = "fake_zernio_webhook_secret_test_only";
+    process.env.ZERNIO_WEBHOOK_SECRET = fakeSecret;
+    const rawBody = JSON.stringify({
+      event: "account.connected",
+      id: "evt_bad_sig",
+    });
+
+    const missingSigReq = new Request(
+      "http://localhost:3000/api/webhooks/zernio/whatsapp",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: rawBody,
+      }
+    );
+    const missingSigRes = await zernioWebhookPost(missingSigReq);
+    expect(missingSigRes.status).toBe(401);
+    const missingText = await missingSigRes.text();
+    expect(missingText).not.toContain(fakeSecret);
+
+    const invalidSigReq = new Request(
+      "http://localhost:3000/api/webhooks/zernio/whatsapp",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-zernio-signature": "0".repeat(64),
+        },
+        body: rawBody,
+      }
+    );
+    const invalidSigRes = await zernioWebhookPost(invalidSigReq);
+    expect(invalidSigRes.status).toBe(401);
+    const invalidText = await invalidSigRes.text();
+    expect(invalidText).not.toContain(fakeSecret);
+  });
+
+  it("accepts valid HMAC-SHA256 X-Zernio-Signature and deduplicates by X-Zernio-Event-Id", async () => {
+    const fakeSecret = "fake_zernio_webhook_secret_test_only";
+    process.env.ZERNIO_WEBHOOK_SECRET = fakeSecret;
+    const rawBody = JSON.stringify({
+      data: { accountId: "acc_unmatched_123" },
+    });
+    const sig = crypto
+      .createHmac("sha256", fakeSecret)
+      .update(rawBody, "utf8")
+      .digest("hex");
+
+    const req1 = new Request(
+      "http://localhost:3000/api/webhooks/zernio/whatsapp",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-zernio-signature": sig,
+          "x-zernio-event": "account.connected",
+          "x-zernio-event-id": "evt_header_dedup_001",
+        },
+        body: rawBody,
+      }
+    );
+    const res1 = await zernioWebhookPost(req1);
+    expect(res1.status).toBe(200);
+    expect(await res1.json()).toEqual({ ok: true, deduplicated: false });
+
+    const req2 = new Request(
+      "http://localhost:3000/api/webhooks/zernio/whatsapp",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-zernio-signature": sig,
+          "x-zernio-event": "account.connected",
+          "x-zernio-event-id": "evt_header_dedup_001",
+        },
+        body: rawBody,
+      }
+    );
+    const res2 = await zernioWebhookPost(req2);
+    expect(res2.status).toBe(200);
+    expect(await res2.json()).toEqual({ ok: true, deduplicated: true });
+  });
+});
+
 
 
