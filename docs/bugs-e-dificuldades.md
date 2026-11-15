@@ -97,3 +97,8 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
 
 ### RISCO-003 — Ausência de rate limiting em rotas de autenticação, reserva e upload
 - **Estado:** pendência de segurança pré-produção.
+
+### RISCO-004 — Meta Ads exige Meta App próprio e aprovação de permissões da Marketing API
+- **Data:** 15/11/2026
+- **Estado:** documentado e mitigado com validação/criação sob demanda de auth config.
+- **Detalhes:** O toolkit `metaads` no Composio (`@composio/core`) não oferece OAuth gerenciado (`managed: []`) e exige `OAUTH2` com `client_id` (`META_ADS_CLIENT_ID`), `client_secret` (`META_ADS_CLIENT_SECRET`) e callback exata cadastrada no Meta for Developers (`https://backend.composio.dev/api/v1/auth-apps/add` por padrão, ou `COMPOSIO_META_ADS_REDIRECT_URI`). O fluxo foi isolado no servidor em `src/lib/meta-ads-config.ts` e `POST /api/profiles/[id]/ads/meta_ads/setup`, evitando criação automática no boot e duplicação de auth configs no Composio. Ver `docs/META_ADS_SETUP.md`.

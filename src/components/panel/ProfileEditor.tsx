@@ -19,6 +19,7 @@ import {
 import { AvatarUploader } from "./AvatarUploader";
 import { ColorField } from "./ColorField";
 import { CatalogPanel } from "./CatalogPanel";
+import { ConnectedChannelsPanel } from "./ConnectedChannelsPanel";
 import { GoogleCalendarPanel } from "./GoogleCalendarPanel";
 import { ProfilePreview } from "./ProfilePreview";
 import { PublishStatus, type SaveState } from "./PublishStatus";
@@ -762,6 +763,9 @@ export function ProfileEditor({
             profileId={draft.id}
             onCatalogChange={setCatalogItems}
           />
+
+          {/* Section 6: Canais conectados (sob demanda) */}
+          <ConnectedChannelsPanel key={draft.id} profileId={draft.id} />
         </div>
 
         <ProfilePreview

@@ -1,7 +1,7 @@
 # Estado atual — LinkIA
 
-**Última atualização:** 13/11/2026  
-**Status:** MVP + Google Calendar (Composio) + fluxo de agendamento público `/{slug}/agendar` + catálogo/carrossel publicados no Coolify. Em 13/11/2026, commit `b0aaf48` corrigiu o `422` de publicação causado pela validação obsoleta de URL externa; GitHub Actions/Coolify atualizaram o serviço. Perfil `/soueujoe` foi publicado no painel; páginas `/soueujoe` e `/soueujoe/agendar` responderam HTTP 200 com TLS válido, e a API pública retornou horários disponíveis para 16/11/2026. A correção anterior do callback OAuth também está publicada. Falta criar um evento real no calendário com autorização do usuário; pendem teste em Docker Linux e descoberta da plataforma Qualify.
+**Última atualização:** 14/11/2026  
+**Status:** MVP + Google Calendar (Composio) + Agendamento público + Catálogo/Carrossel + Integrações Sociais (Instagram/TikTok orgânicos), WhatsApp Business Coexistência (Zernio) e Tráfego Pago (`/painel/trafego`, Meta Ads / TikTok Ads) implementados e validados localmente em `http://localhost:3000`. Pendente configuração manual de Auth Configs/Zernio pelo administrador LinkIA, inspeção visual interativa no navegador (`BLOQ-001`), teste em Docker Linux e descoberta da plataforma Qualify.
 
 ## Retomada rápida
 
@@ -62,6 +62,26 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
   - `GET /soueujoe` (com `booking_settings.enabled = 0`) -> `200`, não exibe `"Agendar horário"`; `GET /api/public/profiles/soueujoe/availability?date=2026-11-16` -> `409` (`"O agendamento online está desativado para este perfil."`).
   - Perfil publicado sem agenda conectada -> `PUT /booking-settings` com `enabled: true` bloqueado (`422`), `GET /{slug}` não exibe `"Agendar horário"`, `GET /{slug}/agendar` exibe fallback WhatsApp, `/availability` e `/bookings` retornam `409`.
 - **Browser subagent:** bloqueado no host (`BLOQ-001`, `DevToolsActivePort` ENOENT).
+- **Integrações Sociais, WhatsApp Coexistência (Zernio) e Tráfego Pago (`14/11/2026`):**
+  - **Google Agenda preservada sem alterações:** `src/lib/composio.ts`, `src/lib/scheduling.ts`, `GoogleCalendarPanel.tsx`, `/api/profiles/[id]/integrations/google-calendar/*` e `/api/integrations/composio/callback` mantidos intocados.
+  - **Schema SQLite (`src/lib/db.ts`):** adicionadas tabelas `social_connections`, `social_oauth_states`, `social_assets`, `profile_social_media`, `whatsapp_connections`, `whatsapp_connection_attempts`, `ad_campaign_operations`, `integration_audit_events` e `webhook_events_dedup`.
+  - **Levantamento real dos toolkits Composio (`@composio/core`):**
+    - `INSTAGRAM`: OAuth gerenciado disponível (`managed: ["OAUTH2"]`); ações confirmadas `INSTAGRAM_GET_USER_INFO`, `INSTAGRAM_GET_IG_USER_MEDIA`.
+    - `TIKTOK`: OAuth gerenciado indisponível (`managed: []`); requer credenciais próprias de app do desenvolvedor; ações `TIKTOK_QUERY_CREATOR_INFO`, `TIKTOK_GET_USER_STATS`, `TIKTOK_LIST_VIDEOS`.
+    - `METAADS`: OAuth gerenciado indisponível (`managed: []`); requer auth config/credenciais próprias; ações `METAADS_GET_AD_ACCOUNTS`, `METAADS_LIST_CAMPAIGNS`, `METAADS_GET_INSIGHTS`, `METAADS_CREATE_CAMPAIGN`, `METAADS_SET_AD_OBJECT_STATUS`.
+    - `TIKTOK_ADS`: OAuth gerenciado disponível (`managed: ["OAUTH2"]`), distinto de `TIKTOK`; ações `TIKTOK_ADS_GET_ADVERTISER_ACCOUNTS`, `TIKTOK_ADS_LIST_CAMPAIGNS`, `TIKTOK_ADS_GET_REPORT_INTEGRATED`, `TIKTOK_ADS_CREATE_CAMPAIGN`, `TIKTOK_ADS_UPDATE_CAMPAIGN_STATUS`.
+    - `WHATSAPP`: `managed: ["OAUTH2"]`, mantido desabilitado (`disabled_pending_validation`) enquanto Zernio conduz coexistência.
+  - **WhatsApp Coexistência Zernio (`src/lib/zernio-whatsapp.ts`):** fluxo `onboarding=business_app`, allowlist HTTPS, `state_hash` uso único/expiração, verificação server-side antes de marcar `connected`, telefone mascarado, desconexão apenas no LinkIA (sem desregistrar da Cloud API) e webhook `POST /api/webhooks/zernio/whatsapp` com HMAC-SHA256 e deduplicação.
+  - **UI em duas áreas (`AppShell.tsx`, `ConnectedChannelsPanel.tsx`, `/painel/trafego` + `PaidTrafficPanel.tsx`):** carregamento sob demanda por seção/aba, sem chamadas externas no primeiro paint; fluxo de rascunho + revisão + confirmação explícita de gasto em duas etapas (criação pausada + ativação separada).
+  - **Página pública (`PublicProfileView.tsx`, `PublicSocialSection.tsx`, `src/lib/profiles.ts`):** exibe link canônico verificado do Instagram/TikTok e até 3 publicações/Reels selecionadas do Instagram a partir do cache SQLite.
+  - **Configuração manual pendente do administrador:** definir `ZERNIO_API_KEY`, `ZERNIO_WEBHOOK_SECRET`, `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID`, `COMPOSIO_TIKTOK_AUTH_CONFIG_ID`, `META_ADS_CLIENT_ID`, `META_ADS_CLIENT_SECRET`, `COMPOSIO_META_ADS_AUTH_CONFIG_ID` e `COMPOSIO_TIKTOK_ADS_AUTH_CONFIG_ID` no servidor.
+  - **Configuração Segura Meta Ads (`15/11/2026`):**
+    - `.env.example`, `compose.yaml` e `docker-compose.coolify.yml` atualizados com `META_ADS_CLIENT_ID`, `META_ADS_CLIENT_SECRET`, `COMPOSIO_META_ADS_AUTH_CONFIG_ID` e `COMPOSIO_META_ADS_REDIRECT_URI` (sem segredos e sem exposição ao navegador).
+    - Schema real do toolkit `metaads` no `@composio/core` confirmado (`authScheme: OAUTH2`, campos obrigatórios `client_id` e `client_secret`, callback padrão `https://backend.composio.dev/api/v1/auth-apps/add`, escopos padrão `ads_read,ads_management,business_management`).
+    - Criado `src/lib/meta-ads-config.ts` (`getMetaAdsEnvValidation`, `ensureMetaAdsAuthConfig`) e a rota autenticada `GET`/`POST /api/profiles/[id]/ads/meta_ads/setup`, com deduplicação de auth configs existentes no Composio, auditoria redigida e sem criação automática no boot.
+    - `src/lib/ads-service.ts` (`getAdsConfigStatus`) e `src/components/panel/PaidTrafficPanel.tsx` atualizados para orientar a criação/validação sob demanda da auth config Meta Ads.
+    - Documentação detalhada publicada em `docs/META_ADS_SETUP.md`.
+  - **Validações:** `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` e validação Docker Compose executados após as alterações (detalhes registrados na entrega atual).
 
 ## Próxima ação
 

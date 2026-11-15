@@ -54,6 +54,8 @@ export interface PublicProfile {
   bookingTimezone?: string;
   bookingSlotDurationMinutes?: number;
   catalogItems?: PublicCatalogItem[];
+  tiktokUrl?: string | null;
+  socialMediaItems?: PublicSocialMediaItem[];
   theme: ProfileTheme;
   updatedAt: string;
 }
@@ -195,4 +197,139 @@ export const DEFAULT_DARK_THEME: ProfileTheme = {
   fontFamily: "manrope",
   buttonStyle: "rounded",
 };
+
+export type SocialProvider = "instagram" | "tiktok" | "meta_ads" | "tiktok_ads";
+export type OrganicSocialProvider = "instagram" | "tiktok";
+export type AdsProvider = "meta_ads" | "tiktok_ads";
+
+export type SocialConnectionStatus =
+  | "disconnected"
+  | "pending"
+  | "incomplete"
+  | "connected"
+  | "expired"
+  | "failed"
+  | "pending_config";
+
+export interface SocialAssetView {
+  id: string;
+  assetType: string;
+  externalId: string;
+  displayName: string;
+  isSelected: boolean;
+}
+
+export interface SocialMediaItemView {
+  id: string;
+  provider: OrganicSocialProvider;
+  externalId: string;
+  mediaType: string;
+  caption: string;
+  permalink: string;
+  thumbnailUrl: string | null;
+  position: number;
+  publicEnabled: boolean;
+  publishedAt: string | null;
+  syncedAt: string;
+}
+
+export interface PublicSocialMediaItem {
+  externalId: string;
+  mediaType: string;
+  caption: string;
+  permalink: string;
+  thumbnailUrl: string | null;
+}
+
+export interface SocialConnectionView {
+  provider: SocialProvider;
+  toolkitSlug: string;
+  status: SocialConnectionStatus;
+  configReady: boolean;
+  configRequirements: string[];
+  managedOAuthSupported: boolean;
+  accountLabel: string | null;
+  canonicalUrl: string | null;
+  selectedAssetId: string | null;
+  selectedAssetName: string | null;
+  scopesSummary: string[];
+  lastSyncedAt: string | null;
+  lastError: string | null;
+  updatedAt: string | null;
+  assets: SocialAssetView[];
+}
+
+export type WhatsAppConnectionStatus =
+  | "disconnected"
+  | "connecting"
+  | "incomplete"
+  | "connected"
+  | "expired"
+  | "failed"
+  | "ineligible"
+  | "pending_config";
+
+export interface WhatsAppCapabilities {
+  coexistenceConfirmed: boolean;
+  messagingSupported: boolean;
+  templatesSupported: boolean;
+  groupsApiSupported: boolean;
+  note?: string;
+}
+
+export interface WhatsAppConnectionView {
+  provider: "zernio";
+  status: WhatsAppConnectionStatus;
+  configReady: boolean;
+  configRequirements: string[];
+  onboardingMode: "business_app" | "api";
+  maskedPhone: string | null;
+  displayName: string | null;
+  hasWaba: boolean;
+  hasPhoneNumberId: boolean;
+  capabilities: WhatsAppCapabilities;
+  composioStatus: "disabled_pending_validation";
+  composioNote: string;
+  lastVerifiedAt: string | null;
+  lastError: string | null;
+  updatedAt: string | null;
+}
+
+export interface AdCampaignView {
+  id: string;
+  name: string;
+  status: string;
+  objective: string;
+  dailyBudget: string | null;
+  spend: string | null;
+  impressions: string | null;
+  clicks: string | null;
+}
+
+export interface AdCampaignOperationView {
+  id: string;
+  provider: AdsProvider;
+  adAccountId: string;
+  idempotencyKey: string;
+  status: "draft" | "created_paused" | "active" | "failed";
+  externalCampaignId: string | null;
+  params: {
+    name: string;
+    objective: string;
+    budgetAmount: number;
+    budgetCurrency: string;
+    budgetType: "daily" | "lifetime";
+    startDate: string;
+    endDate?: string;
+    targetSummary: string;
+    creativeHeadline: string;
+    destinationUrl: string;
+  };
+  estimatedBudgetSummary: string;
+  confirmedAt: string | null;
+  activatedAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+}
+
 

@@ -602,12 +602,55 @@ export function getPublishedPublicProfileBySlug(
           ? "active"
           : "disabled";
 
+  const connectedInstagramRow = db
+    .prepare(
+      "SELECT canonical_url FROM social_connections WHERE profile_id = ? AND provider = 'instagram' AND status = 'connected' LIMIT 1"
+    )
+    .get(row.id) as { canonical_url: string | null } | undefined;
+
+  const connectedTiktokRow = db
+    .prepare(
+      "SELECT canonical_url FROM social_connections WHERE profile_id = ? AND provider = 'tiktok' AND status = 'connected' LIMIT 1"
+    )
+    .get(row.id) as { canonical_url: string | null } | undefined;
+
+  const resolvedInstagramUrl =
+    row.instagram_enabled && connectedInstagramRow?.canonical_url
+      ? connectedInstagramRow.canonical_url
+      : instagramUrl;
+
+  const socialMediaRows = db
+    .prepare(
+      `SELECT external_id, media_type, caption, permalink, thumbnail_url
+       FROM profile_social_media
+       WHERE profile_id = ? AND provider = 'instagram' AND public_enabled = 1
+       ORDER BY position ASC, synced_at DESC
+       LIMIT 3`
+    )
+    .all(row.id) as Array<{
+    external_id: string;
+    media_type: string;
+    caption: string;
+    permalink: string;
+    thumbnail_url: string | null;
+  }>;
+
+  const socialMediaItems = socialMediaRows.map((m) => ({
+    externalId: m.external_id,
+    mediaType: m.media_type,
+    caption: m.caption,
+    permalink: m.permalink,
+    thumbnailUrl: m.thumbnail_url,
+  }));
+
   return {
     slug: row.slug,
     displayName: row.display_name,
     bio: row.bio,
     avatarUrl: row.avatar_url,
-    instagramUrl,
+    instagramUrl: resolvedInstagramUrl,
+    tiktokUrl: connectedTiktokRow?.canonical_url ?? null,
+    socialMediaItems,
     whatsappUrl,
     bookingUrl,
     bookingLabel: row.booking_label || "Agendar horário",

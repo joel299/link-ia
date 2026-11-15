@@ -153,6 +153,164 @@ function initSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_catalog_items_profile_order
       ON catalog_items(profile_id, is_active, sort_order, created_at);
+
+    CREATE TABLE IF NOT EXISTS social_connections (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      owner_id TEXT NOT NULL,
+      provider TEXT NOT NULL CHECK (provider IN ('instagram', 'tiktok', 'meta_ads', 'tiktok_ads')),
+      toolkit_slug TEXT NOT NULL,
+      composio_user_id TEXT NOT NULL,
+      composio_connected_account_id TEXT,
+      status TEXT NOT NULL DEFAULT 'disconnected' CHECK (status IN ('disconnected', 'pending', 'incomplete', 'connected', 'expired', 'failed', 'pending_config')),
+      account_label TEXT,
+      canonical_url TEXT,
+      selected_asset_id TEXT,
+      selected_asset_name TEXT,
+      scopes_summary_json TEXT NOT NULL DEFAULT '[]',
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      last_synced_at TEXT,
+      last_error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      revoked_at TEXT,
+      UNIQUE(profile_id, provider),
+      FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_social_connections_owner_profile
+      ON social_connections(owner_id, profile_id, provider);
+
+    CREATE TABLE IF NOT EXISTS social_oauth_states (
+      state_hash TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      owner_id TEXT NOT NULL,
+      provider TEXT NOT NULL CHECK (provider IN ('instagram', 'tiktok', 'meta_ads', 'tiktok_ads')),
+      composio_user_id TEXT NOT NULL,
+      composio_connected_account_id TEXT,
+      is_mock INTEGER NOT NULL DEFAULT 0,
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS social_assets (
+      id TEXT PRIMARY KEY,
+      connection_id TEXT NOT NULL,
+      profile_id TEXT NOT NULL,
+      provider TEXT NOT NULL CHECK (provider IN ('instagram', 'tiktok', 'meta_ads', 'tiktok_ads')),
+      asset_type TEXT NOT NULL,
+      external_id TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      is_selected INTEGER NOT NULL DEFAULT 0,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      updated_at TEXT NOT NULL,
+      UNIQUE(connection_id, asset_type, external_id),
+      FOREIGN KEY (connection_id) REFERENCES social_connections(id) ON DELETE CASCADE,
+      FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS profile_social_media (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      provider TEXT NOT NULL CHECK (provider IN ('instagram', 'tiktok')),
+      external_id TEXT NOT NULL,
+      media_type TEXT NOT NULL,
+      caption TEXT NOT NULL DEFAULT '',
+      permalink TEXT NOT NULL,
+      thumbnail_url TEXT,
+      position INTEGER NOT NULL DEFAULT 0,
+      public_enabled INTEGER NOT NULL DEFAULT 0,
+      published_at TEXT,
+      synced_at TEXT NOT NULL,
+      UNIQUE(profile_id, provider, external_id),
+      FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_profile_social_media_public
+      ON profile_social_media(profile_id, provider, public_enabled, position);
+
+    CREATE TABLE IF NOT EXISTS whatsapp_connections (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL UNIQUE,
+      owner_id TEXT NOT NULL,
+      provider TEXT NOT NULL DEFAULT 'zernio',
+      zernio_profile_id TEXT NOT NULL,
+      provider_account_id TEXT,
+      waba_id TEXT,
+      phone_number_id TEXT,
+      business_id TEXT,
+      masked_phone TEXT,
+      display_name TEXT,
+      onboarding_mode TEXT NOT NULL DEFAULT 'business_app',
+      status TEXT NOT NULL DEFAULT 'disconnected' CHECK (status IN ('disconnected', 'connecting', 'incomplete', 'connected', 'expired', 'failed', 'ineligible', 'pending_config')),
+      capabilities_json TEXT NOT NULL DEFAULT '{}',
+      composio_status TEXT NOT NULL DEFAULT 'disabled_pending_validation',
+      last_verified_at TEXT,
+      last_error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      revoked_at TEXT,
+      FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS whatsapp_connection_attempts (
+      state_hash TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      owner_id TEXT NOT NULL,
+      zernio_profile_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'initiated',
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS ad_campaign_operations (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      owner_id TEXT NOT NULL,
+      provider TEXT NOT NULL CHECK (provider IN ('meta_ads', 'tiktok_ads')),
+      ad_account_id TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'created_paused', 'active', 'failed')),
+      external_campaign_id TEXT,
+      params_json TEXT NOT NULL,
+      estimated_budget_summary TEXT NOT NULL,
+      confirmed_at TEXT,
+      activated_at TEXT,
+      last_error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(profile_id, provider, idempotency_key),
+      FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_ad_campaign_operations_profile
+      ON ad_campaign_operations(profile_id, provider, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS integration_audit_events (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT,
+      owner_id TEXT,
+      channel TEXT NOT NULL,
+      action TEXT NOT NULL,
+      outcome TEXT NOT NULL,
+      details_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS webhook_events_dedup (
+      event_id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      received_at TEXT NOT NULL
+    );
   `);
 
   try {
