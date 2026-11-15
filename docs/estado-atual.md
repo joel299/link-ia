@@ -90,6 +90,9 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
   - **Correção Zernio WhatsApp Connect HTTP 400 (`15/11/2026`):**
     - Causa confirmada (`BUG-009`): envio do ID sintético `linkia_u_..._p_...` para `GET /v1/connect/whatsapp` causava HTTP `400 Invalid profileId format` na Zernio.
     - `DefaultZernioWhatsAppProvider.ensureProfile()` passou a obter/criar o perfil real na Zernio (`GET/POST /v1/profiles`) e persistir seu `_id` (ObjectId 24 hex) em `whatsapp_connections.zernio_profile_id`, mantendo o modo coexistência (`onboarding=business_app`), mapeamento sanitizado de erros (`401`/`402`/`404`/`redirect_url`/conflitos), callback completo (`connected=whatsapp`, `profileId`, `accountId`, `username`, códigos de conflito/cancelamento) e botão **"Tentar novamente"** no card existente de **Canais conectados** (`ConnectedChannelsPanel.tsx`).
+  - **Correção Instagram Composio (`ig_user_id`) e Sanitização de Erros (`15/11/2026`):**
+    - Causa confirmada (`BUG-010`): `INSTAGRAM_GET_IG_USER_MEDIA` exige `ig_user_id` real (obtido via `INSTAGRAM_GET_USER_INFO` com `ig_user_id: "me"`), e falhas do provedor estavam sendo persistidas/exibidas em texto técnico bruto.
+    - `src/lib/composio-social.ts`, `src/lib/db.ts`, `src/lib/types.ts`, `src/lib/profiles.ts`, `src/app/api/profiles/[id]/integrations/social/[provider]/sync/route.ts`, `ConnectedChannelsPanel.tsx` e `PublicSocialSection.tsx` atualizados para resolver/persistir `ig_user_id`, sincronizar até 3 publicações/Reels recentes com `likeCount`/`commentCount` (`null` quando indisponível), preservar cache e `last_synced_at` em falhas e sanitizar mensagens de erro com `correlationId` apenas em logs internos.
   - **Validações:** `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` e validação HTTP local em `http://localhost:3000` executados após as alterações.
 
 ## Próxima ação

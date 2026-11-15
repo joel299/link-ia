@@ -35,8 +35,11 @@ import {
   getSocialConnectionView,
   initiateSocialConnection,
   listProfileSocialMedia,
+  sanitizeStoredSocialError,
   SocialComposioProvider,
+  SocialProviderError,
   SocialValidationError,
+  syncSocialMedia,
   updatePublicSocialMediaSelection,
 } from "../composio-social";
 import {
@@ -476,7 +479,7 @@ describe("Integrations — Security, Zernio WhatsApp, Social & Ads", () => {
         selectedExternalIds: ["m1"],
       })
     ).toThrow();
-    expect(listProfileSocialMedia(profileA.id, "instagram")).toHaveLength(4);
+    expect(listProfileSocialMedia(profileA.id, "instagram")).toHaveLength(3);
 
     // Disconnect clears public media
     await disconnectSocialConnection({
@@ -1137,6 +1140,363 @@ describe("Zernio live HTTP profile resolution, connect URL, error mapping & call
     }
   });
 });
+
+describe("Instagram Composio Sync & Sanitization", () => {
+  function seedConnectedInstagram(params: {
+    profileId: string;
+    ownerId: string;
+    selectedAssetId: string | null;
+    accountLabel?: string | null;
+    lastSyncedAt?: string | null;
+    lastError?: string | null;
+    connectedAccountId?: string;
+  }) {
+    const db = getDb();
+    const now = new Date().toISOString();
+    const connId = crypto.randomUUID();
+    db.prepare(
+      `INSERT INTO social_connections (
+        id, profile_id, owner_id, provider, toolkit_slug, composio_user_id,
+        composio_connected_account_id, status, account_label, canonical_url,
+        selected_asset_id, selected_asset_name, scopes_summary_json,
+        last_synced_at, last_error, created_at, updated_at
+      ) VALUES (?, ?, ?, 'instagram', 'instagram', ?, ?, 'connected', ?, ?, ?, ?, '[]', ?, ?, ?, ?)`
+    ).run(
+      connId,
+      params.profileId,
+      params.ownerId,
+      `linkia_u_${params.ownerId}_p_${params.profileId}`,
+      params.connectedAccountId ?? "ca_test_ig_123",
+      params.accountLabel ?? "@iainfinito",
+      "https://instagram.com/iainfinito",
+      params.selectedAssetId,
+      params.accountLabel ?? "@iainfinito",
+      params.lastSyncedAt ?? null,
+      params.lastError ?? null,
+      now,
+      now
+    );
+    return connId;
+  }
+
+  function makeStubProvider(
+    overrides: Partial<SocialComposioProvider> = {}
+  ): SocialComposioProvider {
+    return {
+      async createConnectLink() {
+        return {
+          connectedAccountId: "ca_stub",
+          redirectUrl: "https://example.com/oauth",
+          isMock: true,
+        };
+      },
+      async getConnectionStatus() {
+        return { status: "connected", accountLabel: "@iainfinito" };
+      },
+      async disconnectAccount() {},
+      async fetchInstagramUserInfo() {
+        return {
+          igUserId: "27065993403074843",
+          username: "iainfinito",
+          accountLabel: "@iainfinito",
+          canonicalUrl: "https://instagram.com/iainfinito",
+          accountType: "BUSINESS",
+        };
+      },
+      async fetchInstagramMedia() {
+        return [];
+      },
+      async fetchTikTokUserInfo() {
+        return {
+          externalId: "tt_1",
+          username: "tt",
+          displayName: "TT",
+          accountLabel: "@tt",
+          canonicalUrl: "https://tiktok.com/@tt",
+          scopesSummary: [],
+          stats: {},
+        };
+      },
+      async fetchTikTokVideos() {
+        return [];
+      },
+      ...overrides,
+    };
+  }
+
+  it("1 & 2. resolves missing ig_user_id via fetchInstagramUserInfo, persists it, and passes igUserId + limit 3 to fetchInstagramMedia", async () => {
+    const { userA, profileA } = createTwoTenants();
+    seedConnectedInstagram({
+      profileId: profileA.id,
+      ownerId: userA.id,
+      selectedAssetId: null,
+    });
+
+    let capturedIgUserId: string | undefined;
+    let capturedLimit: number | undefined;
+
+    const provider = makeStubProvider({
+      async fetchInstagramMedia(p) {
+        capturedIgUserId = p.igUserId;
+        capturedLimit = p.limit;
+        return [
+          {
+            externalId: "media_1",
+            mediaType: "IMAGE",
+            caption: "Post 1",
+            permalink: "https://www.instagram.com/p/abc1/",
+            thumbnailUrl: "https://cdn.example.com/1.jpg",
+            publishedAt: "2026-11-15T10:00:00Z",
+            likeCount: 12,
+            commentCount: 3,
+          },
+        ];
+      },
+    });
+
+    const result = await syncSocialMedia({
+      profileId: profileA.id,
+      ownerId: userA.id,
+      provider: "instagram",
+      force: true,
+      composioProvider: provider,
+    });
+
+    expect(capturedIgUserId).toBe("27065993403074843");
+    expect(capturedLimit).toBe(3);
+    expect(result.media).toHaveLength(1);
+    expect(result.media[0].likeCount).toBe(12);
+    expect(result.media[0].commentCount).toBe(3);
+    expect(result.connection.lastSyncedAt).toBeTruthy();
+    expect(result.connection.lastError).toBeNull();
+
+    const row = getDb()
+      .prepare(
+        "SELECT selected_asset_id FROM social_connections WHERE profile_id = ? AND provider = 'instagram'"
+      )
+      .get(profileA.id) as { selected_asset_id: string };
+    expect(row.selected_asset_id).toBe("27065993403074843");
+  });
+
+  it("3. sets 'Conectada; sincronização pendente' when ig_user_id cannot be resolved or looks like username", async () => {
+    const { userA, profileA } = createTwoTenants();
+    seedConnectedInstagram({
+      profileId: profileA.id,
+      ownerId: userA.id,
+      selectedAssetId: "@iainfinito",
+    });
+
+    const provider = makeStubProvider({
+      async fetchInstagramUserInfo() {
+        return {
+          igUserId: "@iainfinito",
+          username: "iainfinito",
+          accountLabel: "@iainfinito",
+          canonicalUrl: "https://instagram.com/iainfinito",
+          accountType: "BUSINESS",
+        };
+      },
+    });
+
+    await expect(
+      syncSocialMedia({
+        profileId: profileA.id,
+        ownerId: userA.id,
+        provider: "instagram",
+        force: true,
+        composioProvider: provider,
+      })
+    ).rejects.toThrow(/Conectada; sincronização pendente/);
+
+    const view = getSocialConnectionView(profileA.id, "instagram");
+    expect(view.lastSyncedAt).toBeNull();
+    expect(view.lastError).toContain("Conectada; sincronização pendente");
+  });
+
+  it("4. rejects syncing Instagram connection owned by another user", async () => {
+    const { userA, profileA, userB } = createTwoTenants();
+    seedConnectedInstagram({
+      profileId: profileA.id,
+      ownerId: userA.id,
+      selectedAssetId: "27065993403074843",
+    });
+
+    await expect(
+      syncSocialMedia({
+        profileId: profileA.id,
+        ownerId: userB.id,
+        provider: "instagram",
+        force: true,
+        composioProvider: makeStubProvider(),
+      })
+    ).rejects.toThrow();
+  });
+
+  it("5. handles empty media list cleanly and updates lastSyncedAt", async () => {
+    const { userA, profileA } = createTwoTenants();
+    seedConnectedInstagram({
+      profileId: profileA.id,
+      ownerId: userA.id,
+      selectedAssetId: "27065993403074843",
+    });
+
+    const result = await syncSocialMedia({
+      profileId: profileA.id,
+      ownerId: userA.id,
+      provider: "instagram",
+      force: true,
+      composioProvider: makeStubProvider({
+        async fetchInstagramMedia() {
+          return [];
+        },
+      }),
+    });
+
+    expect(result.media).toEqual([]);
+    expect(result.connection.lastSyncedAt).toBeTruthy();
+    expect(result.connection.lastError).toBeNull();
+  });
+
+  it("6 & 7. caps synced media at 3 items and preserves null likeCount/commentCount instead of fake 0", async () => {
+    const { userA, profileA } = createTwoTenants();
+    seedConnectedInstagram({
+      profileId: profileA.id,
+      ownerId: userA.id,
+      selectedAssetId: "27065993403074843",
+    });
+
+    const result = await syncSocialMedia({
+      profileId: profileA.id,
+      ownerId: userA.id,
+      provider: "instagram",
+      force: true,
+      composioProvider: makeStubProvider({
+        async fetchInstagramMedia() {
+          return [1, 2, 3, 4, 5].map((n) => ({
+            externalId: `m_${n}`,
+            mediaType: "IMAGE",
+            caption: `Post ${n}`,
+            permalink: `https://www.instagram.com/p/m${n}/`,
+            thumbnailUrl: `https://cdn.example.com/m${n}.jpg`,
+            publishedAt: `2026-11-1${n}T10:00:00Z`,
+            likeCount: n === 1 ? 0 : null,
+            commentCount: n === 1 ? 5 : null,
+          }));
+        },
+      }),
+    });
+
+    expect(result.media).toHaveLength(3);
+    expect(result.media[0].likeCount).toBe(0);
+    expect(result.media[0].commentCount).toBe(5);
+    expect(result.media[1].likeCount).toBeNull();
+    expect(result.media[1].commentCount).toBeNull();
+  });
+
+  it("8. maps expired/permission errors to friendly Portuguese message", async () => {
+    const { userA, profileA } = createTwoTenants();
+    seedConnectedInstagram({
+      profileId: profileA.id,
+      ownerId: userA.id,
+      selectedAssetId: "27065993403074843",
+    });
+
+    await expect(
+      syncSocialMedia({
+        profileId: profileA.id,
+        ownerId: userA.id,
+        provider: "instagram",
+        force: true,
+        composioProvider: makeStubProvider({
+          async fetchInstagramMedia() {
+            throw new Error("401 Unauthorized: OAuth token expired or missing permission");
+          },
+        }),
+      })
+    ).rejects.toThrow("A conexão precisa ser autorizada novamente.");
+  });
+
+  it("9. preserves previously cached media and lastSyncedAt on transient Composio failure", async () => {
+    const { userA, profileA } = createTwoTenants();
+    seedConnectedInstagram({
+      profileId: profileA.id,
+      ownerId: userA.id,
+      selectedAssetId: "27065993403074843",
+    });
+
+    const firstSync = await syncSocialMedia({
+      profileId: profileA.id,
+      ownerId: userA.id,
+      provider: "instagram",
+      force: true,
+      composioProvider: makeStubProvider({
+        async fetchInstagramMedia() {
+          return [
+            {
+              externalId: "cached_1",
+              mediaType: "REELS",
+              caption: "Cached Reel",
+              permalink: "https://www.instagram.com/reel/cached1/",
+              thumbnailUrl: "https://cdn.example.com/cached.jpg",
+              publishedAt: "2026-11-15T09:00:00Z",
+              likeCount: 20,
+              commentCount: 4,
+            },
+          ];
+        },
+      }),
+    });
+    const prevSyncedAt = firstSync.connection.lastSyncedAt;
+
+    await expect(
+      syncSocialMedia({
+        profileId: profileA.id,
+        ownerId: userA.id,
+        provider: "instagram",
+        force: true,
+        composioProvider: makeStubProvider({
+          async fetchInstagramMedia() {
+            throw new Error("503 Service Temporarily Unavailable (ETIMEDOUT)");
+          },
+        }),
+      })
+    ).rejects.toThrow(SocialProviderError);
+
+    const viewAfter = getSocialConnectionView(profileA.id, "instagram");
+    expect(viewAfter.lastSyncedAt).toBe(prevSyncedAt);
+    expect(viewAfter.lastError).toBe(
+      "O serviço está temporariamente indisponível. Tente novamente mais tarde."
+    );
+    const cachedMedia = listProfileSocialMedia(profileA.id, "instagram");
+    expect(cachedMedia).toHaveLength(1);
+    expect(cachedMedia[0].externalId).toBe("cached_1");
+  });
+
+  it("10. sanitizes legacy technical last_error strings so raw Composio fields never leak", () => {
+    const { userA, profileA } = createTwoTenants();
+    seedConnectedInstagram({
+      profileId: profileA.id,
+      ownerId: userA.id,
+      selectedAssetId: "27065993403074843",
+      lastError:
+        "Invalid request data provided\n- Following fields are missing: {'ig_user_id'}",
+    });
+
+    const view = getSocialConnectionView(profileA.id, "instagram");
+    expect(view.lastError).not.toContain("Invalid request data");
+    expect(view.lastError).not.toContain("ig_user_id");
+    expect(view.lastError).toBe(
+      "Instagram conectado, mas não foi possível sincronizar as publicações. Tente novamente."
+    );
+
+    expect(
+      sanitizeStoredSocialError(
+        "INSTAGRAM_GET_IG_USER_MEDIA failed: token xyz"
+      )
+    ).toBe("Não foi possível concluir a operação com o provedor. Tente novamente.");
+  });
+});
+
 
 
 

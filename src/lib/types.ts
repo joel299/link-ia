@@ -227,6 +227,8 @@ export interface SocialMediaItemView {
   caption: string;
   permalink: string;
   thumbnailUrl: string | null;
+  likeCount: number | null;
+  commentCount: number | null;
   position: number;
   publicEnabled: boolean;
   publishedAt: string | null;
@@ -239,6 +241,8 @@ export interface PublicSocialMediaItem {
   caption: string;
   permalink: string;
   thumbnailUrl: string | null;
+  likeCount: number | null;
+  commentCount: number | null;
 }
 
 export interface SocialConnectionView {

@@ -621,7 +621,7 @@ export function getPublishedPublicProfileBySlug(
 
   const socialMediaRows = db
     .prepare(
-      `SELECT external_id, media_type, caption, permalink, thumbnail_url
+      `SELECT external_id, media_type, caption, permalink, thumbnail_url, like_count, comment_count
        FROM profile_social_media
        WHERE profile_id = ? AND provider = 'instagram' AND public_enabled = 1
        ORDER BY position ASC, synced_at DESC
@@ -633,6 +633,8 @@ export function getPublishedPublicProfileBySlug(
     caption: string;
     permalink: string;
     thumbnail_url: string | null;
+    like_count: number | null;
+    comment_count: number | null;
   }>;
 
   const socialMediaItems = socialMediaRows.map((m) => ({
@@ -641,6 +643,8 @@ export function getPublishedPublicProfileBySlug(
     caption: m.caption,
     permalink: m.permalink,
     thumbnailUrl: m.thumbnail_url,
+    likeCount: m.like_count ?? null,
+    commentCount: m.comment_count ?? null,
   }));
 
   return {

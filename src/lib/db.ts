@@ -222,6 +222,8 @@ function initSchema(db: Database.Database): void {
       caption TEXT NOT NULL DEFAULT '',
       permalink TEXT NOT NULL,
       thumbnail_url TEXT,
+      like_count INTEGER,
+      comment_count INTEGER,
       position INTEGER NOT NULL DEFAULT 0,
       public_enabled INTEGER NOT NULL DEFAULT 0,
       published_at TEXT,
@@ -325,6 +327,8 @@ function initSchema(db: Database.Database): void {
     "ALTER TABLE bookings ADD COLUMN service_public_id TEXT",
     "ALTER TABLE bookings ADD COLUMN service_title TEXT",
     "ALTER TABLE bookings ADD COLUMN service_price_cents INTEGER",
+    "ALTER TABLE profile_social_media ADD COLUMN like_count INTEGER",
+    "ALTER TABLE profile_social_media ADD COLUMN comment_count INTEGER",
   ]) {
     try {
       db.exec(alterSql);

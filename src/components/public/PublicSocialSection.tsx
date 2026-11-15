@@ -75,6 +75,21 @@ export function PublicSocialSection({
               {item.caption ? (
                 <p className="public-social-caption">{item.caption}</p>
               ) : null}
+              {typeof item.likeCount === "number" ||
+              typeof item.commentCount === "number" ? (
+                <p
+                  className="public-social-caption"
+                  style={{ opacity: 0.85, fontSize: "0.78rem" }}
+                >
+                  {typeof item.likeCount === "number"
+                    ? `${item.likeCount.toLocaleString("pt-BR")} curtidas`
+                    : "Curtidas indisponíveis"}
+                  {" · "}
+                  {typeof item.commentCount === "number"
+                    ? `${item.commentCount.toLocaleString("pt-BR")} comentários`
+                    : "Comentários indisponíveis"}
+                </p>
+              ) : null}
             </a>
           );
         })}

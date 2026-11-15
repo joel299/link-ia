@@ -34,12 +34,136 @@ export class SocialConfigError extends Error {
 
 export class SocialProviderError extends Error {
   readonly statusCode: number;
+  readonly correlationId?: string;
 
-  constructor(message: string, statusCode = 502) {
+  constructor(message: string, statusCode = 502, correlationId?: string) {
     super(message);
     this.name = "SocialProviderError";
     this.statusCode = statusCode;
+    this.correlationId = correlationId;
   }
+}
+
+function redactTechnicalString(input: string): string {
+  return input
+    .replace(/Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi, "Bearer [REDACTED]")
+    .replace(/\b(cmp|sk|ak|tok|token|secret)_[A-Za-z0-9\-._]{6,}/gi, "[REDACTED]")
+    .slice(0, 320);
+}
+
+export function sanitizeStoredSocialError(
+  raw: string | null | undefined
+): string | null {
+  if (!raw || !raw.trim()) return null;
+  const trimmed = raw.trim();
+  if (
+    /invalid request data provided|following fields are missing|ig_user_id/i.test(
+      trimmed
+    )
+  ) {
+    return "Instagram conectado, mas não foi possível sincronizar as publicações. Tente novamente.";
+  }
+  if (
+    /error executing the tool|instagram_get_|tiktok_|composio|econnrefused|etimedout|stack|syntaxerror|\{.*\}|failed:|token\s|bearer\s/i.test(
+      trimmed
+    )
+  ) {
+    return "Não foi possível concluir a operação com o provedor. Tente novamente.";
+  }
+  return trimmed;
+}
+
+export function mapSocialProviderError(params: {
+  provider: SocialProvider;
+  operation: string;
+  profileId?: string;
+  rawError: unknown;
+}): SocialProviderError | SocialValidationError {
+  if (params.rawError instanceof SocialValidationError) {
+    return params.rawError;
+  }
+  if (
+    params.rawError instanceof SocialProviderError &&
+    params.rawError.correlationId
+  ) {
+    return params.rawError;
+  }
+
+  const correlationId = crypto.randomUUID().slice(0, 12);
+  const rawMessage =
+    params.rawError instanceof Error
+      ? params.rawError.message
+      : typeof params.rawError === "string"
+        ? params.rawError
+        : "Erro desconhecido no provedor social.";
+
+  console.error("[Social]", {
+    correlationId,
+    provider: params.provider,
+    operation: params.operation,
+    profileId: params.profileId ?? null,
+    error: redactTechnicalString(rawMessage),
+  });
+
+  const lower = rawMessage.toLowerCase();
+  if (
+    lower.includes("personal") ||
+    lower.includes("pessoal") ||
+    lower.includes("business or creator")
+  ) {
+    return new SocialValidationError(
+      "Não encontramos um perfil profissional elegível. Conecte uma conta Business ou Creator.",
+      422
+    );
+  }
+
+  if (
+    lower.includes("expired") ||
+    lower.includes("expirad") ||
+    lower.includes("revoked") ||
+    lower.includes("revogad") ||
+    lower.includes("unauthorized") ||
+    lower.includes("401") ||
+    lower.includes("403") ||
+    lower.includes("permission") ||
+    lower.includes("permiss")
+  ) {
+    return new SocialProviderError(
+      "A conexão precisa ser autorizada novamente.",
+      401,
+      correlationId
+    );
+  }
+
+  if (
+    lower.includes("timeout") ||
+    lower.includes("etimedout") ||
+    lower.includes("econnrefused") ||
+    lower.includes("502") ||
+    lower.includes("503") ||
+    lower.includes("504") ||
+    lower.includes("temporariamente")
+  ) {
+    return new SocialProviderError(
+      "O serviço está temporariamente indisponível. Tente novamente mais tarde.",
+      503,
+      correlationId
+    );
+  }
+
+  if (params.provider === "instagram" && params.operation.includes("sync")) {
+    return new SocialProviderError(
+      "Instagram conectado, mas não foi possível sincronizar as publicações. Tente novamente.",
+      502,
+      correlationId
+    );
+  }
+
+  return new SocialProviderError(
+    "Não foi possível concluir a operação com o provedor. Tente novamente.",
+    502,
+    correlationId
+  );
 }
 
 export class SocialValidationError extends Error {
@@ -127,6 +251,8 @@ export interface NormalizedSocialMediaItem {
   caption: string;
   permalink: string;
   thumbnailUrl: string | null;
+  likeCount?: number | null;
+  commentCount?: number | null;
   publishedAt: string | null;
 }
 
@@ -169,6 +295,7 @@ export interface SocialComposioProvider {
   fetchInstagramMedia(params: {
     composioUserId: string;
     connectedAccountId: string;
+    igUserId?: string;
     isMock: boolean;
     limit?: number;
   }): Promise<NormalizedSocialMediaItem[]>;
@@ -244,6 +371,8 @@ interface SocialMediaRow {
   caption: string;
   permalink: string;
   thumbnail_url: string | null;
+  like_count: number | null;
+  comment_count: number | null;
   position: number;
   public_enabled: number;
   published_at: string | null;
@@ -565,13 +694,18 @@ export const defaultSocialComposioProvider: SocialComposioProvider = {
       userId: composioUserId,
       connectedAccountId,
       dangerouslySkipVersionCheck: true,
-      arguments: {},
+      arguments: {
+        ig_user_id: "me",
+        fields: "id,user_id,username,name,account_type,media_count",
+      },
     });
 
     if (!response.successful) {
-      throw new SocialProviderError(
-        response.error || "Falha ao consultar dados da conta no Instagram."
-      );
+      throw mapSocialProviderError({
+        provider: "instagram",
+        operation: "get_user_info",
+        rawError: response.error || "Falha ao consultar dados da conta no Instagram.",
+      });
     }
 
     const root = unwrapToolData(response.data);
@@ -580,27 +714,36 @@ export const defaultSocialComposioProvider: SocialComposioProvider = {
 
     if (accountType && !isInstagramProfessionalAccount(accountType)) {
       throw new SocialValidationError(
-        "Sua conta do Instagram é pessoal. Converta para uma conta Profissional (Business ou Criador de Conteúdo) no aplicativo do Instagram para conectar.",
+        "Não encontramos um perfil profissional elegível. Conecte uma conta Business ou Creator.",
         422
       );
     }
 
     const username = sanitizeHandle(root.username);
     if (!username) {
-      throw new SocialProviderError(
-        "Instagram não retornou um nome de usuário válido para a conta conectada."
-      );
+      throw mapSocialProviderError({
+        provider: "instagram",
+        operation: "get_user_info",
+        rawError: "Instagram não retornou username válido para a conta conectada.",
+      });
     }
 
-    const igUserId =
+    const rawId =
       typeof root.id === "string" && root.id.trim()
         ? root.id.trim()
         : typeof root.user_id === "string" && root.user_id.trim()
           ? root.user_id.trim()
-          : username;
+          : "";
+    if (!rawId || rawId.toLowerCase() === username.toLowerCase()) {
+      throw mapSocialProviderError({
+        provider: "instagram",
+        operation: "get_user_info",
+        rawError: "Instagram não retornou ig_user_id numérico válido.",
+      });
+    }
 
     return {
-      igUserId,
+      igUserId: rawId,
       username,
       accountType: accountType || "BUSINESS",
       canonicalUrl: `https://www.instagram.com/${username}/`,
@@ -611,9 +754,11 @@ export const defaultSocialComposioProvider: SocialComposioProvider = {
   async fetchInstagramMedia({
     composioUserId,
     connectedAccountId,
+    igUserId,
     isMock,
-    limit = 12,
+    limit = MAX_PUBLIC_SOCIAL_MEDIA,
   }) {
+    const maxItems = Math.min(Math.max(1, limit), MAX_PUBLIC_SOCIAL_MEDIA);
     if (isMock) {
       const now = new Date().toISOString();
       return [
@@ -623,6 +768,8 @@ export const defaultSocialComposioProvider: SocialComposioProvider = {
           caption: "Bastidores do atendimento de hoje no estúdio.",
           permalink: "https://www.instagram.com/reel/mock1/",
           thumbnailUrl: null,
+          likeCount: 42,
+          commentCount: 5,
           publishedAt: now,
         },
         {
@@ -631,6 +778,8 @@ export const defaultSocialComposioProvider: SocialComposioProvider = {
           caption: "Guia rápido de cuidados após o procedimento.",
           permalink: "https://www.instagram.com/p/mock2/",
           thumbnailUrl: null,
+          likeCount: 18,
+          commentCount: 2,
           publishedAt: now,
         },
         {
@@ -639,65 +788,126 @@ export const defaultSocialComposioProvider: SocialComposioProvider = {
           caption: "Agenda aberta para esta semana.",
           permalink: "https://www.instagram.com/p/mock3/",
           thumbnailUrl: null,
+          likeCount: null,
+          commentCount: null,
           publishedAt: now,
         },
-      ];
+      ].slice(0, maxItems);
     }
 
-    const { client } = getSocialComposioClient("instagram");
-    const response = await client.tools.execute("INSTAGRAM_GET_IG_USER_MEDIA", {
-      userId: composioUserId,
-      connectedAccountId,
-      dangerouslySkipVersionCheck: true,
-      arguments: { limit },
-    });
-
-    if (!response.successful) {
-      throw new SocialProviderError(
-        response.error || "Falha ao buscar mídias recentes do Instagram."
-      );
-    }
-
-    const root = unwrapToolData(response.data);
-    const rawList = Array.isArray(root.data)
-      ? root.data
-      : Array.isArray(root.media)
-        ? root.media
-        : Array.isArray(response.data)
-          ? response.data
-          : [];
-
-    const normalized: NormalizedSocialMediaItem[] = [];
-    for (const entry of rawList) {
-      if (!entry || typeof entry !== "object") continue;
-      const item = entry as Record<string, unknown>;
-      const externalId =
-        typeof item.id === "string" && item.id.trim() ? item.id.trim() : null;
-      const permalink = validateSafeHttpsUrl(item.permalink);
-      if (!externalId || !permalink) continue;
-
-      const mediaType = normalizeInstagramMediaType(item);
-      const thumbnailUrl =
-        validateSafeHttpsUrl(item.thumbnail_url) ??
-        (mediaType !== "VIDEO" && mediaType !== "REELS"
-          ? validateSafeHttpsUrl(item.media_url)
-          : null);
-      const captionCheck = sanitizePlainText(
-        typeof item.caption === "string" ? item.caption : "",
-        220
-      );
-
-      normalized.push({
-        externalId,
-        mediaType,
-        caption: captionCheck.value,
-        permalink,
-        thumbnailUrl,
-        publishedAt: normalizeTimestamp(item.timestamp),
+    if (!igUserId || !igUserId.trim()) {
+      throw mapSocialProviderError({
+        provider: "instagram",
+        operation: "sync_media_missing_id",
+        rawError: "ig_user_id ausente para sincronização.",
       });
     }
 
-    return normalized.slice(0, limit);
+    const { client } = getSocialComposioClient("instagram");
+    const normalized: NormalizedSocialMediaItem[] = [];
+    const seenIds = new Set<string>();
+    let afterCursor: string | undefined;
+
+    for (let page = 0; page < 3 && normalized.length < maxItems; page++) {
+      const response = await client.tools.execute(
+        "INSTAGRAM_GET_IG_USER_MEDIA",
+        {
+          userId: composioUserId,
+          connectedAccountId,
+          dangerouslySkipVersionCheck: true,
+          arguments: {
+            ig_user_id: igUserId.trim(),
+            limit: maxItems,
+            fields:
+              "id,caption,media_type,media_product_type,media_url,permalink,thumbnail_url,timestamp,username,like_count,comments_count,total_like_count,total_comments_count",
+            ...(afterCursor ? { after: afterCursor } : {}),
+          },
+        }
+      );
+
+      if (!response.successful) {
+        throw mapSocialProviderError({
+          provider: "instagram",
+          operation: "sync_media",
+          rawError:
+            response.error || "Falha ao buscar mídias recentes do Instagram.",
+        });
+      }
+
+      const root = unwrapToolData(response.data);
+      const rawList = Array.isArray(root.data)
+        ? root.data
+        : Array.isArray(root.media)
+          ? root.media
+          : Array.isArray(response.data)
+            ? response.data
+            : [];
+
+      for (const entry of rawList) {
+        if (normalized.length >= maxItems) break;
+        if (!entry || typeof entry !== "object") continue;
+        const item = entry as Record<string, unknown>;
+        const externalId =
+          typeof item.id === "string" && item.id.trim() ? item.id.trim() : null;
+        const permalink = validateSafeHttpsUrl(item.permalink);
+        if (!externalId || !permalink || seenIds.has(externalId)) continue;
+        seenIds.add(externalId);
+
+        const mediaType = normalizeInstagramMediaType(item);
+        const thumbnailUrl =
+          validateSafeHttpsUrl(item.thumbnail_url) ??
+          (mediaType !== "VIDEO" && mediaType !== "REELS"
+            ? validateSafeHttpsUrl(item.media_url)
+            : null);
+        const captionCheck = sanitizePlainText(
+          typeof item.caption === "string" ? item.caption : "",
+          220
+        );
+
+        const rawLike = item.like_count ?? item.total_like_count;
+        const rawComment = item.comments_count ?? item.total_comments_count;
+        const likeCount =
+          typeof rawLike === "number" && Number.isFinite(rawLike) && rawLike >= 0
+            ? Math.trunc(rawLike)
+            : null;
+        const commentCount =
+          typeof rawComment === "number" &&
+          Number.isFinite(rawComment) &&
+          rawComment >= 0
+            ? Math.trunc(rawComment)
+            : null;
+
+        normalized.push({
+          externalId,
+          mediaType,
+          caption: captionCheck.value,
+          permalink,
+          thumbnailUrl,
+          likeCount,
+          commentCount,
+          publishedAt: normalizeTimestamp(item.timestamp),
+        });
+      }
+
+      const paging =
+        root.paging && typeof root.paging === "object"
+          ? (root.paging as Record<string, unknown>)
+          : null;
+      const cursors =
+        paging?.cursors && typeof paging.cursors === "object"
+          ? (paging.cursors as Record<string, unknown>)
+          : null;
+      const nextAfter =
+        typeof cursors?.after === "string" && cursors.after.trim()
+          ? cursors.after.trim()
+          : undefined;
+      if (!nextAfter || rawList.length === 0) {
+        break;
+      }
+      afterCursor = nextAfter;
+    }
+
+    return normalized.slice(0, maxItems);
   },
 
   async fetchTikTokUserInfo({ composioUserId, connectedAccountId, isMock }) {
@@ -910,7 +1120,7 @@ function rowToSocialConnectionView(
     selectedAssetName: row?.selected_asset_name ?? null,
     scopesSummary: row ? parseJsonStringArray(row.scopes_summary_json) : [],
     lastSyncedAt: row?.last_synced_at ?? null,
-    lastError: row?.last_error ?? null,
+    lastError: sanitizeStoredSocialError(row?.last_error),
     updatedAt: row?.updated_at ?? null,
     assets: assets.map((a): SocialAssetView => ({
       id: a.id,
@@ -931,6 +1141,8 @@ function rowToSocialMediaItemView(row: SocialMediaRow): SocialMediaItemView {
     caption: row.caption,
     permalink: row.permalink,
     thumbnailUrl: row.thumbnail_url,
+    likeCount: typeof row.like_count === "number" ? row.like_count : null,
+    commentCount: typeof row.comment_count === "number" ? row.comment_count : null,
     position: row.position,
     publicEnabled: Boolean(row.public_enabled),
     publishedAt: row.published_at,
@@ -990,7 +1202,8 @@ export function listPublicSocialMediaByProfileId(
   const db = getDb();
   const rows = db
     .prepare(
-      `SELECT m.external_id, m.media_type, m.caption, m.permalink, m.thumbnail_url
+      `SELECT m.external_id, m.media_type, m.caption, m.permalink, m.thumbnail_url,
+              m.like_count, m.comment_count
        FROM profile_social_media m
        INNER JOIN social_connections c
          ON c.profile_id = m.profile_id AND c.provider = m.provider
@@ -1006,6 +1219,8 @@ export function listPublicSocialMediaByProfileId(
     caption: string;
     permalink: string;
     thumbnail_url: string | null;
+    like_count: number | null;
+    comment_count: number | null;
   }>;
 
   return rows.map((row) => ({
@@ -1014,6 +1229,8 @@ export function listPublicSocialMediaByProfileId(
     caption: row.caption,
     permalink: row.permalink,
     thumbnailUrl: row.thumbnail_url,
+    likeCount: typeof row.like_count === "number" ? row.like_count : null,
+    commentCount: typeof row.comment_count === "number" ? row.comment_count : null,
   }));
 }
 
@@ -1260,7 +1477,9 @@ export async function completeSocialOAuthCallback(params: {
   }
 
   if (queryError) {
-    const safeErr = queryError.slice(0, 200);
+    const safeErr =
+      sanitizeStoredSocialError(queryError) ??
+      "Não foi possível concluir a autorização.";
     db.prepare(
       `UPDATE social_connections
        SET status = 'failed', last_error = ?, updated_at = ?
@@ -1491,13 +1710,15 @@ export async function completeSocialOAuthCallback(params: {
           composioProvider,
         });
       } catch (syncErr) {
-        const msg =
-          syncErr instanceof Error
-            ? syncErr.message
-            : "Falha na sincronização inicial de mídias.";
+        const mapped = mapSocialProviderError({
+          provider,
+          operation: "initial_sync",
+          rawError: syncErr,
+          profileId,
+        });
         db.prepare(
           "UPDATE social_connections SET last_error = ?, updated_at = ? WHERE profile_id = ? AND provider = ?"
-        ).run(msg, new Date().toISOString(), profileId, provider);
+        ).run(mapped.message, new Date().toISOString(), profileId, provider);
       }
     }
 
@@ -1512,13 +1733,19 @@ export async function completeSocialOAuthCallback(params: {
 
     return { profileId, provider, status: finalStatus };
   } catch (err) {
-    const msg =
-      err instanceof Error ? err.message : "Erro ao validar conexão social.";
+    const mapped = mapSocialProviderError({
+      provider,
+      operation: "oauth_callback",
+      rawError: err,
+      profileId,
+    });
+    const correlationId =
+      mapped instanceof SocialProviderError ? mapped.correlationId : undefined;
     db.prepare(
       `UPDATE social_connections
        SET status = 'failed', last_error = ?, updated_at = ?
        WHERE profile_id = ? AND provider = ?`
-    ).run(msg.slice(0, 200), now, profileId, provider);
+    ).run(mapped.message, now, profileId, provider);
 
     recordIntegrationAudit({
       profileId,
@@ -1526,10 +1753,13 @@ export async function completeSocialOAuthCallback(params: {
       channel: `social:${provider}`,
       action: "oauth_callback",
       outcome: "error",
-      details: { error: msg },
+      details: {
+        error: mapped.message,
+        correlationId: correlationId ?? null,
+      },
     });
 
-    return { profileId, provider, status: "failed", error: msg };
+    return { profileId, provider, status: "failed", error: mapped.message };
   }
 }
 
@@ -1579,20 +1809,132 @@ export async function syncSocialMedia(params: {
   }
 
   const isMock = conn.composio_connected_account_id.startsWith("mock_");
-  const items =
-    provider === "instagram"
-      ? await composioProvider.fetchInstagramMedia({
+
+  let igUserId = conn.selected_asset_id?.trim() || "";
+  if (provider === "instagram") {
+    const cleanLabelHandle = (conn.account_label ?? "").replace(/^@/, "").toLowerCase();
+    const looksLikeUsername =
+      Boolean(igUserId) &&
+      (igUserId.startsWith("@") ||
+        (Boolean(cleanLabelHandle) &&
+          igUserId.replace(/^@/, "").toLowerCase() === cleanLabelHandle));
+
+    if (!igUserId || looksLikeUsername) {
+      try {
+        const igInfo = await composioProvider.fetchInstagramUserInfo({
           composioUserId: conn.composio_user_id,
           connectedAccountId: conn.composio_connected_account_id,
           isMock,
-          limit: 12,
-        })
-      : await composioProvider.fetchTikTokVideos({
-          composioUserId: conn.composio_user_id,
-          connectedAccountId: conn.composio_connected_account_id,
-          isMock,
-          limit: 12,
         });
+        const resolvedId = igInfo.igUserId?.trim();
+        const resolvedHandle = (igInfo.username || igInfo.accountLabel || "")
+          .replace(/^@/, "")
+          .toLowerCase();
+        if (
+          !resolvedId ||
+          resolvedId.startsWith("@") ||
+          (Boolean(resolvedHandle) &&
+            resolvedId.replace(/^@/, "").toLowerCase() === resolvedHandle)
+        ) {
+          throw new SocialProviderError(
+            "Conectada; sincronização pendente. Reconecte ou verifique as permissões da conta Instagram.",
+            502
+          );
+        }
+        igUserId = resolvedId;
+        const nowUpdate = new Date().toISOString();
+        db.prepare(
+          `UPDATE social_connections
+           SET selected_asset_id = ?, selected_asset_name = ?, account_label = ?, canonical_url = ?, updated_at = ?
+           WHERE id = ?`
+        ).run(
+          igUserId,
+          igInfo.accountLabel,
+          igInfo.accountLabel,
+          igInfo.canonicalUrl,
+          nowUpdate,
+          conn.id
+        );
+      } catch (err) {
+        const mapped = mapSocialProviderError({
+          provider,
+          operation: "resolve_ig_user_id",
+          profileId,
+          rawError: err,
+        });
+        const pendingMsg =
+          mapped instanceof SocialValidationError
+            ? mapped.message
+            : "Conectada; sincronização pendente. Reconecte ou verifique as permissões da conta Instagram.";
+        db.prepare(
+          "UPDATE social_connections SET last_error = ?, updated_at = ? WHERE id = ?"
+        ).run(pendingMsg, new Date().toISOString(), conn.id);
+        recordIntegrationAudit({
+          profileId,
+          ownerId,
+          channel: "social:instagram",
+          action: "sync_media",
+          outcome: "error",
+          details: {
+            reason: "ig_user_id_unresolved",
+            correlationId:
+              mapped instanceof SocialProviderError ? mapped.correlationId : undefined,
+          },
+        });
+        throw mapped instanceof SocialValidationError
+          ? mapped
+          : new SocialProviderError(
+              pendingMsg,
+              mapped.statusCode,
+              mapped.correlationId
+            );
+      }
+    }
+  }
+
+  let items: NormalizedSocialMediaItem[];
+  try {
+    items =
+      provider === "instagram"
+        ? (
+            await composioProvider.fetchInstagramMedia({
+              composioUserId: conn.composio_user_id,
+              connectedAccountId: conn.composio_connected_account_id,
+              igUserId,
+              isMock,
+              limit: MAX_PUBLIC_SOCIAL_MEDIA,
+            })
+          ).slice(0, MAX_PUBLIC_SOCIAL_MEDIA)
+        : await composioProvider.fetchTikTokVideos({
+            composioUserId: conn.composio_user_id,
+            connectedAccountId: conn.composio_connected_account_id,
+            isMock,
+            limit: 12,
+          });
+  } catch (err) {
+    const mapped = mapSocialProviderError({
+      provider,
+      operation: "sync_media",
+      profileId,
+      rawError: err,
+    });
+    // Preserva mídias já carregadas e não atualiza last_synced_at.
+    db.prepare(
+      "UPDATE social_connections SET last_error = ?, updated_at = ? WHERE id = ?"
+    ).run(mapped.message, new Date().toISOString(), conn.id);
+    recordIntegrationAudit({
+      profileId,
+      ownerId,
+      channel: `social:${provider}`,
+      action: "sync_media",
+      outcome: "error",
+      details: {
+        correlationId:
+          mapped instanceof SocialProviderError ? mapped.correlationId : undefined,
+      },
+    });
+    throw mapped;
+  }
 
   const now = new Date().toISOString();
 
@@ -1620,8 +1962,9 @@ export async function syncSocialMedia(params: {
     const insertStmt = db.prepare(
       `INSERT INTO profile_social_media (
         id, profile_id, provider, external_id, media_type, caption,
-        permalink, thumbnail_url, position, public_enabled, published_at, synced_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        permalink, thumbnail_url, like_count, comment_count,
+        position, public_enabled, published_at, synced_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
     items.forEach((item, index) => {
@@ -1634,6 +1977,8 @@ export async function syncSocialMedia(params: {
         item.caption,
         item.permalink,
         item.thumbnailUrl,
+        typeof item.likeCount === "number" ? item.likeCount : null,
+        typeof item.commentCount === "number" ? item.commentCount : null,
         index,
         preservedPublic.has(item.externalId) ? 1 : 0,
         item.publishedAt,

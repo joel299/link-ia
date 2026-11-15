@@ -1038,6 +1038,35 @@ export function ConnectedChannelsPanel({
                           Converta para conta Profissional (Business ou Creator)
                           e conceda as permissões solicitadas.
                         </p>
+                        <div className="channel-actions" style={{ marginTop: "8px" }}>
+                          {igData.connection.status === "connected" ? (
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ minHeight: "36px" }}
+                              disabled={actionBusy === "instagram:sync"}
+                              onClick={() => void handleSyncSocial("instagram")}
+                            >
+                              {actionBusy === "instagram:sync"
+                                ? "Sincronizando..."
+                                : "Tentar novamente"}
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ minHeight: "36px" }}
+                            disabled={
+                              actionBusy === "instagram:connect" ||
+                              !igData.connection.configReady
+                            }
+                            onClick={() => void handleConnectSocial("instagram")}
+                          >
+                            {actionBusy === "instagram:connect"
+                              ? "Redirecionando..."
+                              : "Reconectar"}
+                          </button>
+                        </div>
                       </div>
                     ) : null}
 
@@ -1057,7 +1086,9 @@ export function ConnectedChannelsPanel({
                             ? new Date(
                                 igData.connection.lastSyncedAt
                               ).toLocaleString("pt-BR")
-                            : "Nunca sincronizado"}
+                            : igData.connection.status === "connected"
+                              ? "Conectada; sincronização pendente"
+                              : "Nunca sincronizado"}
                         </span>
                       </div>
                     </div>
@@ -1146,44 +1177,60 @@ export function ConnectedChannelsPanel({
 
                         {igData.media.length === 0 ? (
                           <p className="field-hint">
-                            Nenhuma mídia carregada ainda. Clique em
-                            &ldquo;Sincronizar mídias&rdquo; para buscar suas
-                            publicações recentes (fotos, vídeos, carrosséis e
-                            Reels).
+                            {igData.connection.lastSyncedAt
+                              ? "Nenhuma publicação acessível encontrada."
+                              : "Nenhuma mídia carregada ainda. Clique em \u201CSincronizar mídias\u201D para buscar suas publicações recentes (fotos, vídeos, carrosséis e Reels)."}
                           </p>
                         ) : (
-                          <div className="social-media-grid">
-                            {igData.media.map((item) => {
-                              const disableNew =
-                                !item.publicEnabled && igSelectedCount >= 3;
-                              return (
-                                <div
-                                  key={item.id}
-                                  className={`social-media-card${item.publicEnabled ? " is-selected" : ""}`}
-                                >
-                                  <div className="social-media-thumb">
-                                    {item.thumbnailUrl ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img
-                                        src={item.thumbnailUrl}
-                                        alt={
-                                          item.caption ||
-                                          `Publicação ${item.mediaType}`
-                                        }
-                                        loading="lazy"
-                                      />
-                                    ) : (
-                                      <span>{item.mediaType}</span>
-                                    )}
-                                  </div>
-                                  <div className="social-media-meta">
-                                    <span className="badge badge-draft">
-                                      {item.mediaType}
-                                    </span>
-                                    <p className="social-media-caption">
-                                      {item.caption || "Sem legenda"}
-                                    </p>
-                                    <div className="social-media-actions">
+                          <>
+                            {igData.connection.lastError ? (
+                              <p className="field-hint" style={{ marginBottom: "8px" }}>
+                                Exibindo últimas mídias carregadas.
+                              </p>
+                            ) : null}
+                            <div className="social-media-grid">
+                              {igData.media.slice(0, 3).map((item) => {
+                                const disableNew =
+                                  !item.publicEnabled && igSelectedCount >= 3;
+                                return (
+                                  <div
+                                    key={item.id}
+                                    className={`social-media-card${item.publicEnabled ? " is-selected" : ""}`}
+                                  >
+                                    <div className="social-media-thumb">
+                                      {item.thumbnailUrl ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                          src={item.thumbnailUrl}
+                                          alt={
+                                            item.caption ||
+                                            `Publicação ${item.mediaType}`
+                                          }
+                                          loading="lazy"
+                                        />
+                                      ) : (
+                                        <span>{item.mediaType}</span>
+                                      )}
+                                    </div>
+                                    <div className="social-media-meta">
+                                      <span className="badge badge-draft">
+                                        {item.mediaType}
+                                      </span>
+                                      <p className="social-media-caption">
+                                        {item.caption || "Sem legenda"}
+                                      </p>
+                                      <p className="field-hint">
+                                        Curtidas:{" "}
+                                        {typeof item.likeCount === "number"
+                                          ? item.likeCount.toLocaleString("pt-BR")
+                                          : "Indisponível para esta conta/permissão"}
+                                        {" · "}
+                                        Comentários:{" "}
+                                        {typeof item.commentCount === "number"
+                                          ? item.commentCount.toLocaleString("pt-BR")
+                                          : "Indisponível para esta conta/permissão"}
+                                      </p>
+                                      <div className="social-media-actions">
                                       <label className="checkbox-inline">
                                         <input
                                           type="checkbox"
@@ -1213,6 +1260,7 @@ export function ConnectedChannelsPanel({
                               );
                             })}
                           </div>
+                          </>
                         )}
                       </div>
                     ) : null}

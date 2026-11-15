@@ -100,6 +100,19 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
   - `mapZernioHttpError()` registra detalhes sanitizados + `x-request-id` apenas nos logs do servidor e retorna mensagens claras em pt-BR para `401`/`402`/`404`, `redirect_url` inválido e conflitos de número.
   - Callback (`/api/integrations/whatsapp/callback` + `completeWhatsAppCallback`) e `ConnectedChannelsPanel.tsx` atualizados para `connected=whatsapp`, `profileId`, `accountId`, `username`, códigos de conflito/cancelamento e botão **"Tentar novamente"** no card existente de **Canais conectados**, preservando o link público de WhatsApp em **Links de ação**.
 
+### BUG-010 — Falha na sincronização do Instagram via Composio (`ig_user_id` ausente) e vazamento de erros técnicos no painel
+- **Data:** 15/11/2026
+- **Estado:** corrigido e validado localmente
+- **Reprodução e evidência:**
+  - Conta `@iainfinito` (`ca_Z3LA9Z71FPjz`) aparecia como conectada, mas ao clicar em **"Sincronizar mídias"**, `social_connections.last_error` registrava e exibia no painel a mensagem técnica `Invalid request data provided - Following fields are missing: {'ig_user_id'}`.
+  - Inspeção do schema real do toolkit `instagram` no `@composio/core` confirmou que `INSTAGRAM_GET_IG_USER_MEDIA` exige `ig_user_id` (além de `limit` e `after`), enquanto `INSTAGRAM_GET_USER_INFO` aceita `ig_user_id: "me"` e retorna `id` (`27065993403074843`), `username`, `account_type` e `media_count`.
+- **Causa confirmada:** `fetchInstagramMedia()` em `src/lib/composio-social.ts` não recebia nem repassava `ig_user_id` na chamada `INSTAGRAM_GET_IG_USER_MEDIA`, não suportava paginação `after` nem extração de `like_count`/`comments_count`, e `syncSocialMedia()` / `completeSocialOAuthCallback()` persistiam e retornavam `err.message` bruto do provedor sem sanitização.
+- **Correção aplicada:**
+  - `fetchInstagramUserInfo()` usa `ig_user_id: "me"` com `fields` explícitos e rejeita fallback com `username`; `syncSocialMedia()` resolve e persiste `selected_asset_id` antes de sincronizar ou marca `"Conectada; sincronização pendente..."` quando não resolvido.
+  - `fetchInstagramMedia()` exige `igUserId` válido, passa `ig_user_id` + `limit: 3` + paginação `after` (até 3 itens mais recentes) e extrai `likeCount`/`commentCount` preservando `null` quando indisponível (sem fabricar `0`).
+  - `profile_social_media` ganhou colunas `like_count` e `comment_count` (`src/lib/db.ts`, `src/lib/types.ts`, `src/lib/profiles.ts`), exibidas em `ConnectedChannelsPanel.tsx` e `PublicSocialSection.tsx`.
+  - Sanitização centralizada via `mapSocialProviderError()` e `sanitizeStoredSocialError()` com `correlationId` apenas em logs do servidor, preservação das mídias em cache e de `last_synced_at` em caso de falha, e botões **"Tentar novamente"** / **"Reconectar"** no painel.
+
 ## Riscos e questões em aberto — não são bugs
 
 ### RISCO-001 — Integração com mídia do Instagram

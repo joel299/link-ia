@@ -74,7 +74,10 @@ export async function POST(
     }
     if (err instanceof SocialProviderError) {
       return NextResponse.json(
-        { error: err.message },
+        {
+          error: err.message,
+          ...(err.correlationId ? { correlationId: err.correlationId } : {}),
+        },
         { status: err.statusCode }
       );
     }
