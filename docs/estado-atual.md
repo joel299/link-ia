@@ -117,3 +117,10 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
 - `POST /api/profiles/[id]/integrations/social/[provider]/connect` agora chama `ensureMetaAdsAuthConfig` antes de iniciar Meta Ads OAuth. Assim, a Auth Config `metaads` é validada e recebe a URI v3 canônica a cada nova tentativa.
 - A variável legada `COMPOSIO_META_ADS_REDIRECT_URI` no Coolify também será alinhada a `https://backend.composio.dev/api/v3/toolkits/auth/callback`.
 - Próxima ação: publicar a versão corrigida, repetir o OAuth e verificar o redirecionamento final para `/painel/trafego`.
+
+### Meta Ads OAuth — revisão concluída em produção (15/11/2026)
+- Commit `ca390887db0957bc4a3863e07f68b7c537030f6f` publicado na branch `main`; workflow `Publish LinkIA Coolify Image` terminou com sucesso.
+- Coolify puxou a imagem, recriou o container LinkIA e confirmou `Started`/`Running`; as alterações de ambiente deixaram de aparecer como pendentes.
+- O Meta App `stark-hermes` já tinha a URI Composio na lista OAuth. O erro reproduzido vinha do domínio LinkIA ausente em App Domains; adicionado `linkia.iainfinito.com.br` e alinhado o URL do site ao host oficial de produção.
+- A configuração antiga `COMPOSIO_META_ADS_REDIRECT_URI` no Coolify foi alinhada à URI v3 do Composio. A rota de conexão agora sincroniza a Auth Config `metaads` antes de iniciar OAuth.
+- Próximo passo: repetir a conexão Meta Ads no painel; validar que o `redirect_uri` do Facebook é `https://backend.composio.dev/api/v3/toolkits/auth/callback` e que, ao concluir ou cancelar, o navegador volta ao tráfego pago do LinkIA.

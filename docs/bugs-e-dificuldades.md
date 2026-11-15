@@ -161,3 +161,9 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
 - **Também encontrado no Coolify:** `COMPOSIO_META_ADS_REDIRECT_URI` estava no valor antigo de retorno do LinkIA, embora a variável nova de callback do provedor estivesse correta.
 - **Correção preparada:** a rota Meta Ads valida e sincroniza a Auth Config `metaads` com `https://backend.composio.dev/api/v3/toolkits/auth/callback` antes de cada conexão. O valor de exemplo da variável legada foi alinhado. `callbackUrl` segue apontando para a rota de retorno do LinkIA, dentro de `APP_BASE_URL`.
 - **Validação pendente:** publicar a correção e repetir o OAuth para confirmar o `redirect_uri` recebido pelo Meta e o retorno final a `/painel/trafego`.
+
+### META-OAUTH-001 — Implantado; aguardando validação OAuth real (15/11/2026)
+- **Causa confirmada:** faltava incluir o domínio LinkIA em App Domains. O `redirect_uri` presente no erro do navegador mostrava o host LinkIA no lugar do callback Composio; além disso, a rota de conexão não sincronizava a Auth Config antes de iniciar a autorização.
+- **Correção aplicada:** domínio e URL do site ajustados no Meta Developers; variável legada no Coolify alinhada à URI v3; rota de conexão passou a validar/atualizar a Auth Config `metaads` a cada início de OAuth.
+- **Publicação:** commit `ca390887db0957bc4a3863e07f68b7c537030f6f`; workflow GitHub Actions concluído com sucesso; imagem puxada e serviço reiniciado no Coolify, status `Running`.
+- **Ainda precisa validar:** refazer o OAuth com uma conta autorizada e conferir `redirect_uri` do provedor e o retorno final para `/painel/trafego`. Não foi possível validar essa parte sem concluir o fluxo com a conta Meta do usuário.
