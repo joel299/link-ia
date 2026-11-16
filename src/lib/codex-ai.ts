@@ -100,10 +100,10 @@ export function extractCodexUserCode(output: string): string | null {
 
 export function getCodexLoginFailureMessage(output: string): string {
   const clean = output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "").toLowerCase();
-  if (/device code login is not enabled|device code authentication (?:is )?(?:disabled|not enabled)|device auth (?:is )?(?:disabled|not enabled)/i.test(clean)) {
-    return "Ative o login por código do dispositivo nas configurações de segurança do ChatGPT ou nas permissões do workspace e tente novamente.";
+  if (/chatgpt login is disabled|device code login is not enabled|device code authentication (?:is )?(?:disabled|not enabled)|device auth (?:is )?(?:disabled|not enabled)/i.test(clean)) {
+    return "O login do ChatGPT está bloqueado pela configuração de segurança da conta ou do workspace. Peça ao administrador para permitir o login do ChatGPT e tente novamente.";
   }
-  return "O Codex CLI encerrou antes de gerar o código. Confira se o login por código está habilitado na sua conta ou workspace e tente novamente.";
+  return "O Codex CLI encerrou antes de gerar o código. Confira os controles de login da conta ou workspace e tente novamente.";
 }
 
 export async function startCodexDeviceLogin(ownerId: string) {

@@ -31,6 +31,12 @@ describe("Codex device login errors", () => {
     expect(message).not.toContain("device code login is not enabled");
   });
 
+  it("explains the exact message emitted when ChatGPT login is disabled", () => {
+    const message = getCodexLoginFailureMessage("ChatGPT login is disabled.");
+    expect(message).toContain("bloqueado pela configuração de segurança");
+    expect(message).not.toContain("ChatGPT login is disabled");
+  });
+
   it("does not expose arbitrary CLI output", () => {
     const message = getCodexLoginFailureMessage("network failure with private diagnostic");
     expect(message).toContain("encerrou antes de gerar o código");
