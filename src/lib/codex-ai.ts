@@ -43,15 +43,32 @@ export function parseCodexModelCatalog(output: string): CodexModel[] {
   });
 }
 
+const preferredCodexModel: CodexModel = {
+  id: "gpt-6-luna",
+  label: "GPT-6 Luna",
+  efforts: [...CODEX_EFFORTS],
+};
+
 export async function getCodexModels(ownerId: string, refresh = false): Promise<CodexModel[]> {
   if (!refresh && modelCatalogCache?.ownerId === ownerId && modelCatalogCache.expiresAt > Date.now()) return modelCatalogCache.models;
   if (!(await isCodexConnected(ownerId))) throw new Error("A sessão Codex expirou. Reconecte sua conta e tente novamente.");
-  const result = await runCli(ownerId, ["debug", "models"], undefined, 25_000);
-  if (result.code !== 0) throw new Error("Não foi possível consultar os modelos disponíveis na sua sessão Codex. Atualize o Codex CLI no servidor e tente novamente.");
-  const available = parseCodexModelCatalog(result.output);
-  if (!available.length) throw new Error("A sessão Codex não retornou modelos disponíveis. Atualize o Codex CLI no servidor e tente novamente.");
-  modelCatalogCache = { ownerId, expiresAt: Date.now() + 5 * 60_000, models: available };
-  return available;
+
+  // The CLI catalog command is experimental and can fail independently of the analysis command.
+  // Keep the requested Luna model usable, and add other options from the account catalog when available.
+  let available: CodexModel[] = [];
+  try {
+    const result = await runCli(ownerId, ["debug", "models"], undefined, 25_000);
+    if (result.code === 0) available = parseCodexModelCatalog(result.output);
+  } catch {
+    // Fall back to the LinkIA model choice below.
+  }
+  const luna = available.find((item) => item.id === preferredCodexModel.id);
+  const models = [
+    luna ? { ...luna, label: preferredCodexModel.label, efforts: luna.efforts.length ? luna.efforts : preferredCodexModel.efforts } : preferredCodexModel,
+    ...available.filter((item) => item.id !== preferredCodexModel.id),
+  ];
+  modelCatalogCache = { ownerId, expiresAt: Date.now() + 5 * 60_000, models };
+  return models;
 }
 
 export function getCodexAnalysisFailureMessage(output: string): string {
