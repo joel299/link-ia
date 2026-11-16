@@ -410,3 +410,11 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **PWA:** manifest, metadados de instalação e ícones adicionados; sem service worker ou cache offline nesta entrega.
 - **SQL:** consulta de catálogo de tabelas SQLite somente leitura; nenhuma tabela de campanhas encontrada, nenhum dado alterado.
 - **Validação:** typecheck passou; lint com 0 erros e 4 avisos de imagens. Vitest não iniciou (EPERM); build bloqueado pelo erro 5 do SWC ao acessar/canonicalizar o workspace. Browser e produção não verificados.
+
+
+### CI-001 — arquivo de canal inválido no primeiro build
+- **Data:** 16/11/2026.
+- **Evidência:** workflow de imagem falhou no build Next/Turbopack ao converter `ConnectedChannelsPanel.tsx`, citando sequência UTF-8 inválida no byte de índice 1.
+- **Causa confirmada:** conteúdo do arquivo foi truncado durante a transferência do primeiro commit.
+- **Correção:** reenviar o conteúdo local completo, conferido como UTF-8 válido; sem mudança adicional de comportamento.
+- **Estado:** commit de correção enviado; aguardar workflow repetir e validar o resultado. Produção não verificada.

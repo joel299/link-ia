@@ -264,3 +264,9 @@ Auditoria completa solicitada por Joel, **sem alterar código funcional, sem com
 - **Mobile/PWA:** controles de período, conta, cards de campanha e navegação foram adaptados para telas estreitas. Adicionados manifest, ícones e abertura standalone para instalação como app; sem cache offline.
 - **Banco:** consulta SQL somente leitura confirmou tabelas sociais, sem tabela de campanhas que exigisse alteração; nenhuma escrita ou migração foi feita.
 - **Validação:** typecheck passou; lint terminou sem erros e quatro avisos preexistentes de imagens. Vitest bloqueado por EPERM e build bloqueado pelo acesso/canonicalização do diretório Windows. Inspeção visual em browser e produção pendente.
+
+
+### Correção de build após o push (16/11/2026)
+- O primeiro workflow da imagem falhou ao ler `ConnectedChannelsPanel.tsx` por uma sequência UTF-8 inválida.
+- A causa foi a transferência truncada do conteúdo do arquivo. O arquivo local foi conferido como UTF-8 válido e reenviado integralmente, sem alteração adicional de lógica.
+- O workflow da correção está pendente. Produção não foi validada.

@@ -339,5 +339,9 @@
       <li><span class="decision-title">Verificações</span><span class="decision-copy">Typecheck passou; lint sem erros e quatro avisos existentes. Vitest bloqueado por EPERM e build por acesso do SWC ao workspace Windows. Consulta SQL somente leitura; nenhuma alteração no banco.</span></li>
     </ul></article>
   </section>
+  <section class="section" aria-labelledby="build-encoding-followup">
+    <div class="section-head"><h2 id="build-encoding-followup">Correção do primeiro build (16/11/2026)</h2><p class="section-note">O primeiro envio do ajuste falhou no CI por conteúdo truncado em um arquivo TypeScript.</p></div>
+    <article class="list-panel surface"><ul class="plain-list"><li><span class="decision-title">Causa</span><span class="decision-copy">O workflow detectou UTF-8 inválido em ConnectedChannelsPanel.tsx.</span></li><li><span class="decision-title">Ação</span><span class="decision-copy">Arquivo integral reenviado e conferido localmente como UTF-8 válido; workflow da correção pendente. Produção segue sem confirmação.</span></li></ul></article>
+  </section>
 </body>
 </html>
