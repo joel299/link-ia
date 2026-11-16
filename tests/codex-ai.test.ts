@@ -3,21 +3,21 @@ import { extractCodexUserCode, getCodexLoginFailureMessage } from "../src/lib/co
 
 describe("Codex device-code output", () => {
   it("extracts the code from the official CLI prompt with ANSI colors", () => {
-    const output = "Follow these steps to sign in using device code authorization:\\n2. Enter this one-time code (expires in 15 minutes)\\n \\u001b[34mABCD-12345\\u001b[0m\\n";
+    const output = "Follow these steps to sign in using device code authorization:\n2. Enter this one-time code (expires in 15 minutes)\n \u001b[34mABCD-12345\u001b[0m\n";
     expect(extractCodexUserCode(output)).toBe("ABCD-12345");
   });
 
   it("accepts an unhyphenated nine-character code only after the exact CLI prompt", () => {
-    expect(extractCodexUserCode("Enter this one-time code (expires in 15 minutes)\\n ABCDE1234")).toBe("ABCDE1234");
+    expect(extractCodexUserCode("Enter this one-time code (expires in 15 minutes)\n ABCDE1234")).toBe("ABCDE1234");
   });
 
   it("rejects the word authorization in the CLI introduction as a code", () => {
     expect(extractCodexUserCode("Follow these steps to sign in with ChatGPT using device code authorization:")).toBeNull();
-    expect(extractCodexUserCode("Enter this one-time code (expires in 15 minutes)\\n authorization")).toBeNull();
+    expect(extractCodexUserCode("Enter this one-time code (expires in 15 minutes)\n authorization")).toBeNull();
   });
 
   it("rejects an unlabeled code-like string", () => {
-    expect(extractCodexUserCode("\\n ABCD-12345\\n")).toBeNull();
+    expect(extractCodexUserCode("\n ABCD-12345\n")).toBeNull();
   });
 
   it("extracts a strictly formatted user_code from a device URL", () => {
