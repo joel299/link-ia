@@ -25,6 +25,7 @@ type LoginProcess = {
   startedAt: number;
   timer: NodeJS.Timeout;
   exitCode: number | null;
+  errorMessage: string | null;
 };
 
 const loginProcesses = new Map<string, LoginProcess>();
@@ -97,6 +98,14 @@ export function extractCodexUserCode(output: string): string | null {
   return contextual?.[1] || urlUserCode?.[1] || formatted?.[1] || null;
 }
 
+export function getCodexLoginFailureMessage(output: string): string {
+  const clean = output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "").toLowerCase();
+  if (/device code login is not enabled|device code authentication (?:is )?(?:disabled|not enabled)|device auth (?:is )?(?:disabled|not enabled)/i.test(clean)) {
+    return "Ative o login por código do dispositivo nas configurações de segurança do ChatGPT ou nas permissões do workspace e tente novamente.";
+  }
+  return "O Codex CLI encerrou antes de gerar o código. Confira se o login por código está habilitado na sua conta ou workspace e tente novamente.";
+}
+
 export async function startCodexDeviceLogin(ownerId: string) {
   const active = loginProcesses.get(ownerId);
   if (active && active.exitCode === null && Date.now() - active.startedAt < LOGIN_TTL_MS) return loginSnapshot(active);
@@ -110,13 +119,15 @@ export async function startCodexDeviceLogin(ownerId: string) {
   const child = spawn(codexBinary(), ["login", "--device-auth"], { env: safeEnv(home), stdio: ["pipe", "pipe", "pipe"], windowsHide: true, shell: false });
   child.stdin.end();
   const session: LoginProcess = {
-    ownerId, child, output: "", verificationUrl: DEVICE_URL, userCode: null, startedAt: Date.now(), exitCode: null,
+    ownerId, child, output: "", verificationUrl: DEVICE_URL, userCode: null, startedAt: Date.now(), exitCode: null, errorMessage: null,
     timer: setTimeout(() => { if (loginProcesses.get(ownerId) === session) stopLogin(ownerId); }, LOGIN_TTL_MS),
   };
   loginProcesses.set(ownerId, session);
   child.stdout.on("data", (chunk: Buffer) => appendOutput(session, chunk));
   child.stderr.on("data", (chunk: Buffer) => appendOutput(session, chunk));
   child.on("error", () => {
+    session.errorMessage = "Não foi possível iniciar o Codex CLI neste servidor.";
+    session.output = "";
     session.exitCode = 127;
     clearTimeout(session.timer);
     getDb().prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, device_code, device_login_expires_at, updated_at) VALUES (?, 'disconnected', NULL, NULL, NULL, ?) ON CONFLICT(owner_id) DO UPDATE SET status='disconnected', connected_at=NULL, device_code=NULL, device_login_expires_at=NULL, updated_at=excluded.updated_at").run(ownerId, new Date().toISOString());
@@ -125,14 +136,16 @@ export async function startCodexDeviceLogin(ownerId: string) {
     session.exitCode = code ?? 1;
     clearTimeout(session.timer);
     if (session.exitCode !== 0 && !session.userCode) {
+      session.errorMessage = getCodexLoginFailureMessage(session.output);
       getDb().prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, device_code, device_login_expires_at, updated_at) VALUES (?, 'disconnected', NULL, NULL, NULL, ?) ON CONFLICT(owner_id) DO UPDATE SET status='disconnected', connected_at=NULL, device_code=NULL, device_login_expires_at=NULL, updated_at=excluded.updated_at").run(ownerId, new Date().toISOString());
     }
+    session.output = "";
   });
   return loginSnapshot(session);
 }
 
 function loginSnapshot(session: LoginProcess) {
-  return { status: session.exitCode === null ? "pending" as const : "checking" as const, verificationUrl: session.verificationUrl, userCode: session.userCode };
+  return { status: session.exitCode === null ? "pending" as const : "checking" as const, verificationUrl: session.verificationUrl, userCode: session.userCode, errorMessage: session.errorMessage };
 }
 
 function stopLogin(ownerId: string) {
@@ -172,7 +185,7 @@ export async function isCodexConnected(ownerId: string): Promise<boolean> {
       db.prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, device_code, device_login_expires_at, updated_at) VALUES (?, ?, ?, NULL, NULL, ?) ON CONFLICT(owner_id) DO UPDATE SET status=excluded.status, connected_at=CASE WHEN excluded.status='connected' THEN COALESCE(codex_device_connections.connected_at, excluded.connected_at) ELSE NULL END, device_code=NULL, device_login_expires_at=NULL, updated_at=excluded.updated_at")
         .run(ownerId, loggedIn ? "connected" : "disconnected", loggedIn ? new Date().toISOString() : null, new Date().toISOString());
     }
-    if (running && loginProcesses.get(ownerId) === running) loginProcesses.delete(ownerId);
+    if (loggedIn && running && loginProcesses.get(ownerId) === running) loginProcesses.delete(ownerId);
     return loggedIn;
   }).catch(() => {
     const row = getDb().prepare("SELECT status FROM codex_device_connections WHERE owner_id=?").get(ownerId) as { status: string } | undefined;
@@ -197,6 +210,7 @@ export async function getCodexConnectionStatus(ownerId: string) {
     status: connected ? "connected" : pending ? "pending" : session && session.exitCode === null ? "pending" : "disconnected",
     verificationUrl: !connected && pending ? DEVICE_URL : !connected && session?.exitCode === null ? session.verificationUrl : null,
     userCode: !connected && pending ? row?.device_code || session?.userCode || null : !connected && session?.exitCode === null ? session.userCode : null,
+    errorMessage: !connected && !pending ? session?.errorMessage ?? null : null,
     connectedAt: connected ? row?.connected_at ?? null : null,
     configured: true,
   };

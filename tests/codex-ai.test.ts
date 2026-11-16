@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractCodexUserCode } from "../src/lib/codex-ai";
+import { extractCodexUserCode, getCodexLoginFailureMessage } from "../src/lib/codex-ai";
 
 describe("Codex device-code output", () => {
   it("extracts the code from the current CLI prompt with expiry text and ANSI colors", () => {
@@ -21,5 +21,19 @@ describe("Codex device-code output", () => {
 
   it("extracts only an explicitly named user_code from a device URL", () => {
     expect(extractCodexUserCode("Open https://auth.openai.com/codex/device?user_code=PQRS-6789")).toBe("PQRS-6789");
+  });
+});
+
+describe("Codex device login errors", () => {
+  it("explains when device-code login is disabled without exposing CLI output", () => {
+    const message = getCodexLoginFailureMessage("device code login is not enabled for this Codex server");
+    expect(message).toContain("configurações de segurança do ChatGPT");
+    expect(message).not.toContain("device code login is not enabled");
+  });
+
+  it("does not expose arbitrary CLI output", () => {
+    const message = getCodexLoginFailureMessage("network failure with private diagnostic");
+    expect(message).toContain("encerrou antes de gerar o código");
+    expect(message).not.toContain("private diagnostic");
   });
 });

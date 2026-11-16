@@ -10,6 +10,7 @@ type Connection = {
   verificationUrl: string | null;
   userCode: string | null;
   connectedAt: string | null;
+  errorMessage?: string | null;
 };
 const initial: Connection = { connected: false, status: "disconnected", verificationUrl: null, userCode: null, connectedAt: null };
 
@@ -89,6 +90,7 @@ export function CodexConnectionPanel() {
             <p className="field-hint" role="status">Depois de autorizar, esta tela reconhecerá a conexão automaticamente.</p>
           </div>
         ) : null}
+        {status.errorMessage ? <p className="field-hint" role="alert">{status.errorMessage}</p> : null}
         {message ? <p className="field-hint" role="status">{message}</p> : null}
         <div className="channel-actions">
           {status.connected ? <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void disconnect()}>{busy ? "Desconectando…" : "Desconectar conta"}</button> : status.status !== "pending" ? <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void connect()}>{busy ? "Iniciando Codex…" : "Conectar conta ChatGPT / Codex"}</button> : <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void disconnect()}>{busy ? "Cancelando…" : "Cancelar conexão"}</button>}

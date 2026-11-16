@@ -315,3 +315,12 @@ Auditoria completa solicitada por Joel, **sem alterar código funcional, sem com
 - **Validação:** teste unitário adicionado para `user_code`; confirmar typecheck, lint e testes após a alteração. A autenticação real não foi repetida nesta revisão; não foi exibido nem registrado código de dispositivo.
 - **Próxima ação:** aguardar a imagem publicada e iniciar novo fluxo pelo painel IA para validar o código na interface e concluir o login.
 \n\n## Retomada — correção adicional do fluxo Codex (16/11/2026)\n\nA autenticação real continuou sem código visível após o primeiro deploy. No Coolify, o CLI está instalado (`/usr/local/bin/codex`, versão 0.169.0), e o log de login foi classificado sem exibir conteúdo sensível: fluxo iniciado, sem marcador de erro. A tela oficial observada solicita nove caracteres; ampliado o parser para aceitar código 4+5 e 5+4 quando vier sem rótulo. Reautenticação real deve ser validada depois desta publicação; o código de uso único não foi lido.\n
+
+## Retomada — diagnóstico do login Codex (16/11/2026)
+
+Após dois deploys saudáveis, a verificação no painel ainda mostrou estado desconectado e nenhum código. A UI permanecia com a mensagem genérica mesmo quando o processo do CLI finalizava. A documentação oficial do Codex explica que o login por código depende de habilitação na segurança da conta pessoal ou nas permissões do workspace.
+
+- **Ajuste:** quando o CLI encerra antes de fornecer código, a API retorna somente uma mensagem segura; se a saída indicar que o device code está desabilitado, a mensagem aponta a configuração. Saída bruta, código e dados de autenticação não são retornados nem persistidos.
+- **Painel:** erro de início agora é anunciado como alerta acessível.
+- **Validação:** teste unitário cobre erro de permissão e confirma que detalhes brutos não vazam. CI e produção ainda precisam validar esta nova versão.
+- **Pendente externo:** se a mensagem indicar a configuração, habilitar login por código nas configurações de segurança da conta ChatGPT ou no workspace e iniciar uma nova tentativa.
