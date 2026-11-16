@@ -343,5 +343,9 @@
     <div class="section-head"><h2 id="build-encoding-followup">Correção do primeiro build (16/11/2026)</h2><p class="section-note">O primeiro envio do ajuste falhou no CI por conteúdo truncado em um arquivo TypeScript.</p></div>
     <article class="list-panel surface"><ul class="plain-list"><li><span class="decision-title">Causa</span><span class="decision-copy">O workflow detectou UTF-8 inválido em ConnectedChannelsPanel.tsx.</span></li><li><span class="decision-title">Ação</span><span class="decision-copy">Arquivo integral reenviado e conferido localmente como UTF-8 válido; workflow da correção pendente. Produção segue sem confirmação.</span></li></ul></article>
   </section>
+  <section class="section" aria-labelledby="pwa-title-cleanup">
+    <div class="section-head"><h2 id="pwa-title-cleanup">Nome do aplicativo LinkIA (16/11/2026)</h2><p class="section-note">O nome de instalação e o título padrão foram simplificados para LinkIA.</p></div>
+    <article class="list-panel surface"><ul class="plain-list"><li><span class="decision-title">PWA</span><span class="decision-copy">Mantido o modo standalone existente e removido o complemento do nome do aplicativo. Verificação em dispositivo após atualizar/reinstalar permanece pendente.</span></li><li><span class="decision-title">Limite do navegador</span><span class="decision-copy">O domínio visível numa aba comum pertence à interface do navegador e não pode ser ocultado por CSS.</span></li><li><span class="decision-title">IA</span><span class="decision-copy">A conexão por plano ChatGPT/Codex do playbook não foi copiada para o backend multiusuário de produção; a opção de credencial e faturamento precisa ser definida.</span></li></ul></article>
+  </section>
 </body>
 </html>

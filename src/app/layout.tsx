@@ -23,7 +23,7 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   applicationName: "LinkIA",
   title: {
-    default: "LinkIA — Sua página de bio profissional",
+    default: "LinkIA",
     template: "%s | LinkIA",
   },
   description:

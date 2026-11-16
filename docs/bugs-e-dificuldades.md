@@ -418,3 +418,11 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Causa confirmada:** conteúdo do arquivo foi truncado durante a transferência do primeiro commit.
 - **Correção:** reenviar o conteúdo local completo, conferido como UTF-8 válido; sem mudança adicional de comportamento.
 - **Estado:** commit de correção enviado; aguardar workflow repetir e validar o resultado. Produção não verificada.
+
+
+### PWA-UI-001 — título de lançamento e faixa superior
+- **Data/prioridade:** 16/11/2026 — P2.
+- **Relato:** ao abrir o LinkIA como PWA, a faixa superior mostrava o texto longo da página e o domínio.
+- **Alteração:** o título padrão da aplicação e o `name` do manifest foram reduzidos a `LinkIA`; o modo já definido é `standalone`.
+- **Limite confirmado:** o endereço/domínio em uma aba normal é interface do navegador e não pode ser removido por CSS ou pelo LinkIA. É preciso abrir uma instalação PWA atualizada para confirmar que não há barra do navegador; se o dispositivo ainda mostrar domínio, a instalação pode estar abrindo como aba/atalho e deve ser removida e reinstalada após atualizar.
+- **Validação:** typecheck passou; lint passou com quatro avisos preexistentes de `<img>`. Verificação visual em dispositivo e build local ainda não executados nesta mudança.

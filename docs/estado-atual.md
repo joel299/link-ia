@@ -270,3 +270,9 @@ Auditoria completa solicitada por Joel, **sem alterar código funcional, sem com
 - O primeiro workflow da imagem falhou ao ler `ConnectedChannelsPanel.tsx` por uma sequência UTF-8 inválida.
 - A causa foi a transferência truncada do conteúdo do arquivo. O arquivo local foi conferido como UTF-8 válido e reenviado integralmente, sem alteração adicional de lógica.
 - O workflow da correção está pendente. Produção não foi validada.
+
+
+### Ajuste do título do PWA (16/11/2026)
+- O título do documento e o nome longo do manifest agora usam apenas **LinkIA**, removendo o complemento “sua página de bio profissional” da identificação do aplicativo.
+- O manifest já estava em `standalone`. Em uma instalação PWA válida, o navegador oculta sua barra de endereço; em uma aba comum do navegador, o domínio faz parte da interface do navegador e não pode ser ocultado pelo site. A confirmação visual em aparelho após reinstalar/atualizar o PWA ainda está pendente.
+- A integração de IA permanece aguardando definição de autenticação e faturamento compatível com o LinkIA remoto multiusuário; o playbook Codex fornecido é de uso local e não pode ser copiado como login de produção.
