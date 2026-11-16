@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "LinkIA — sua página profissional",
+    name: "LinkIA",
     short_name: "LinkIA",
     description:
       "Acesse seus perfis, canais e campanhas em uma experiência feita para celular.",
