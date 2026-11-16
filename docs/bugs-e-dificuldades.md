@@ -454,3 +454,11 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Correção:** abrir a URL fixa `https://auth.openai.com/codex/device` no gesto do clique, marcar a tela como pendente imediatamente, manter o link manual e atualizar o parser/polling para renderizar o código quando chegar. O domínio não vem de entrada do usuário.
 - **Validação local:** typecheck e ESLint passaram; Vitest não iniciou por EPERM no Vite. CLI Codex não está instalado localmente; fluxo real permanece pendente do ambiente com imagem atualizada.
 - **Próxima ação:** validar device-code em produção após o deploy, sem registrar nem compartilhar o código temporário.
+
+
+### AI-004 — código do device auth não aparecia no painel (16/11/2026)
+- **Sintoma:** a página oficial abria, mas o painel não recebia o código temporário e podia voltar ao estado desconectado.
+- **Causa confirmada no fluxo:** o código era guardado apenas no `Map` em memória do módulo que inicia o subprocesso. A rota de status pode ser atendida por outro contexto de módulo/worker; a tabela persistia o status pendente, mas não o código.
+- **Correção:** persistir o código do dispositivo e sua expiração de 15 minutos na conexão do usuário; o polling recupera o valor pela rota de status. O código é apagado ao expirar, desconectar ou confirmar a autenticação. O parser também reconhece formatos genéricos do prompt do CLI.
+- **Validação:** typecheck e ESLint direcionado passaram; `git diff --check` passou. Vitest não iniciou por `EPERM` ao resolver o Vite no Windows. Reautenticação real deve ser confirmada após atualizar a imagem.
+- **Segurança:** código de uso único fica no banco privado por no máximo 15 minutos, é retornado somente à sessão autenticada do proprietário e não é escrito em logs.
