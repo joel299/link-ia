@@ -93,7 +93,7 @@ export function extractCodexUserCode(output: string): string | null {
     || clean.match(/(?:enter|type|input|use)\s+(?:the\s+)?(?:9-character\s+)?code\s*[:=]?\s*([A-Z0-9-]{6,20})/i)
     || clean.match(/\bcode\s*[:=]\s*([A-Z0-9]{4}-[A-Z0-9]{4})\b/i);
   const urlUserCode = clean.match(/[?&]user_code=([A-Z0-9-]{6,20})(?:[&#\s]|$)/i);
-  const formatted = clean.match(/\b([A-Z0-9]{4}-[A-Z0-9]{4})\b/);
+  const formatted = clean.match(/\b([A-Z0-9]{4}-[A-Z0-9]{5}|[A-Z0-9]{5}-[A-Z0-9]{4}|[A-Z0-9]{4}-[A-Z0-9]{4})\b/);
   return contextual?.[1] || urlUserCode?.[1] || formatted?.[1] || null;
 }
 
