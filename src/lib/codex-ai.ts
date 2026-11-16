@@ -90,12 +90,18 @@ function appendOutput(session: LoginProcess, chunk: Buffer | string) {
 
 export function extractCodexUserCode(output: string): string | null {
   const clean = output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "").replace(/\r/g, "");
-  const contextual = clean.match(/(?:user|device|verification|one[- ]time)\s+code(?:\s*\([^)]*\))?\s*(?:is|:|=)?\s*([A-Z0-9-]{6,20})/i)
-    || clean.match(/(?:enter|type|input|use)\s+(?:the\s+)?(?:9-character\s+)?code\s*[:=]?\s*([A-Z0-9-]{6,20})/i)
-    || clean.match(/\bcode\s*[:=]\s*([A-Z0-9]{4}-[A-Z0-9]{4})\b/i);
-  const urlUserCode = clean.match(/[?&]user_code=([A-Z0-9-]{6,20})(?:[&#\s]|$)/i);
-  const formatted = clean.match(/\b([A-Z0-9]{4}-[A-Z0-9]{5}|[A-Z0-9]{5}-[A-Z0-9]{4}|[A-Z0-9]{4}-[A-Z0-9]{4})\b/);
-  return contextual?.[1] || urlUserCode?.[1] || formatted?.[1] || null;
+  const codePattern = /^[A-Z0-9]{4}-(?:[A-Z0-9]{4,5})$|^[A-Z0-9]{5}-[A-Z0-9]{4}$|^[A-Z0-9]{8,9}$/i;
+  const lines = clean.split("\n");
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!/enter this one-time code\b/i.test(lines[i])) continue;
+    for (let next = i + 1; next < Math.min(i + 4, lines.length); next += 1) {
+      const candidate = lines[next].trim();
+      if (!candidate) continue;
+      return codePattern.test(candidate) ? candidate : null;
+    }
+  }
+  const urlUserCode = clean.match(/[?&]user_code=([A-Z0-9-]{6,20})(?:[&#\s]|$)/i)?.[1];
+  return urlUserCode && codePattern.test(urlUserCode) ? urlUserCode : null;
 }
 
 export function getCodexLoginFailureMessage(output: string): string {
