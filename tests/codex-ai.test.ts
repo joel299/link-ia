@@ -10,4 +10,8 @@ describe("Codex device-code output", () => {
   it("accepts an unhyphenated code after the prompt", () => {
     expect(extractCodexUserCode("Enter this one-time code (expires in 15 minutes)\n ABCDEFGH")).toBe("ABCDEFGH");
   });
+
+  it("extracts a code printed after a generic device-auth prompt", () => {
+    expect(extractCodexUserCode("Enter the 9-character code shown in your terminal: WXYZ-1234")).toBe("WXYZ-1234");
+  });
 });
