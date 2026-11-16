@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { GlassSurface } from "@/components/ui/GlassSurface";
+import { AdminAiAgentSettings } from "./AdminAiAgentSettings";
 import {
   ALL_FEATURE_KEYS,
   FEATURE_CATALOG,
@@ -738,6 +739,7 @@ export function AdminUsersPanel({ currentUserId }: AdminUsersPanelProps) {
           )}
         </div>
       </GlassSurface>
+      <AdminAiAgentSettings />
     </div>
   );
 }

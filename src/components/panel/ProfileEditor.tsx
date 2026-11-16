@@ -73,6 +73,11 @@ const CatalogPanel = dynamic(
   }
 );
 
+const CodexConnectionPanel = dynamic(
+  () => import("./CodexConnectionPanel").then((mod) => mod.CodexConnectionPanel),
+  { ssr: false, loading: () => <SectionSkeleton variant="generic" rows={2} label="Carregando conexão de IA" /> }
+);
+
 const CustomLinksPanel = dynamic(
   () => import("./CustomLinksPanel").then((mod) => mod.CustomLinksPanel),
   {
@@ -103,7 +108,8 @@ type SectionKey =
   | "canais"
   | "aparencia"
   | "agendamento"
-  | "servicos";
+  | "servicos"
+  | "ia";
 
 const ALL_SECTIONS: ProfileSectionItem[] = [
   {
@@ -130,6 +136,11 @@ const ALL_SECTIONS: ProfileSectionItem[] = [
     key: "servicos",
     label: "Serviços e Produtos",
     description: "Catálogo exibido no perfil",
+  },
+  {
+    key: "ia",
+    label: "IA",
+    description: "Conecte sua conta ChatGPT",
   },
 ];
 
@@ -208,6 +219,7 @@ export function ProfileEditor({
     }
     if (section.key === "agendamento") return Boolean(permissions.google_calendar);
     if (section.key === "servicos") return Boolean(permissions.catalog);
+    if (section.key === "ia") return Boolean(permissions.meta_ads || permissions.tiktok_ads);
     return true;
   });
 
@@ -1102,6 +1114,12 @@ export function ProfileEditor({
                 </p>
               </SectionShell>
             )
+          ) : null}
+
+          {effectiveSection === "ia" ? (
+            <SectionShell id="secao-ia" title="Inteligência artificial" description="Conecte sua própria conta ChatGPT para analisar suas campanhas de tráfego pago.">
+              <CodexConnectionPanel key={`codex-${draft.id}`} />
+            </SectionShell>
           ) : null}
         </div>
 

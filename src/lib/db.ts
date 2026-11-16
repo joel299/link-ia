@@ -330,6 +330,40 @@ function initSchema(db: Database.Database): void {
       FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE SET NULL
     );
 
+    CREATE TABLE IF NOT EXISTS ai_agent_settings (
+      setting_key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_by TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS codex_connections (
+      owner_id TEXT PRIMARY KEY,
+      openai_subject TEXT NOT NULL UNIQUE,
+      email TEXT,
+      display_name TEXT,
+      client_id TEXT NOT NULL,
+      access_token_encrypted TEXT NOT NULL,
+      refresh_token_encrypted TEXT,
+      token_expires_at TEXT,
+      granted_scopes TEXT NOT NULL,
+      connected_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS codex_oauth_transactions (
+      state_hash TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL,
+      nonce TEXT NOT NULL,
+      code_verifier TEXT NOT NULL,
+      redirect_uri TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_legal_acceptances_user_doc
       ON legal_acceptances(user_id, document_type, created_at DESC);
 

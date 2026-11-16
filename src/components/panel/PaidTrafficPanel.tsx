@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import { SectionSkeleton } from "./SectionSkeleton";
+import { TrafficAiChat } from "./TrafficAiChat";
 import type {
   AdCampaignOperationView,
   AdCampaignView,
@@ -964,6 +965,12 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
               )}
             </div>
           </GlassSurface>
+          <TrafficAiChat
+            key={`${profile.id}-${activeTab}`}
+            profile={profile}
+            provider={activeTab}
+            hasActiveCampaigns={overview.campaigns.some((campaign) => campaign.status.toUpperCase() === "ACTIVE")}
+          />
         </>
       ) : null}
     </div>
