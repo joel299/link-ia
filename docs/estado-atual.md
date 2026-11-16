@@ -299,3 +299,10 @@ Auditoria completa solicitada por Joel, **sem alterar código funcional, sem com
 - O parser agora reconhece o prompt atual do CLI, que inclui o prazo entre parênteses antes do código, além de remover ANSI e aceitar códigos com ou sem hífen.
 - Validação local: typecheck e ESLint dos arquivos alterados passaram. O teste Vitest foi bloqueado por EPERM ao resolver o módulo Vite; Codex CLI não está instalado localmente. Build de produção, CI do novo commit, autenticação real e produção ainda precisam ser confirmados.
 - Próxima ação: após o build/deploy, iniciar uma conexão com uma conta de teste, confirmar a abertura da URL e a exibição do código, concluir a autorização e verificar o status conectado sem recarregar.
+
+
+### Correção do código device auth Codex (16/11/2026)
+- **Estado:** correção publicada no código-fonte; deploy automático e nova autenticação real ainda precisam ser confirmados.
+- **Causa:** o código dependia da memória local do módulo que iniciou o processo. A rota de status não garantia acesso ao mesmo estado, e o banco não armazenava o código.
+- **Mudança:** código e expiração de 15 minutos persistidos na conexão privada do usuário; migração aditiva para bancos existentes; parser ampliado para os formatos de prompt do CLI.
+- **Validação local:** typecheck e ESLint direcionado passaram; Vitest bloqueado por `EPERM` ao resolver `node_modules/vite` no Windows. O fluxo real deve ser validado após o deploy, iniciando uma nova conexão.
