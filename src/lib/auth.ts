@@ -1,10 +1,11 @@
 import crypto from "node:crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { NextResponse } from "next/server";
 import { ensureDemoSeed, getDb } from "./db";
 import { getUserPermissions } from "./permissions";
 import type { UserPermissions } from "./types";
 import { sanitizePlainText } from "./validation";
+import { verifyTrustedApiContext } from "./api-tokens";
 
 export const SESSION_COOKIE_NAME = "linkia_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
@@ -120,6 +121,20 @@ export function verifySessionToken(token: string): SessionUser | null {
 
 export async function getSessionUser(): Promise<SessionUser | null> {
   try {
+    const requestHeaders = await headers();
+    const apiContext = requestHeaders.get("x-linkia-api-context");
+    if (apiContext) {
+      const principal = verifyTrustedApiContext(apiContext, requestHeaders.get("x-linkia-api-context-signature") || "");
+      if (!principal) return null;
+      return {
+        id: principal.ownerId,
+        email: principal.email,
+        name: principal.name,
+        role: "client",
+        isActive: true,
+        permissions: getUserPermissions(principal.ownerId),
+      };
+    }
     const cookieStore = await cookies();
     const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
     if (!token) return null;

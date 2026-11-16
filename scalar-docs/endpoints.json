@@ -1,0 +1,1522 @@
+{
+  "version": "1.0.0",
+  "basePath": "/v1/api",
+  "routeFileCount": 48,
+  "operationCount": 68,
+  "operations": [
+    {
+      "path": "/v1/api/admin/ai-agent",
+      "method": "GET",
+      "operationId": "getAdminAiAgent",
+      "summary": "Consultar instruções do agente",
+      "description": "Somente administrador. Fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/admin/ai-agent",
+      "method": "PUT",
+      "operationId": "updateAdminAiAgent",
+      "summary": "Atualizar instruções do agente",
+      "description": "Somente administrador. Fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "systemPrompt"
+      ],
+      "bodyFields": [
+        {
+          "name": "systemPrompt",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/admin/users",
+      "method": "GET",
+      "operationId": "listAdminUsers",
+      "summary": "Listar usuários",
+      "description": "Somente administrador. Fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/admin/users",
+      "method": "POST",
+      "operationId": "createAdminUser",
+      "summary": "Criar usuário cliente",
+      "description": "Somente administrador. Não permite criar outro administrador. Fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "name",
+        "email",
+        "password"
+      ],
+      "bodyFields": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "isActive",
+          "type": "boolean",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "permissions",
+          "type": "object",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/admin/users/{userId}",
+      "method": "GET",
+      "operationId": "getAdminUser",
+      "summary": "Consultar usuário",
+      "description": "Somente administrador. Fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "userId"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/admin/users/{userId}",
+      "method": "PATCH",
+      "operationId": "updateAdminUser",
+      "summary": "Atualizar acesso do usuário",
+      "description": "Somente administrador. Não altera papel administrativo. Fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "userId"
+      ],
+      "bodyFields": [
+        {
+          "name": "isActive",
+          "type": "boolean",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "permissions",
+          "type": "object",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/ai/codex/analyze",
+      "method": "POST",
+      "operationId": "analyzeCampaignsWithCodex",
+      "summary": "Pedir análise de campanhas",
+      "description": "A análise usa a conexão Codex pessoal do usuário. Acesso do painel; fora das ferramentas MCP genéricas.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "profileId",
+        "provider",
+        "prompt",
+        "model"
+      ],
+      "bodyFields": [
+        {
+          "name": "profileId",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "prompt",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "effort",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "conversation",
+          "type": "array",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/ai/codex/connect",
+      "method": "POST",
+      "operationId": "connectCodexDevice",
+      "summary": "Iniciar login Codex",
+      "description": "Fluxo do painel para gerar código de dispositivo. Fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/ai/codex/models",
+      "method": "GET",
+      "operationId": "listCodexModels",
+      "summary": "Listar modelos Codex disponíveis",
+      "description": "Fluxo do painel; requer uma conexão pessoal Codex.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/ai/codex/status",
+      "method": "GET",
+      "operationId": "getCodexStatus",
+      "summary": "Consultar conexão Codex",
+      "description": "Fluxo do painel; fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/ai/codex/status",
+      "method": "DELETE",
+      "operationId": "disconnectCodex",
+      "summary": "Encerrar conexão Codex",
+      "description": "Encerra a conexão pessoal. Fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/auth/demo",
+      "method": "POST",
+      "operationId": "loginDemo",
+      "summary": "Entrar na demonstração",
+      "description": "Acesso de navegador; fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/auth/login",
+      "method": "POST",
+      "operationId": "loginWithPassword",
+      "summary": "Entrar com e-mail e senha",
+      "description": "Cria sessão de navegador. Para agentes, use uma chave pessoal em vez desta rota.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "email",
+        "password"
+      ],
+      "bodyFields": [
+        {
+          "name": "email",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/auth/logout",
+      "method": "POST",
+      "operationId": "logoutBrowser",
+      "summary": "Encerrar sessão do navegador",
+      "description": "Fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/auth/me",
+      "method": "GET",
+      "operationId": "getBrowserSession",
+      "summary": "Consultar sessão do navegador",
+      "description": "Fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/auth/register",
+      "method": "POST",
+      "operationId": "registerUser",
+      "summary": "Provisionar conta",
+      "description": "Cadastro público desativado. Requer autorização administrativa; fora do MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "email",
+        "name",
+        "password"
+      ],
+      "bodyFields": [
+        {
+          "name": "email",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/health",
+      "method": "GET",
+      "operationId": "healthCheck",
+      "summary": "Verificar disponibilidade do serviço",
+      "description": "",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/integrations/composio/callback",
+      "method": "GET",
+      "operationId": "composioOAuthCallback",
+      "summary": "Receber retorno do Composio",
+      "description": "Callback do provedor, usa estado temporário. Não chamar manualmente nem pelo MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "state"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/integrations/social/callback",
+      "method": "GET",
+      "operationId": "socialOAuthCallback",
+      "summary": "Receber retorno de rede social",
+      "description": "Callback do provedor; não chamar manualmente nem pelo MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "state"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/integrations/whatsapp/callback",
+      "method": "GET",
+      "operationId": "whatsappOAuthCallback",
+      "summary": "Receber retorno do WhatsApp",
+      "description": "Callback do provedor; não chamar manualmente nem pelo MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "state"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/legal/acceptance",
+      "method": "GET",
+      "operationId": "getLegalAcceptance",
+      "summary": "Consultar aceite dos termos",
+      "description": "",
+      "scope": "legal:read",
+      "exposedMcp": true,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/legal/acceptance",
+      "method": "POST",
+      "operationId": "recordLegalAcceptance",
+      "summary": "Registrar aceite dos termos",
+      "description": "Exige confirmação explícita dos documentos apresentados ao usuário.",
+      "scope": "legal:write",
+      "exposedMcp": false,
+      "requiredFields": [
+        "termsAccepted",
+        "termsVersion",
+        "privacyAcknowledged",
+        "privacyVersion"
+      ],
+      "bodyFields": [
+        {
+          "name": "profileId",
+          "type": "string|null",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "termsAccepted",
+          "type": "boolean",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "termsVersion",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "privacyAcknowledged",
+          "type": "boolean",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "privacyVersion",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "optionalProductUpdates",
+          "type": "boolean",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles",
+      "method": "GET",
+      "operationId": "listProfiles",
+      "summary": "Listar seus perfis",
+      "description": "Retorna somente perfis da conta associada à chave.",
+      "scope": "profiles:read",
+      "exposedMcp": false,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles",
+      "method": "POST",
+      "operationId": "createProfile",
+      "summary": "Criar um perfil",
+      "description": "Cria um rascunho de perfil na sua conta.",
+      "scope": "profiles:write",
+      "exposedMcp": true,
+      "requiredFields": [
+        "displayName",
+        "slug"
+      ],
+      "bodyFields": [
+        {
+          "name": "displayName",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "slug",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "bio",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "theme",
+          "type": "object",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/slug-availability",
+      "method": "GET",
+      "operationId": "checkProfileSlug",
+      "summary": "Verificar endereço do perfil",
+      "description": "",
+      "scope": "profiles:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "slug"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}",
+      "method": "GET",
+      "operationId": "getProfile",
+      "summary": "Consultar um perfil próprio",
+      "description": "",
+      "scope": "profiles:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}",
+      "method": "PATCH",
+      "operationId": "updateProfile",
+      "summary": "Editar um perfil",
+      "description": "Envie somente os campos que deseja alterar. Canais continuam sujeitos às permissões da conta.",
+      "scope": "profiles:write",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": [
+        {
+          "name": "displayName",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "bio",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "slug",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "instagramInput",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "whatsappNumber",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "whatsappMessage",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "bookingLabel",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "instagramEnabled",
+          "type": "boolean",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "whatsappEnabled",
+          "type": "boolean",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "bookingEnabled",
+          "type": "boolean",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "avatarUrl",
+          "type": "string|null",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "coverUrl",
+          "type": "string|null",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "bookingUrl",
+          "type": "string|null",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "theme",
+          "type": "object",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "coverBlur",
+          "type": "number",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "publicOrder",
+          "type": "array",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}",
+      "method": "DELETE",
+      "operationId": "deleteProfile",
+      "summary": "Remover um perfil",
+      "description": "A remoção pode exigir confirmação adicional se o perfil estiver publicado ou tiver reservas.",
+      "scope": "profiles:delete",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": [
+        {
+          "name": "confirmPublished",
+          "type": "boolean",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}/ads/meta_ads/setup",
+      "method": "GET",
+      "operationId": "getMetaAdsSetup",
+      "summary": "Consultar configuração Meta Ads",
+      "description": "",
+      "scope": "ads:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/ads/meta_ads/setup",
+      "method": "POST",
+      "operationId": "setupMetaAds",
+      "summary": "Preparar conexão Meta Ads",
+      "description": "Inicia ou atualiza configuração externa. Fora do MCP.",
+      "scope": "ads:manage",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/ads/{provider}",
+      "method": "GET",
+      "operationId": "getAdsOverview",
+      "summary": "Consultar campanhas e resultados",
+      "description": "`sync=1` pode chamar o provedor e atualizar dados. Sem esse parâmetro, consulta os dados disponíveis.",
+      "scope": "ads:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id",
+        "provider"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/ads/{provider}",
+      "method": "POST",
+      "operationId": "selectAdAccount",
+      "summary": "Escolher conta de anúncios",
+      "description": "Altera a conta ativa do perfil; requer permissão explícita.",
+      "scope": "ads:manage",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "provider",
+        "adAccountId"
+      ],
+      "bodyFields": [
+        {
+          "name": "adAccountId",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}/ads/{provider}/campaigns",
+      "method": "POST",
+      "operationId": "createCampaignDraft",
+      "summary": "Preparar rascunho de campanha",
+      "description": "A criação do rascunho não publica nem ativa a campanha. Os campos dependem do provedor e são validados pelo serviço de anúncios.",
+      "scope": "ads:draft",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "provider",
+        "name",
+        "objective",
+        "budgetAmount",
+        "budgetCurrency",
+        "budgetType",
+        "startDate",
+        "targetSummary",
+        "creativeHeadline",
+        "destinationUrl",
+        "idempotencyKey"
+      ],
+      "bodyFields": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "objective",
+          "type": "string",
+          "required": true,
+          "description": "Exemplos aceitos pelo provedor: OUTCOME_TRAFFIC ou TRAFFIC."
+        },
+        {
+          "name": "budgetAmount",
+          "type": "number",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "budgetCurrency",
+          "type": "string",
+          "required": true,
+          "description": "Exemplo BRL."
+        },
+        {
+          "name": "budgetType",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "startDate",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "endDate",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "targetSummary",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "creativeHeadline",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "destinationUrl",
+          "type": "string",
+          "required": true,
+          "description": "A URL de destino precisa usar HTTPS."
+        },
+        {
+          "name": "idempotencyKey",
+          "type": "string",
+          "required": true,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}/ads/{provider}/campaigns/{operationId}/confirm",
+      "method": "POST",
+      "operationId": "confirmCampaign",
+      "summary": "Confirmar criação ou ativação de campanha",
+      "description": "Pode gerar cobrança. Exige confirmação explícita e uma operação preparada anteriormente.",
+      "scope": "ads:confirm",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "provider",
+        "operationId",
+        "action",
+        "confirmed"
+      ],
+      "bodyFields": [
+        {
+          "name": "action",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "confirmed",
+          "type": "boolean",
+          "required": true,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}/booking-settings",
+      "method": "GET",
+      "operationId": "getBookingSettings",
+      "summary": "Consultar regras de agendamento",
+      "description": "",
+      "scope": "calendar:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/booking-settings",
+      "method": "PUT",
+      "operationId": "updateBookingSettings",
+      "summary": "Atualizar regras de agendamento",
+      "description": "",
+      "scope": "calendar:manage",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": [
+        {
+          "name": "timezone",
+          "type": "string",
+          "required": false,
+          "description": "Fuso horário IANA"
+        },
+        {
+          "name": "serviceName",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "slotDurationMinutes",
+          "type": "integer",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "bufferMinutes",
+          "type": "integer",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "minNoticeMinutes",
+          "type": "integer",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "horizonDays",
+          "type": "integer",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "weeklySchedule",
+          "type": "array",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}/catalog",
+      "method": "GET",
+      "operationId": "listCatalog",
+      "summary": "Consultar serviços e produtos",
+      "description": "",
+      "scope": "catalog:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/catalog",
+      "method": "POST",
+      "operationId": "createCatalogItem",
+      "summary": "Adicionar serviço ou produto",
+      "description": "",
+      "scope": "catalog:write",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "title",
+        "description"
+      ],
+      "bodyFields": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "price",
+          "type": "string|number",
+          "required": false,
+          "description": "Valor em reais; exemplos: \"120,00\" ou 120."
+        },
+        {
+          "name": "priceCents",
+          "type": "integer",
+          "required": false,
+          "description": "Valor em centavos; use price ou priceCents."
+        },
+        {
+          "name": "imageUrl",
+          "type": "string|null",
+          "required": false,
+          "description": "Caminho retornado pelo envio de imagem."
+        },
+        {
+          "name": "flowType",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "availabilityStatus",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "isActive",
+          "type": "boolean",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "durationMinutes",
+          "type": "integer",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}/catalog/reorder",
+      "method": "PUT",
+      "operationId": "reorderCatalog",
+      "summary": "Mudar ordem dos itens do catálogo",
+      "description": "",
+      "scope": "catalog:write",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "orderedIds"
+      ],
+      "bodyFields": [
+        {
+          "name": "orderedIds",
+          "type": "array",
+          "required": true,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}/catalog/{itemId}",
+      "method": "PATCH",
+      "operationId": "updateCatalogItem",
+      "summary": "Editar serviço ou produto",
+      "description": "",
+      "scope": "catalog:write",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "itemId"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/catalog/{itemId}",
+      "method": "DELETE",
+      "operationId": "deleteCatalogItem",
+      "summary": "Remover serviço ou produto",
+      "description": "",
+      "scope": "catalog:write",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "itemId"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/integrations/google-calendar",
+      "method": "GET",
+      "operationId": "getGoogleCalendarConnection",
+      "summary": "Consultar conexão com Google Agenda",
+      "description": "",
+      "scope": "calendar:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/integrations/google-calendar",
+      "method": "DELETE",
+      "operationId": "disconnectGoogleCalendar",
+      "summary": "Desconectar Google Agenda",
+      "description": "",
+      "scope": "calendar:manage",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/integrations/google-calendar/connect",
+      "method": "POST",
+      "operationId": "connectGoogleCalendar",
+      "summary": "Iniciar conexão com Google Agenda",
+      "description": "Inicia autenticação externa; faça essa ação pelo painel.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/integrations/social",
+      "method": "GET",
+      "operationId": "listSocialConnections",
+      "summary": "Listar conexões sociais",
+      "description": "",
+      "scope": "social:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/integrations/social/{provider}",
+      "method": "GET",
+      "operationId": "getSocialConnection",
+      "summary": "Consultar uma conexão social",
+      "description": "",
+      "scope": "social:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id",
+        "provider"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/integrations/social/{provider}",
+      "method": "PATCH",
+      "operationId": "updateSocialConnection",
+      "summary": "Atualizar conexão social",
+      "description": "",
+      "scope": "social:manage",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "provider",
+        "publicExternalIds"
+      ],
+      "bodyFields": [
+        {
+          "name": "publicExternalIds",
+          "type": "array",
+          "required": true,
+          "description": "IDs de mídia selecionados para exibição pública."
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}/integrations/social/{provider}",
+      "method": "DELETE",
+      "operationId": "disconnectSocial",
+      "summary": "Desconectar rede social",
+      "description": "",
+      "scope": "social:manage",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id",
+        "provider"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/integrations/social/{provider}/connect",
+      "method": "POST",
+      "operationId": "connectSocial",
+      "summary": "Iniciar conexão com rede social",
+      "description": "",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "id",
+        "provider"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/integrations/social/{provider}/sync",
+      "method": "POST",
+      "operationId": "syncSocialConnection",
+      "summary": "Atualizar dados da rede social",
+      "description": "Faz chamada ao provedor externo. Exige permissão explícita.",
+      "scope": "social:sync",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "provider"
+      ],
+      "bodyFields": [
+        {
+          "name": "force",
+          "type": "boolean",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}/integrations/whatsapp",
+      "method": "GET",
+      "operationId": "getWhatsAppConnection",
+      "summary": "Consultar conexão WhatsApp",
+      "description": "",
+      "scope": "whatsapp:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/integrations/whatsapp",
+      "method": "DELETE",
+      "operationId": "disconnectWhatsApp",
+      "summary": "Desconectar WhatsApp",
+      "description": "",
+      "scope": "whatsapp:manage",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/integrations/whatsapp/connect",
+      "method": "POST",
+      "operationId": "connectWhatsApp",
+      "summary": "Iniciar conexão WhatsApp",
+      "description": "Faça pelo painel para concluir a autorização externa.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/links",
+      "method": "GET",
+      "operationId": "listLinks",
+      "summary": "Listar links do perfil",
+      "description": "",
+      "scope": "links:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/links",
+      "method": "POST",
+      "operationId": "createLink",
+      "summary": "Adicionar link",
+      "description": "",
+      "scope": "links:write",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "title",
+        "url"
+      ],
+      "bodyFields": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "required": true,
+          "description": "Deve começar com https://."
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "iconType",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "isActive",
+          "type": "boolean",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}/links/reorder",
+      "method": "PUT",
+      "operationId": "reorderLinks",
+      "summary": "Mudar ordem dos links",
+      "description": "",
+      "scope": "links:write",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "orderedIds"
+      ],
+      "bodyFields": [
+        {
+          "name": "orderedIds",
+          "type": "array",
+          "required": true,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}/links/{linkId}",
+      "method": "PATCH",
+      "operationId": "updateLink",
+      "summary": "Editar link",
+      "description": "",
+      "scope": "links:write",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "linkId"
+      ],
+      "bodyFields": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "iconType",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "isActive",
+          "type": "boolean",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/profiles/{id}/links/{linkId}",
+      "method": "DELETE",
+      "operationId": "deleteLink",
+      "summary": "Remover link",
+      "description": "",
+      "scope": "links:write",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id",
+        "linkId"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/publish",
+      "method": "POST",
+      "operationId": "publishProfile",
+      "summary": "Publicar página",
+      "description": "Torna o perfil visível publicamente.",
+      "scope": "profiles:publish",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/profiles/{id}/publish",
+      "method": "DELETE",
+      "operationId": "unpublishProfile",
+      "summary": "Tirar página do ar",
+      "description": "",
+      "scope": "profiles:publish",
+      "exposedMcp": true,
+      "requiredFields": [
+        "id"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/public/profiles/{slug}",
+      "method": "GET",
+      "operationId": "getPublicProfile",
+      "summary": "Consultar página pública",
+      "description": "",
+      "scope": "public:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "slug"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/public/profiles/{slug}/availability",
+      "method": "GET",
+      "operationId": "getPublicAvailability",
+      "summary": "Consultar horários disponíveis",
+      "description": "Disponível sem autenticação; horários dependem da agenda configurada.",
+      "scope": "public:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "slug"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/public/profiles/{slug}/booking",
+      "method": "GET",
+      "operationId": "getPublicBookingPage",
+      "summary": "Consultar página de agendamento",
+      "description": "",
+      "scope": "public:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "slug"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/public/profiles/{slug}/bookings",
+      "method": "POST",
+      "operationId": "createPublicBooking",
+      "summary": "Criar reserva",
+      "description": "Pode registrar dados pessoais e criar evento no calendário. Não disponível como ferramenta MCP.",
+      "scope": "booking:create",
+      "exposedMcp": false,
+      "requiredFields": [
+        "slug",
+        "startIso",
+        "idempotencyKey",
+        "clientName",
+        "clientPhone"
+      ],
+      "bodyFields": [
+        {
+          "name": "startIso",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "idempotencyKey",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "clientName",
+          "type": "string",
+          "required": true,
+          "description": ""
+        },
+        {
+          "name": "clientPhone",
+          "type": "string",
+          "required": true,
+          "description": "WhatsApp com DDD/DDI"
+        },
+        {
+          "name": "servicePublicId",
+          "type": "string",
+          "required": false,
+          "description": ""
+        },
+        {
+          "name": "notes",
+          "type": "string",
+          "required": false,
+          "description": ""
+        }
+      ]
+    },
+    {
+      "path": "/v1/api/public/profiles/{slug}/catalog",
+      "method": "GET",
+      "operationId": "getPublicCatalog",
+      "summary": "Consultar serviços e produtos publicados",
+      "description": "",
+      "scope": "public:read",
+      "exposedMcp": false,
+      "requiredFields": [
+        "slug"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/uploads",
+      "method": "POST",
+      "operationId": "uploadFile",
+      "summary": "Enviar imagem",
+      "description": "Envio multipart/form-data de um campo `file`. Não é uma ferramenta MCP.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/uploads/{filename}",
+      "method": "GET",
+      "operationId": "getUploadedFile",
+      "summary": "Consultar arquivo enviado",
+      "description": "",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "filename"
+      ],
+      "bodyFields": []
+    },
+    {
+      "path": "/v1/api/webhooks/zernio/whatsapp",
+      "method": "POST",
+      "operationId": "zernioWhatsAppWebhook",
+      "summary": "Receber evento de WhatsApp",
+      "description": "Endpoint de integração que valida assinatura e identificadores do evento. Não chamar como usuário ou agente.",
+      "scope": null,
+      "exposedMcp": false,
+      "requiredFields": [
+        "x-zernio-signature",
+        "x-zernio-event-id",
+        "x-zernio-event"
+      ],
+      "bodyFields": []
+    }
+  ]
+}

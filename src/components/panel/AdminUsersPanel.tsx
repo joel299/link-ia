@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import { AdminAiAgentSettings } from "./AdminAiAgentSettings";
+import { AdminApiTokensPanel } from "./AdminApiTokensPanel";
 import {
   ALL_FEATURE_KEYS,
   FEATURE_CATALOG,
@@ -49,6 +50,7 @@ export function AdminUsersPanel({ currentUserId }: AdminUsersPanelProps) {
 
   // Edit user state
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [apiTokensUserId, setApiTokensUserId] = useState<string | null>(null);
   const [editPermissions, setEditPermissions] = useState<UserPermissions>(
     buildEmptyPermissions
   );
@@ -630,8 +632,19 @@ export function AdminUsersPanel({ currentUserId }: AdminUsersPanelProps) {
                             {u.isActive ? "Suspender" : "Reativar"}
                           </button>
                         ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setApiTokensUserId(apiTokensUserId === u.id ? null : u.id)}
+                          className="btn btn-secondary"
+                        >
+                          {apiTokensUserId === u.id ? "Fechar acesso de agentes" : "Acesso da API e MCP"}
+                        </button>
                       </div>
                     </div>
+
+                    {apiTokensUserId === u.id ? (
+                      <AdminApiTokensPanel userId={u.id} userName={u.name} permissions={u.permissions} />
+                    ) : null}
 
                     {isEditing ? (
                       <div

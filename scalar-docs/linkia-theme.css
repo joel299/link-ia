@@ -1,0 +1,24 @@
+/* LinkIA theme based on src/styles/tokens.css. */
+.dark-mode {
+  --scalar-color-1: #f0f4f0;
+  --scalar-color-2: #b0bbb3;
+  --scalar-color-3: #8c9990;
+  --scalar-color-accent: #33b978;
+  --scalar-background-1: #101312;
+  --scalar-background-2: #171c19;
+  --scalar-background-3: #1d2420;
+  --scalar-background-accent: #183b2c;
+  --scalar-border-color: #354039;
+}
+
+.light-mode {
+  --scalar-color-1: #18211c;
+  --scalar-color-2: #59665e;
+  --scalar-color-3: #738078;
+  --scalar-color-accent: #16784e;
+  --scalar-background-1: #f4f6f2;
+  --scalar-background-2: #ffffff;
+  --scalar-background-3: #eaf0eb;
+  --scalar-background-accent: #d8eee2;
+  --scalar-border-color: #dce4dd;
+}

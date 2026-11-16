@@ -439,3 +439,10 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Correção:** fluxo próprio de OAuth removido; o usuário LinkIA executa `codex login --device-auth` em pasta privada e persistente por usuário. O estado usa `codex login status`; análise usa `codex exec` com sandbox somente leitura.
 - **Configuração:** instalar o CLI na imagem e persistir `CODEX_HOME_ROOT`. Removidas do exemplo variáveis `OPENAI_SIWC_*` e `CODEX_TOKEN_ENCRYPTION_KEY`.
 - **Validação:** typecheck e lint passaram (4 avisos preexistentes); Vitest bloqueado por EPERM no Vite; login real, build Docker e produção pendentes.
+
+
+### API/MCP-001 — publicação externa ainda pendente
+- **Data:** 16/11/2026
+- **Estado:** API/MCP e guias publicados no GitHub; Scalar Registry/Docs e validação de ponta a ponta ainda pendentes.
+- **Dependências de ambiente:** `API_JWT_SECRET` para emitir tokens e `SCALAR_DOCS_URL` para a rota de documentação. O namespace Scalar ainda precisa ser confirmado após login e conferência de duplicidade.
+- **Validação:** typecheck e lint passaram (4 avisos de `<img>`); Vitest não iniciou por EPERM no Vite. O teste com token real, transporte MCP e produção ainda não foi executado. A validação de host falha fechado sem `APP_BASE_URL`; o transporte MCP limita 120 requisições por minuto e os lotes JSON-RPC respondem como JSON.

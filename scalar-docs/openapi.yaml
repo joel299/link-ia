@@ -1,0 +1,2061 @@
+openapi: 3.1.0
+info:
+  title: LinkIA API
+  version: 1.0.0
+  summary: Gerencie os próprios perfis e canais LinkIA.
+  description: Referência da API LinkIA. Todas as operações privadas exigem uma chave pessoal emitida pelo administrador e continuam limitadas ao usuário dono dos dados e aos canais liberados. Rotas administrativas, callbacks, webhooks e fluxos de login estão documentados para integração e operação, mas não são ferramentas disponíveis no MCP.
+servers:
+  - url: https://linkia.iainfinito.com.br/v1/api
+    description: Endereço planejado para produção; confirmar após deploy.
+security:
+  - LinkIABearer: []
+tags:
+  - name: Perfis
+    description: Perfis que pertencem à sua conta.
+  - name: Anúncios
+    description: Contas, campanhas e resultados dos canais de anúncios liberados.
+  - name: Conexões
+    description: Estado dos canais ligados aos seus perfis.
+  - name: Conteúdo
+    description: Links, serviços e produtos dos seus perfis.
+  - name: Agenda
+    description: Horários e reservas.
+  - name: Administração
+    description: Rotas administrativas; não disponíveis ao MCP.
+  - name: Autenticação
+    description: Login de navegador; use a chave pessoal para integração.
+  - name: Público
+    description: Informações publicadas acessíveis sem login.
+  - name: Integrações internas
+    description: Callbacks e webhooks usados por provedores.
+paths:
+  /admin/ai-agent:
+    get:
+      tags:
+        - Administração
+      operationId: getAdminAiAgent
+      summary: Consultar instruções do agente
+      description: Somente administrador. Fora do MCP.
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Instruções atuais.
+        '401':
+          description: Acesso não autenticado.
+        '403':
+          description: Requer administrador.
+    put:
+      tags:
+        - Administração
+      operationId: updateAdminAiAgent
+      summary: Atualizar instruções do agente
+      description: Somente administrador. Fora do MCP.
+      x-mcp-available: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - systemPrompt
+              properties:
+                systemPrompt:
+                  type: string
+                  minLength: 20
+                  maxLength: 12000
+            example:
+              systemPrompt: Analise os dados fornecidos e explique os resultados em português claro.
+      responses:
+        '200':
+          description: Instruções salvas.
+        '400':
+          description: Instruções fora do tamanho permitido.
+        '403':
+          description: Requer administrador.
+  /admin/users:
+    get:
+      tags:
+        - Administração
+      operationId: listAdminUsers
+      summary: Listar usuários
+      description: Somente administrador. Fora do MCP.
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Lista de usuários.
+        '403':
+          description: Requer administrador.
+    post:
+      tags:
+        - Administração
+      operationId: createAdminUser
+      summary: Criar usuário cliente
+      description: Somente administrador. Não permite criar outro administrador. Fora do MCP.
+      x-mcp-available: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+                isActive:
+                  type: boolean
+                  default: true
+                permissions:
+                  type: object
+                  properties:
+                    whatsapp:
+                      type: boolean
+                    instagram:
+                      type: boolean
+                    facebook_social:
+                      type: boolean
+                    meta_ads:
+                      type: boolean
+                    tiktok_organic:
+                      type: boolean
+                    tiktok_ads:
+                      type: boolean
+                    google_calendar:
+                      type: boolean
+                    catalog:
+                      type: boolean
+            example:
+              name: Ana Silva
+              email: ana@example.com
+              password: TROQUE_POR_UMA_SENHA_SEGURA
+              isActive: true
+              permissions:
+                instagram: true
+                meta_ads: false
+                whatsapp: true
+                google_calendar: false
+      responses:
+        '201':
+          description: Usuário criado.
+        '400':
+          description: Dados inválidos.
+        '403':
+          description: Requer administrador.
+  /admin/users/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Identificador do usuário.
+    get:
+      tags:
+        - Administração
+      operationId: getAdminUser
+      summary: Consultar usuário
+      description: Somente administrador. Fora do MCP.
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Dados do usuário.
+        '404':
+          description: Usuário não encontrado.
+    patch:
+      tags:
+        - Administração
+      operationId: updateAdminUser
+      summary: Atualizar acesso do usuário
+      description: Somente administrador. Não altera papel administrativo. Fora do MCP.
+      x-mcp-available: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                isActive:
+                  type: boolean
+                permissions:
+                  type: object
+                  properties:
+                    whatsapp:
+                      type: boolean
+                    instagram:
+                      type: boolean
+                    facebook_social:
+                      type: boolean
+                    meta_ads:
+                      type: boolean
+                    tiktok_organic:
+                      type: boolean
+                    tiktok_ads:
+                      type: boolean
+                    google_calendar:
+                      type: boolean
+                    catalog:
+                      type: boolean
+            example:
+              isActive: true
+              permissions:
+                whatsapp: true
+                instagram: true
+                meta_ads: false
+                tiktok_organic: false
+      responses:
+        '200':
+          description: Acesso atualizado.
+        '400':
+          description: Dados inválidos.
+        '403':
+          description: Requer administrador.
+        '404':
+          description: Usuário não encontrado.
+  /ai/codex/analyze:
+    post:
+      tags:
+        - Anúncios
+      operationId: analyzeCampaignsWithCodex
+      summary: Pedir análise de campanhas
+      description: A análise usa a conexão Codex pessoal do usuário. Acesso do painel; fora das ferramentas MCP genéricas.
+      x-mcp-available: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - profileId
+                - provider
+                - prompt
+                - model
+              properties:
+                profileId:
+                  type: string
+                provider:
+                  type: string
+                  enum:
+                    - meta_ads
+                    - tiktok_ads
+                prompt:
+                  type: string
+                  minLength: 3
+                  maxLength: 4000
+                model:
+                  type: string
+                effort:
+                  type: string
+                  enum:
+                    - low
+                    - medium
+                    - high
+                    - xhigh
+                    - max
+                conversation:
+                  type: array
+                  items:
+                    type: object
+            example:
+              profileId: PERFIL_ID
+              provider: meta_ads
+              prompt: Resuma os resultados do último mês.
+              model: gpt-6-luna
+              effort: medium
+      responses:
+        '200':
+          description: Análise concluída.
+        '401':
+          description: Acesso não autenticado.
+        '403':
+          description: Anúncios não liberados para esta conta.
+        '409':
+          description: Nenhuma campanha ativa para analisar.
+  /ai/codex/connect:
+    post:
+      tags:
+        - Autenticação
+      operationId: connectCodexDevice
+      summary: Iniciar login Codex
+      description: Fluxo do painel para gerar código de dispositivo. Fora do MCP.
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Instruções temporárias de autenticação.
+        '401':
+          description: Acesso não autenticado.
+  /ai/codex/models:
+    get:
+      tags:
+        - Autenticação
+      operationId: listCodexModels
+      summary: Listar modelos Codex disponíveis
+      description: Fluxo do painel; requer uma conexão pessoal Codex.
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Modelos e níveis disponíveis.
+        '401':
+          description: Acesso não autenticado.
+        '409':
+          description: Conta Codex não conectada.
+  /ai/codex/status:
+    get:
+      tags:
+        - Autenticação
+      operationId: getCodexStatus
+      summary: Consultar conexão Codex
+      description: Fluxo do painel; fora do MCP.
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Estado da conexão.
+        '401':
+          description: Acesso não autenticado.
+    delete:
+      tags:
+        - Autenticação
+      operationId: disconnectCodex
+      summary: Encerrar conexão Codex
+      description: Encerra a conexão pessoal. Fora do MCP.
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Conta desconectada.
+        '401':
+          description: Acesso não autenticado.
+  /auth/demo:
+    post:
+      tags:
+        - Autenticação
+      operationId: loginDemo
+      summary: Entrar na demonstração
+      description: Acesso de navegador; fora do MCP.
+      x-mcp-available: false
+      security: []
+      responses:
+        '200':
+          description: Sessão de demonstração criada.
+  /auth/login:
+    post:
+      tags:
+        - Autenticação
+      operationId: loginWithPassword
+      summary: Entrar com e-mail e senha
+      description: Cria sessão de navegador. Para agentes, use uma chave pessoal em vez desta rota.
+      x-mcp-available: false
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+            example:
+              email: ana@example.com
+              password: SENHA_DO_USUARIO
+      responses:
+        '200':
+          description: Sessão criada.
+        '400':
+          description: Corpo inválido.
+        '401':
+          description: E-mail ou senha incorretos.
+  /auth/logout:
+    post:
+      tags:
+        - Autenticação
+      operationId: logoutBrowser
+      summary: Encerrar sessão do navegador
+      description: Fora do MCP.
+      x-mcp-available: false
+      security: []
+      responses:
+        '200':
+          description: Sessão encerrada.
+  /auth/me:
+    get:
+      tags:
+        - Autenticação
+      operationId: getBrowserSession
+      summary: Consultar sessão do navegador
+      description: Fora do MCP.
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Estado da sessão.
+        '401':
+          description: Acesso não autenticado.
+  /auth/register:
+    post:
+      tags:
+        - Autenticação
+      operationId: registerUser
+      summary: Provisionar conta
+      description: Cadastro público desativado. Requer autorização administrativa; fora do MCP.
+      x-mcp-available: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - name
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+            example:
+              email: ana@example.com
+              name: Ana Silva
+              password: TROQUE_POR_UMA_SENHA_SEGURA
+      responses:
+        '201':
+          description: Conta criada.
+        '403':
+          description: Cadastro não autorizado.
+  /health:
+    get:
+      tags:
+        - Integrações internas
+      operationId: healthCheck
+      summary: Verificar disponibilidade do serviço
+      security: []
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Aplicação disponível.
+  /integrations/composio/callback:
+    get:
+      tags:
+        - Integrações internas
+      operationId: composioOAuthCallback
+      summary: Receber retorno do Composio
+      description: Callback do provedor, usa estado temporário. Não chamar manualmente nem pelo MCP.
+      x-mcp-available: false
+      security: []
+      parameters:
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: connectedAccountId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redireciona de volta ao painel.
+        '400':
+          description: Estado inválido ou expirado.
+  /integrations/social/callback:
+    get:
+      tags:
+        - Integrações internas
+      operationId: socialOAuthCallback
+      summary: Receber retorno de rede social
+      description: Callback do provedor; não chamar manualmente nem pelo MCP.
+      x-mcp-available: false
+      security: []
+      parameters:
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: connectedAccountId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redireciona de volta ao painel.
+        '400':
+          description: Estado inválido ou expirado.
+  /integrations/whatsapp/callback:
+    get:
+      tags:
+        - Integrações internas
+      operationId: whatsappOAuthCallback
+      summary: Receber retorno do WhatsApp
+      description: Callback do provedor; não chamar manualmente nem pelo MCP.
+      x-mcp-available: false
+      security: []
+      parameters:
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redireciona de volta ao painel.
+        '400':
+          description: Estado inválido ou expirado.
+  /legal/acceptance:
+    get:
+      tags:
+        - Autenticação
+      operationId: getLegalAcceptance
+      summary: Consultar aceite dos termos
+      x-mcp-available: true
+      responses:
+        '200':
+          description: Situação atual dos aceites.
+        '401':
+          description: Acesso não autenticado.
+      x-api-scope: legal:read
+    post:
+      tags:
+        - Autenticação
+      operationId: recordLegalAcceptance
+      summary: Registrar aceite dos termos
+      description: Exige confirmação explícita dos documentos apresentados ao usuário.
+      x-mcp-available: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - termsAccepted
+                - termsVersion
+                - privacyAcknowledged
+                - privacyVersion
+              properties:
+                profileId:
+                  type:
+                    - string
+                    - 'null'
+                termsAccepted:
+                  type: boolean
+                termsVersion:
+                  type: string
+                privacyAcknowledged:
+                  type: boolean
+                privacyVersion:
+                  type: string
+                optionalProductUpdates:
+                  type: boolean
+            example:
+              termsAccepted: true
+              termsVersion: versão exibida
+              privacyAcknowledged: true
+              privacyVersion: versão exibida
+              optionalProductUpdates: false
+      responses:
+        '201':
+          description: Aceite registrado.
+        '400':
+          description: Campos de aceite inválidos.
+        '401':
+          description: Acesso não autenticado.
+      x-api-scope: legal:write
+  /profiles:
+    get:
+      tags:
+        - Perfis
+      operationId: listProfiles
+      summary: Listar seus perfis
+      description: Retorna somente perfis da conta associada à chave.
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Lista de perfis próprios.
+        '401':
+          description: Acesso não autenticado.
+      x-api-scope: profiles:read
+    post:
+      tags:
+        - Perfis
+      operationId: createProfile
+      summary: Criar um perfil
+      description: Cria um rascunho de perfil na sua conta.
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - displayName
+                - slug
+              properties:
+                displayName:
+                  type: string
+                  maxLength: 80
+                slug:
+                  type: string
+                bio:
+                  type: string
+                  maxLength: 160
+                theme:
+                  type: object
+                  additionalProperties: true
+            example:
+              displayName: Ana Silva
+              slug: ana-silva
+              bio: Consultoria e atendimento
+      responses:
+        '201':
+          description: Perfil criado.
+        '400':
+          description: Campos inválidos ou endereço indisponível.
+        '401':
+          description: Acesso não autenticado.
+      x-api-scope: profiles:write
+  /profiles/slug-availability:
+    get:
+      tags:
+        - Perfis
+      operationId: checkProfileSlug
+      summary: Verificar endereço do perfil
+      x-mcp-available: false
+      parameters:
+        - name: slug
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Endereço curto desejado.
+        - name: excludeId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Perfil atual ao editar.
+      responses:
+        '200':
+          description: Disponibilidade do endereço.
+        '401':
+          description: Acesso não autenticado.
+      x-api-scope: profiles:read
+  /profiles/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID de um perfil retornado pela sua listagem.
+    get:
+      tags:
+        - Perfis
+      operationId: getProfile
+      summary: Consultar um perfil próprio
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Perfil encontrado.
+        '401':
+          description: Acesso não autenticado.
+        '403':
+          description: Perfil não pertence à sua conta.
+        '404':
+          description: Perfil não encontrado.
+      x-api-scope: profiles:read
+    patch:
+      tags:
+        - Perfis
+      operationId: updateProfile
+      summary: Editar um perfil
+      description: Envie somente os campos que deseja alterar. Canais continuam sujeitos às permissões da conta.
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                bio:
+                  type: string
+                slug:
+                  type: string
+                instagramInput:
+                  type: string
+                whatsappNumber:
+                  type: string
+                whatsappMessage:
+                  type: string
+                bookingLabel:
+                  type: string
+                instagramEnabled:
+                  type: boolean
+                whatsappEnabled:
+                  type: boolean
+                bookingEnabled:
+                  type: boolean
+                avatarUrl:
+                  type:
+                    - string
+                    - 'null'
+                coverUrl:
+                  type:
+                    - string
+                    - 'null'
+                bookingUrl:
+                  type:
+                    - string
+                    - 'null'
+                theme:
+                  type: object
+                coverBlur:
+                  type: number
+                publicOrder:
+                  type: array
+                  items:
+                    type: string
+            example:
+              displayName: Ana Silva
+              bio: Atualizei minha apresentação
+      responses:
+        '200':
+          description: Perfil atualizado.
+        '400':
+          description: Corpo inválido.
+        '403':
+          description: Perfil ou canal não liberado.
+        '404':
+          description: Perfil não encontrado.
+        '422':
+          description: Campos do perfil inválidos.
+      x-api-scope: profiles:write
+    delete:
+      tags:
+        - Perfis
+      operationId: deleteProfile
+      summary: Remover um perfil
+      description: A remoção pode exigir confirmação adicional se o perfil estiver publicado ou tiver reservas.
+      x-mcp-available: false
+      parameters:
+        - name: confirmPublished
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Confirma remoção de perfil publicado.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirmPublished:
+                  type: boolean
+            example:
+              confirmPublished: true
+      responses:
+        '200':
+          description: Perfil removido.
+        '403':
+          description: Perfil não pertence à sua conta.
+        '409':
+          description: A remoção precisa de confirmação.
+      x-api-scope: profiles:delete
+  /profiles/{id}/ads/meta_ads/setup:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Anúncios
+      operationId: getMetaAdsSetup
+      summary: Consultar configuração Meta Ads
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Estado e opções da conta Meta Ads.
+        '403':
+          description: Meta Ads não liberado.
+      x-api-scope: ads:read
+    post:
+      tags:
+        - Anúncios
+      operationId: setupMetaAds
+      summary: Preparar conexão Meta Ads
+      description: Inicia ou atualiza configuração externa. Fora do MCP.
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Configuração atualizada.
+        '403':
+          description: Meta Ads não liberado.
+      x-api-scope: ads:manage
+  /profiles/{id}/ads/{provider}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID do seu perfil.
+      - name: provider
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+            - meta_ads
+            - tiktok_ads
+    get:
+      tags:
+        - Anúncios
+      operationId: getAdsOverview
+      summary: Consultar campanhas e resultados
+      description: '`sync=1` pode chamar o provedor e atualizar dados. Sem esse parâmetro, consulta os dados disponíveis.'
+      x-mcp-available: false
+      parameters:
+        - name: datePreset
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Período predefinido aceito pelo serviço.
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: until
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: sync
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - '0'
+              - '1'
+          description: Use 1 somente quando quiser sincronizar com o provedor.
+      responses:
+        '200':
+          description: Dados da conta e das campanhas.
+        '400':
+          description: Período ou provedor inválido.
+        '403':
+          description: Canal de anúncios não liberado.
+      x-api-scope: ads:read
+    post:
+      tags:
+        - Anúncios
+      operationId: selectAdAccount
+      summary: Escolher conta de anúncios
+      description: Altera a conta ativa do perfil; requer permissão explícita.
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - adAccountId
+              properties:
+                adAccountId:
+                  type: string
+            example:
+              adAccountId: ID_DA_CONTA_RETORNADO_PELA_API
+      responses:
+        '200':
+          description: Conta selecionada.
+        '400':
+          description: Informe adAccountId.
+        '403':
+          description: Canal de anúncios não liberado.
+      x-api-scope: ads:manage
+  /profiles/{id}/ads/{provider}/campaigns:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: provider
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+            - meta_ads
+            - tiktok_ads
+    post:
+      tags:
+        - Anúncios
+      operationId: createCampaignDraft
+      summary: Preparar rascunho de campanha
+      description: A criação do rascunho não publica nem ativa a campanha. Os campos dependem do provedor e são validados pelo serviço de anúncios.
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - objective
+                - budgetAmount
+                - budgetCurrency
+                - budgetType
+                - startDate
+                - targetSummary
+                - creativeHeadline
+                - destinationUrl
+                - idempotencyKey
+              properties:
+                name:
+                  type: string
+                  maxLength: 120
+                objective:
+                  type: string
+                  description: 'Exemplos aceitos pelo provedor: OUTCOME_TRAFFIC ou TRAFFIC.'
+                budgetAmount:
+                  type: number
+                  exclusiveMinimum: 0
+                budgetCurrency:
+                  type: string
+                  minLength: 3
+                  maxLength: 3
+                  description: Exemplo BRL.
+                budgetType:
+                  type: string
+                  enum:
+                    - daily
+                    - lifetime
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+                targetSummary:
+                  type: string
+                  maxLength: 300
+                creativeHeadline:
+                  type: string
+                  maxLength: 150
+                destinationUrl:
+                  type: string
+                  format: uri
+                  description: A URL de destino precisa usar HTTPS.
+                idempotencyKey:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+            example:
+              name: Campanha de teste
+              objective: OUTCOME_TRAFFIC
+              budgetAmount: 20
+              budgetCurrency: BRL
+              budgetType: daily
+              startDate: '2026-12-01'
+              targetSummary: Pessoas interessadas no serviço na região atendida
+              creativeHeadline: Conheça nosso serviço
+              destinationUrl: https://example.com/oferta
+              idempotencyKey: teste-campanha-001
+      responses:
+        '200':
+          description: A mesma solicitação foi reconhecida como repetida.
+        '201':
+          description: Rascunho criado.
+        '400':
+          description: Dados da campanha inválidos.
+        '403':
+          description: Canal de anúncios não liberado.
+      x-api-scope: ads:draft
+  /profiles/{id}/ads/{provider}/campaigns/{operationId}/confirm:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: provider
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+            - meta_ads
+            - tiktok_ads
+      - name: operationId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID retornado ao preparar o rascunho.
+    post:
+      tags:
+        - Anúncios
+      operationId: confirmCampaign
+      summary: Confirmar criação ou ativação de campanha
+      description: Pode gerar cobrança. Exige confirmação explícita e uma operação preparada anteriormente.
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - action
+                - confirmed
+              properties:
+                action:
+                  type: string
+                  enum:
+                    - create_paused
+                    - activate
+                confirmed:
+                  type: boolean
+                  const: true
+            example:
+              action: create_paused
+              confirmed: true
+      responses:
+        '200':
+          description: Operação confirmada.
+        '400':
+          description: Confirmação ou ação inválida.
+        '403':
+          description: Canal de anúncios não liberado.
+      x-api-scope: ads:confirm
+  /profiles/{id}/booking-settings:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Agenda
+      operationId: getBookingSettings
+      summary: Consultar regras de agendamento
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Regras e horários do perfil.
+        '403':
+          description: Agenda não liberada.
+      x-api-scope: calendar:read
+    put:
+      tags:
+        - Agenda
+      operationId: updateBookingSettings
+      summary: Atualizar regras de agendamento
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Todos os campos são opcionais; envie somente as configurações que deseja alterar.
+              properties:
+                timezone:
+                  type: string
+                  description: Fuso horário IANA
+                  por exemplo America/Sao_Paulo.: null
+                serviceName:
+                  type: string
+                  maxLength: 80
+                slotDurationMinutes:
+                  type: integer
+                  minimum: 10
+                  maximum: 240
+                bufferMinutes:
+                  type: integer
+                  minimum: 0
+                minNoticeMinutes:
+                  type: integer
+                  minimum: 0
+                horizonDays:
+                  type: integer
+                  minimum: 1
+                enabled:
+                  type: boolean
+                weeklySchedule:
+                  type: array
+                  minItems: 7
+                  maxItems: 7
+                  items:
+                    type: object
+                    required:
+                      - dayOfWeek
+                      - enabled
+                      - startTime
+                      - endTime
+                    properties:
+                      dayOfWeek:
+                        type: integer
+                        minimum: 0
+                        maximum: 6
+                        description: 0 é domingo; 6 é sábado.
+                      enabled:
+                        type: boolean
+                      startTime:
+                        type: string
+                        pattern: ^([01]\\d|2[0-3]):[0-5]\\d$
+                      endTime:
+                        type: string
+                        pattern: ^([01]\\d|2[0-3]):[0-5]\\d$
+            example:
+              timezone: America/Sao_Paulo
+              serviceName: Consultoria
+              slotDurationMinutes: 30
+              bufferMinutes: 10
+              minNoticeMinutes: 60
+              horizonDays: 14
+              enabled: true
+              weeklySchedule:
+                - dayOfWeek: 0
+                  enabled: false
+                  startTime: 09:00
+                  endTime: 13:00
+                - dayOfWeek: 1
+                  enabled: true
+                  startTime: 09:00
+                  endTime: 18:00
+                - dayOfWeek: 2
+                  enabled: true
+                  startTime: 09:00
+                  endTime: 18:00
+                - dayOfWeek: 3
+                  enabled: true
+                  startTime: 09:00
+                  endTime: 18:00
+                - dayOfWeek: 4
+                  enabled: true
+                  startTime: 09:00
+                  endTime: 18:00
+                - dayOfWeek: 5
+                  enabled: true
+                  startTime: 09:00
+                  endTime: 17:00
+                - dayOfWeek: 6
+                  enabled: false
+                  startTime: 09:00
+                  endTime: 13:00
+      responses:
+        '200':
+          description: Configurações atualizadas.
+        '400':
+          description: Configuração inválida.
+        '403':
+          description: Agenda não liberada.
+      x-api-scope: calendar:manage
+  /profiles/{id}/catalog:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Conteúdo
+      operationId: listCatalog
+      summary: Consultar serviços e produtos
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Itens do próprio perfil.
+        '403':
+          description: Catálogo não liberado.
+      x-api-scope: catalog:read
+    post:
+      tags:
+        - Conteúdo
+      operationId: createCatalogItem
+      summary: Adicionar serviço ou produto
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - description
+              properties:
+                title:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                description:
+                  type: string
+                  minLength: 4
+                  maxLength: 280
+                price:
+                  type:
+                    - string
+                    - number
+                  description: 'Valor em reais; exemplos: "120,00" ou 120.'
+                priceCents:
+                  type: integer
+                  minimum: 0
+                  maximum: 100000000
+                  description: Valor em centavos; use price ou priceCents.
+                imageUrl:
+                  type:
+                    - string
+                    - 'null'
+                  description: Caminho retornado pelo envio de imagem.
+                flowType:
+                  type: string
+                  enum:
+                    - appointment
+                    - whatsapp
+                availabilityStatus:
+                  type: string
+                  enum:
+                    - available
+                    - unavailable
+                isActive:
+                  type: boolean
+                durationMinutes:
+                  type: integer
+                  minimum: 15
+                  maximum: 180
+              description: Informe title, description e um valor em price ou priceCents.
+            example:
+              title: Consultoria inicial
+              description: Conversa de orientação
+              price: 120,00
+              flowType: appointment
+              availabilityStatus: available
+              isActive: true
+              durationMinutes: 30
+      responses:
+        '201':
+          description: Item criado.
+        '400':
+          description: Campos do item inválidos.
+        '403':
+          description: Catálogo não liberado.
+      x-api-scope: catalog:write
+  /profiles/{id}/catalog/reorder:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      tags:
+        - Conteúdo
+      operationId: reorderCatalog
+      summary: Mudar ordem dos itens do catálogo
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - orderedIds
+              properties:
+                orderedIds:
+                  type: array
+                  items:
+                    type: string
+            example:
+              orderedIds:
+                - ID_ITEM_1
+                - ID_ITEM_2
+      responses:
+        '200':
+          description: Ordem atualizada.
+        '400':
+          description: Lista de itens inválida.
+      x-api-scope: catalog:write
+  /profiles/{id}/catalog/{itemId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      tags:
+        - Conteúdo
+      operationId: updateCatalogItem
+      summary: Editar serviço ou produto
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              description: Envie os campos que deseja alterar.
+      responses:
+        '200':
+          description: Item atualizado.
+        '404':
+          description: Item não encontrado.
+      x-api-scope: catalog:write
+    delete:
+      tags:
+        - Conteúdo
+      operationId: deleteCatalogItem
+      summary: Remover serviço ou produto
+      x-mcp-available: true
+      responses:
+        '200':
+          description: Item removido.
+        '404':
+          description: Item não encontrado.
+      x-api-scope: catalog:write
+  /profiles/{id}/integrations/google-calendar:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Conexões
+      operationId: getGoogleCalendarConnection
+      summary: Consultar conexão com Google Agenda
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Estado da conexão.
+        '403':
+          description: Agenda não liberada.
+      x-api-scope: calendar:read
+    delete:
+      tags:
+        - Conexões
+      operationId: disconnectGoogleCalendar
+      summary: Desconectar Google Agenda
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Conexão encerrada.
+        '403':
+          description: Agenda não liberada.
+      x-api-scope: calendar:manage
+  /profiles/{id}/integrations/google-calendar/connect:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags:
+        - Conexões
+      operationId: connectGoogleCalendar
+      summary: Iniciar conexão com Google Agenda
+      description: Inicia autenticação externa; faça essa ação pelo painel.
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Instruções para concluir conexão.
+        '403':
+          description: Agenda não liberada.
+  /profiles/{id}/integrations/social:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Conexões
+      operationId: listSocialConnections
+      summary: Listar conexões sociais
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Canais conectados ao próprio perfil.
+      x-api-scope: social:read
+  /profiles/{id}/integrations/social/{provider}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: provider
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Conexões
+      operationId: getSocialConnection
+      summary: Consultar uma conexão social
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Estado da conexão.
+        '403':
+          description: Canal não liberado.
+      x-api-scope: social:read
+    patch:
+      tags:
+        - Conexões
+      operationId: updateSocialConnection
+      summary: Atualizar conexão social
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - publicExternalIds
+              properties:
+                publicExternalIds:
+                  type: array
+                  items:
+                    type: string
+                  description: IDs de mídia selecionados para exibição pública.
+            example:
+              publicExternalIds:
+                - ID_MIDIA_1
+                - ID_MIDIA_2
+      responses:
+        '200':
+          description: Conexão atualizada.
+        '403':
+          description: Canal não liberado.
+      x-api-scope: social:manage
+    delete:
+      tags:
+        - Conexões
+      operationId: disconnectSocial
+      summary: Desconectar rede social
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Conexão encerrada.
+        '403':
+          description: Canal não liberado.
+      x-api-scope: social:manage
+  /profiles/{id}/integrations/social/{provider}/connect:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: provider
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags:
+        - Conexões
+      operationId: connectSocial
+      summary: Iniciar conexão com rede social
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Instruções para autenticação.
+        '403':
+          description: Canal não liberado.
+  /profiles/{id}/integrations/social/{provider}/sync:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: provider
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags:
+        - Conexões
+      operationId: syncSocialConnection
+      summary: Atualizar dados da rede social
+      description: Faz chamada ao provedor externo. Exige permissão explícita.
+      x-mcp-available: true
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force:
+                  type: boolean
+                  default: true
+            example:
+              force: true
+      responses:
+        '200':
+          description: Dados sincronizados.
+        '403':
+          description: Canal não liberado.
+      x-api-scope: social:sync
+  /profiles/{id}/integrations/whatsapp:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Conexões
+      operationId: getWhatsAppConnection
+      summary: Consultar conexão WhatsApp
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Estado da conexão.
+        '403':
+          description: WhatsApp não liberado.
+      x-api-scope: whatsapp:read
+    delete:
+      tags:
+        - Conexões
+      operationId: disconnectWhatsApp
+      summary: Desconectar WhatsApp
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Conexão encerrada.
+        '403':
+          description: WhatsApp não liberado.
+      x-api-scope: whatsapp:manage
+  /profiles/{id}/integrations/whatsapp/connect:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags:
+        - Conexões
+      operationId: connectWhatsApp
+      summary: Iniciar conexão WhatsApp
+      description: Faça pelo painel para concluir a autorização externa.
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Instruções de conexão.
+        '403':
+          description: WhatsApp não liberado.
+  /profiles/{id}/links:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Conteúdo
+      operationId: listLinks
+      summary: Listar links do perfil
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Links do próprio perfil.
+      x-api-scope: links:read
+    post:
+      tags:
+        - Conteúdo
+      operationId: createLink
+      summary: Adicionar link
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - url
+              properties:
+                title:
+                  type: string
+                  maxLength: 80
+                url:
+                  type: string
+                  format: uri
+                  description: Deve começar com https://.
+                description:
+                  type: string
+                  maxLength: 140
+                iconType:
+                  type: string
+                  enum:
+                    - link
+                    - map
+                    - store
+                    - calendar
+                    - phone
+                    - globe
+                isActive:
+                  type: boolean
+            example:
+              title: Meu catálogo
+              url: https://example.com/catalogo
+              description: Veja meus serviços
+              iconType: store
+              isActive: true
+      responses:
+        '201':
+          description: Link criado.
+        '400':
+          description: Dados de link inválidos.
+      x-api-scope: links:write
+  /profiles/{id}/links/reorder:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      tags:
+        - Conteúdo
+      operationId: reorderLinks
+      summary: Mudar ordem dos links
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - orderedIds
+              properties:
+                orderedIds:
+                  type: array
+                  items:
+                    type: string
+            example:
+              orderedIds:
+                - ID_LINK_1
+                - ID_LINK_2
+      responses:
+        '200':
+          description: Ordem atualizada.
+      x-api-scope: links:write
+  /profiles/{id}/links/{linkId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: linkId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      tags:
+        - Conteúdo
+      operationId: updateLink
+      summary: Editar link
+      x-mcp-available: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 80
+                url:
+                  type: string
+                  format: uri
+                description:
+                  type: string
+                  maxLength: 140
+                iconType:
+                  type: string
+                  enum:
+                    - link
+                    - map
+                    - store
+                    - calendar
+                    - phone
+                    - globe
+                isActive:
+                  type: boolean
+            example:
+              title: Meu novo catálogo
+      responses:
+        '200':
+          description: Link atualizado.
+      x-api-scope: links:write
+    delete:
+      tags:
+        - Conteúdo
+      operationId: deleteLink
+      summary: Remover link
+      x-mcp-available: true
+      responses:
+        '200':
+          description: Link removido.
+      x-api-scope: links:write
+  /profiles/{id}/publish:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags:
+        - Perfis
+      operationId: publishProfile
+      summary: Publicar página
+      description: Torna o perfil visível publicamente.
+      x-mcp-available: true
+      responses:
+        '200':
+          description: Perfil publicado.
+        '403':
+          description: Perfil não pertence à sua conta.
+      x-api-scope: profiles:publish
+    delete:
+      tags:
+        - Perfis
+      operationId: unpublishProfile
+      summary: Tirar página do ar
+      x-mcp-available: true
+      responses:
+        '200':
+          description: Perfil despublicado.
+        '403':
+          description: Perfil não pertence à sua conta.
+      x-api-scope: profiles:publish
+  /public/profiles/{slug}:
+    parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Endereço público do perfil.
+    get:
+      tags:
+        - Público
+      operationId: getPublicProfile
+      summary: Consultar página pública
+      security: []
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Conteúdo do perfil publicado.
+        '404':
+          description: Página não encontrada ou não publicada.
+      x-api-scope: public:read
+  /public/profiles/{slug}/availability:
+    parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Público
+      operationId: getPublicAvailability
+      summary: Consultar horários disponíveis
+      description: Disponível sem autenticação; horários dependem da agenda configurada.
+      security: []
+      x-mcp-available: false
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: service
+          in: query
+          required: false
+          schema:
+            type: string
+          description: ID público do serviço.
+      responses:
+        '200':
+          description: Horários disponíveis.
+        '404':
+          description: Página não encontrada.
+      x-api-scope: public:read
+  /public/profiles/{slug}/booking:
+    parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Público
+      operationId: getPublicBookingPage
+      summary: Consultar página de agendamento
+      security: []
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Dados públicos para agendamento.
+        '404':
+          description: Página não encontrada.
+      x-api-scope: public:read
+  /public/profiles/{slug}/bookings:
+    parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags:
+        - Público
+      operationId: createPublicBooking
+      summary: Criar reserva
+      description: Pode registrar dados pessoais e criar evento no calendário. Não disponível como ferramenta MCP.
+      security:
+        - LinkIABearer: []
+      x-mcp-available: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - startIso
+                - idempotencyKey
+                - clientName
+                - clientPhone
+              properties:
+                startIso:
+                  type: string
+                  format: date-time
+                idempotencyKey:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                clientName:
+                  type: string
+                  minLength: 2
+                  maxLength: 80
+                clientPhone:
+                  type: string
+                  description: "WhatsApp com DDD/DDI, de 10 a 15 dígitos."
+                servicePublicId:
+                  type: string
+                notes:
+                  type: string
+                  maxLength: 300
+              additionalProperties: false
+            example:
+              startIso: '2026-12-01T14:00:00.000Z'
+              idempotencyKey: reserva-cliente-001
+              clientName: Ana Silva
+              clientPhone: '5511999999999'
+              notes: Prefere contato pelo WhatsApp
+      responses:
+        '201':
+          description: Reserva criada.
+        '400':
+          description: Horário ou dados inválidos.
+        '409':
+          description: Horário não disponível.
+      x-api-scope: booking:create
+  /public/profiles/{slug}/catalog:
+    parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Público
+      operationId: getPublicCatalog
+      summary: Consultar serviços e produtos publicados
+      security: []
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Itens visíveis na página pública.
+        '404':
+          description: Página não encontrada.
+      x-api-scope: public:read
+  /uploads:
+    post:
+      tags:
+        - Integrações internas
+      operationId: uploadFile
+      summary: Enviar imagem
+      description: Envio multipart/form-data de um campo `file`. Não é uma ferramenta MCP.
+      x-mcp-available: false
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Arquivo recebido.
+        '400':
+          description: Arquivo ausente ou não aceito.
+  /uploads/{filename}:
+    parameters:
+      - name: filename
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - Integrações internas
+      operationId: getUploadedFile
+      summary: Consultar arquivo enviado
+      security: []
+      x-mcp-available: false
+      responses:
+        '200':
+          description: Conteúdo do arquivo.
+        '404':
+          description: Arquivo não encontrado.
+  /webhooks/zernio/whatsapp:
+    post:
+      tags:
+        - Integrações internas
+      operationId: zernioWhatsAppWebhook
+      summary: Receber evento de WhatsApp
+      description: Endpoint de integração que valida assinatura e identificadores do evento. Não chamar como usuário ou agente.
+      x-mcp-available: false
+      security: []
+      parameters:
+        - name: x-zernio-signature
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-zernio-event-id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-zernio-event
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Evento aceito.
+        '400':
+          description: Evento inválido.
+        '401':
+          description: Assinatura inválida.
+components:
+  securitySchemes:
+    LinkIABearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Chave pessoal fornecida pelo administrador do LinkIA.

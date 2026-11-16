@@ -339,6 +339,37 @@ function initSchema(db: Database.Database): void {
     );
 
 
+    CREATE TABLE IF NOT EXISTS api_access_tokens (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL,
+      label TEXT NOT NULL,
+      scopes_json TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      last_used_at TEXT,
+      revoked_at TEXT,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_api_access_tokens_owner
+      ON api_access_tokens(owner_id, created_at DESC);
+    CREATE TABLE IF NOT EXISTS api_access_rate_limits (
+      token_id TEXT PRIMARY KEY,
+      window_start INTEGER NOT NULL,
+      request_count INTEGER NOT NULL,
+      FOREIGN KEY (token_id) REFERENCES api_access_tokens(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS api_mcp_rate_limits (
+      token_id TEXT PRIMARY KEY,
+      window_start INTEGER NOT NULL,
+      request_count INTEGER NOT NULL,
+      FOREIGN KEY (token_id) REFERENCES api_access_tokens(id) ON DELETE CASCADE
+    );
+
+
+
     CREATE TABLE IF NOT EXISTS codex_device_connections (
       owner_id TEXT PRIMARY KEY,
       status TEXT NOT NULL CHECK (status IN ('pending', 'connected', 'disconnected')),

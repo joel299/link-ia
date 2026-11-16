@@ -285,3 +285,10 @@ Auditoria completa solicitada por Joel, **sem alterar código funcional, sem com
 - O servidor apresenta URL e código temporário ao usuário autenticado, consulta `codex login status`, permite desconectar e executa análises com `codex exec --ephemeral --sandbox read-only` em workspace isolado. O prompt administrativo continua privado no servidor.
 - Docker instala o Codex CLI e os arquivos de exemplo/Compose usam `CODEX_BIN` e `CODEX_HOME_ROOT`. As variáveis de OAuth e criptografia do desenho antigo foram removidas do exemplo.
 - `npm run typecheck` e `npm run lint` passaram na cópia local; lint manteve quatro avisos preexistentes de `<img>`. Vitest não iniciou por EPERM no Vite, e o CLI Codex não está instalado no host para validar login real. Build da imagem, device-code real e produção permanecem pendentes.
+
+
+### API pública e MCP para agentes (16/11/2026)
+- Inventário documentado: 48 arquivos de rota e 68 operações HTTP; guias em português mostram campos obrigatórios e exemplos para usar as requisições. O catálogo OpenAPI não significa que todas as operações sejam autorizadas para MCP.
+- A API versionada usa JWT individual, escopos, expiração, revogação e limite de uso. O MCP Streamable HTTP (`/mcp` e `/v1/mcp`) oferece 19 operações selecionadas, filtradas pelas permissões do token; administração e ações sensíveis permanecem fora. O host falha fechado sem `APP_BASE_URL` e o transporte tem limite de 120 requisições por minuto por token.
+- Scalar: OpenAPI, guias, tema e configuração preparados. Registry, SDK e projeto Docs ainda não foram publicados por falta de sessão/namespace Scalar confirmado. `/v1/api/docs` depende de `SCALAR_DOCS_URL`; emissão de token depende de `API_JWT_SECRET`.
+- Validação local: typecheck e lint passaram (4 avisos preexistentes de `<img>`); teste Vitest bloqueado por EPERM ao resolver Vite. Build Docker do commit de IA passou no CI. Fluxo JWT/MCP em produção não foi testado nesta etapa.

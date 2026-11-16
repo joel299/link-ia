@@ -1,0 +1,31 @@
+{
+  "$schema": "https://registry.scalar.com/@scalar/schemas/config",
+  "scalar": "2.0.0",
+  "info": {
+    "title": "LinkIA API",
+    "description": "Entenda e use os dados e recursos da sua conta LinkIA. A chave de acesso é pessoal e respeita as permissões liberadas pelo administrador."
+  },
+  "navigation": {
+    "routes": {
+      "/": { "type": "page", "title": "Visão geral", "filepath": "./intro.md" },
+      "/quickstart": { "type": "page", "title": "Primeira chamada", "filepath": "./quickstart.md" },
+      "/authentication": { "type": "page", "title": "Acesso e segurança", "filepath": "./authentication.md" },
+      "/endpoints": { "type": "page", "title": "O que cada rota faz", "filepath": "./endpoints.md" },
+      "/api": {
+        "type": "openapi",
+        "title": "Referência interativa da API",
+        "namespace": "__SCALAR_TEAM_NAMESPACE__",
+        "slug": "linkia-api",
+        "mode": "nested",
+        "config": {
+          "authentication": { "preferredSecurityScheme": "bearerAuth" }
+        }
+      }
+    }
+  },
+  "siteConfig": {
+    "theme": "./linkia-theme.css",
+    "colorScheme": { "default": "dark" },
+    "subpath": "/v1/api/docs"
+  }
+}
