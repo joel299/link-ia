@@ -292,3 +292,10 @@ Auditoria completa solicitada por Joel, **sem alterar código funcional, sem com
 - A API versionada usa JWT individual, escopos, expiração, revogação e limite de uso. O MCP Streamable HTTP (`/mcp` e `/v1/mcp`) oferece 19 operações selecionadas, filtradas pelas permissões do token; administração e ações sensíveis permanecem fora. O host falha fechado sem `APP_BASE_URL` e o transporte tem limite de 120 requisições por minuto por token.
 - Scalar: OpenAPI, guias, tema e configuração preparados. Registry, SDK e projeto Docs ainda não foram publicados por falta de sessão/namespace Scalar confirmado. `/v1/api/docs` depende de `SCALAR_DOCS_URL`; emissão de token depende de `API_JWT_SECRET`.
 - Validação local: typecheck e lint passaram (4 avisos preexistentes de `<img>`); teste Vitest bloqueado por EPERM ao resolver Vite. Build Docker do commit de IA passou no CI. Fluxo JWT/MCP em produção não foi testado nesta etapa.
+
+
+### Correção do fluxo device-code do Codex (16/11/2026)
+- O painel abre a URL oficial do playbook no clique e exibe imediatamente o estado de autorização; o código é atualizado pelo polling conforme o CLI escreve a saída.
+- O parser agora reconhece o prompt atual do CLI, que inclui o prazo entre parênteses antes do código, além de remover ANSI e aceitar códigos com ou sem hífen.
+- Validação local: typecheck e ESLint dos arquivos alterados passaram. O teste Vitest foi bloqueado por EPERM ao resolver o módulo Vite; Codex CLI não está instalado localmente. Build de produção, CI do novo commit, autenticação real e produção ainda precisam ser confirmados.
+- Próxima ação: após o build/deploy, iniciar uma conexão com uma conta de teste, confirmar a abertura da URL e a exibição do código, concluir a autorização e verificar o status conectado sem recarregar.

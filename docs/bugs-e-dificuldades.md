@@ -446,3 +446,11 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Estado:** API/MCP e guias publicados no GitHub; Scalar Registry/Docs e validação de ponta a ponta ainda pendentes.
 - **Dependências de ambiente:** `API_JWT_SECRET` para emitir tokens e `SCALAR_DOCS_URL` para a rota de documentação. O namespace Scalar ainda precisa ser confirmado após login e conferência de duplicidade.
 - **Validação:** typecheck e lint passaram (4 avisos de `<img>`); Vitest não iniciou por EPERM no Vite. O teste com token real, transporte MCP e produção ainda não foi executado. A validação de host falha fechado sem `APP_BASE_URL`; o transporte MCP limita 120 requisições por minuto e os lotes JSON-RPC respondem como JSON.
+
+
+### AI-003 — código do login Codex não aparecia (16/11/2026)
+- **Sintoma:** ao clicar em conectar, a página oficial não abria automaticamente e a tela podia permanecer sem código.
+- **Causa confirmada:** o painel só oferecia a URL após a resposta do CLI e o parser não pulava o texto de expiração entre “one-time code” e o código. O prompt atual do CLI inclui “(expires in 15 minutes)”.
+- **Correção:** abrir a URL fixa `https://auth.openai.com/codex/device` no gesto do clique, marcar a tela como pendente imediatamente, manter o link manual e atualizar o parser/polling para renderizar o código quando chegar. O domínio não vem de entrada do usuário.
+- **Validação local:** typecheck e ESLint passaram; Vitest não iniciou por EPERM no Vite. CLI Codex não está instalado localmente; fluxo real permanece pendente do ambiente com imagem atualizada.
+- **Próxima ação:** validar device-code em produção após o deploy, sem registrar nem compartilhar o código temporário.

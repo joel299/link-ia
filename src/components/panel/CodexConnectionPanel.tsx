@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 
+const CODEX_DEVICE_URL = "https://auth.openai.com/codex/device";
 type Connection = {
   connected: boolean;
   status: "connected" | "pending" | "disconnected";
@@ -35,14 +36,17 @@ export function CodexConnectionPanel() {
   async function connect() {
     setBusy(true);
     setMessage("");
+    window.open(CODEX_DEVICE_URL, "_blank", "noopener,noreferrer");
+    setStatus({ ...initial, status: "pending", verificationUrl: CODEX_DEVICE_URL });
     try {
       const response = await fetch("/api/ai/codex/connect", { method: "POST" });
       const data = await response.json().catch(() => ({})) as Partial<Connection> & { error?: string };
       if (!response.ok) throw new Error(data.error || "Não foi possível iniciar o login do Codex.");
-      setStatus({ ...initial, status: "pending", verificationUrl: data.verificationUrl || null, userCode: data.userCode || null });
+      setStatus({ ...initial, status: "pending", verificationUrl: CODEX_DEVICE_URL, userCode: data.userCode || null });
       setMessage("O Codex iniciou o login. Se o código ainda não apareceu, aguarde alguns segundos.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível iniciar a conexão.");
+      void refresh();
     } finally { setBusy(false); }
   }
 
@@ -80,7 +84,7 @@ export function CodexConnectionPanel() {
         {status.status === "pending" ? (
           <div className="editor-section" style={{ display: "grid", gap: 12, marginTop: 16 }}>
             <p className="field-hint">Abra a página oficial da OpenAI, informe o código abaixo e conclua o login da sua conta.</p>
-            {status.verificationUrl ? <a className="btn btn-secondary" href={status.verificationUrl} target="_blank" rel="noreferrer">Abrir autenticação oficial</a> : <p className="field-hint">Gerando o endereço e o código de autenticação…</p>}
+            {status.verificationUrl ? <a className="btn btn-secondary" href={status.verificationUrl || CODEX_DEVICE_URL} target="_blank" rel="noopener noreferrer">Abrir autenticação oficial</a> : <p className="field-hint">Gerando o endereço e o código de autenticação…</p>}
             {status.userCode ? <div><label className="field-label" htmlFor="codex-device-code">Código temporário</label><div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><input id="codex-device-code" className="input" readOnly value={status.userCode} style={{ maxWidth: 240, fontFamily: "monospace", letterSpacing: ".12em" }} /><button type="button" className="btn btn-secondary" onClick={() => void copyCode()}>Copiar código</button></div></div> : <p className="field-hint" role="status">Aguardando o Codex gerar o código…</p>}
             <p className="field-hint" role="status">Depois de autorizar, esta tela reconhecerá a conexão automaticamente.</p>
           </div>

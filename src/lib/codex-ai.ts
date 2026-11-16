@@ -78,11 +78,14 @@ async function prepareHome(ownerId: string) {
 function appendOutput(session: LoginProcess, chunk: Buffer | string) {
   const clean = String(chunk).replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "");
   session.output = (session.output + clean).slice(-outputLimit);
-  const urlMatch = session.output.match(/https:\/\/auth\.openai\.com\/codex\/device\b/i);
-  if (urlMatch) session.verificationUrl = DEVICE_URL;
-  const contextual = session.output.match(/(?:user|device|verification|one[- ]time)\s+code\s*(?:is|:|=)?\s*([A-Z0-9-]{6,20})/i);
-  const formatted = session.output.match(/\b([A-Z0-9]{4}-[A-Z0-9]{4})\b/);
-  session.userCode = contextual?.[1] || formatted?.[1] || session.userCode;
+  session.userCode = extractCodexUserCode(session.output) || session.userCode;
+}
+
+export function extractCodexUserCode(output: string): string | null {
+  const clean = output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "");
+  const contextual = clean.match(/(?:user|device|verification|one[- ]time)\s+code(?:\s*\([^)]*\))?\s*(?:is|:|=)?\s*([A-Z0-9-]{6,20})/i);
+  const formatted = clean.match(/\b([A-Z0-9]{4}-[A-Z0-9]{4})\b/);
+  return contextual?.[1] || formatted?.[1] || null;
 }
 
 export async function startCodexDeviceLogin(ownerId: string) {
@@ -93,7 +96,7 @@ export async function startCodexDeviceLogin(ownerId: string) {
   const child = spawn(codexBinary(), ["login", "--device-auth"], { env: safeEnv(home), stdio: ["pipe", "pipe", "pipe"], windowsHide: true, shell: false });
   child.stdin.end();
   const session: LoginProcess = {
-    child, output: "", verificationUrl: null, userCode: null, startedAt: Date.now(), exitCode: null,
+    child, output: "", verificationUrl: DEVICE_URL, userCode: null, startedAt: Date.now(), exitCode: null,
     timer: setTimeout(() => { if (loginProcesses.get(ownerId) === session) stopLogin(ownerId); }, LOGIN_TTL_MS),
   };
   loginProcesses.set(ownerId, session);
