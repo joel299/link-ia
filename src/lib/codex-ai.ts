@@ -17,6 +17,7 @@ export const CODEX_MODELS = models;
 export const CODEX_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type CodexEffort = (typeof CODEX_EFFORTS)[number];
 type LoginProcess = {
+  ownerId: string;
   child: ChildProcessWithoutNullStreams;
   output: string;
   verificationUrl: string | null;
@@ -78,12 +79,19 @@ async function prepareHome(ownerId: string) {
 function appendOutput(session: LoginProcess, chunk: Buffer | string) {
   const clean = String(chunk).replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "");
   session.output = (session.output + clean).slice(-outputLimit);
-  session.userCode = extractCodexUserCode(session.output) || session.userCode;
+  const userCode = extractCodexUserCode(session.output);
+  if (userCode && userCode !== session.userCode) {
+    session.userCode = userCode;
+    getDb().prepare("UPDATE codex_device_connections SET device_code=?, updated_at=? WHERE owner_id=? AND status='pending'")
+      .run(userCode, new Date().toISOString(), session.ownerId);
+  }
 }
 
 export function extractCodexUserCode(output: string): string | null {
-  const clean = output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "");
-  const contextual = clean.match(/(?:user|device|verification|one[- ]time)\s+code(?:\s*\([^)]*\))?\s*(?:is|:|=)?\s*([A-Z0-9-]{6,20})/i);
+  const clean = output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "").replace(/\r/g, "");
+  const contextual = clean.match(/(?:user|device|verification|one[- ]time)\s+code(?:\s*\([^)]*\))?\s*(?:is|:|=)?\s*([A-Z0-9-]{6,20})/i)
+    || clean.match(/(?:enter|type|input|use)\s+(?:the\s+)?(?:9-character\s+)?code\s*[:=]?\s*([A-Z0-9-]{6,20})/i)
+    || clean.match(/\bcode\s*[:=]\s*([A-Z0-9]{4}-[A-Z0-9]{4})\b/i);
   const formatted = clean.match(/\b([A-Z0-9]{4}-[A-Z0-9]{4})\b/);
   return contextual?.[1] || formatted?.[1] || null;
 }
@@ -96,7 +104,7 @@ export async function startCodexDeviceLogin(ownerId: string) {
   const child = spawn(codexBinary(), ["login", "--device-auth"], { env: safeEnv(home), stdio: ["pipe", "pipe", "pipe"], windowsHide: true, shell: false });
   child.stdin.end();
   const session: LoginProcess = {
-    child, output: "", verificationUrl: DEVICE_URL, userCode: null, startedAt: Date.now(), exitCode: null,
+    ownerId, child, output: "", verificationUrl: DEVICE_URL, userCode: null, startedAt: Date.now(), exitCode: null,
     timer: setTimeout(() => { if (loginProcesses.get(ownerId) === session) stopLogin(ownerId); }, LOGIN_TTL_MS),
   };
   loginProcesses.set(ownerId, session);
@@ -105,7 +113,7 @@ export async function startCodexDeviceLogin(ownerId: string) {
   child.on("error", () => {
     session.exitCode = 127;
     clearTimeout(session.timer);
-    getDb().prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, updated_at) VALUES (?, 'disconnected', NULL, ?) ON CONFLICT(owner_id) DO UPDATE SET status='disconnected', connected_at=NULL, updated_at=excluded.updated_at").run(ownerId, new Date().toISOString());
+    getDb().prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, device_code, device_login_expires_at, updated_at) VALUES (?, 'disconnected', NULL, NULL, NULL, ?) ON CONFLICT(owner_id) DO UPDATE SET status='disconnected', connected_at=NULL, device_code=NULL, device_login_expires_at=NULL, updated_at=excluded.updated_at").run(ownerId, new Date().toISOString());
   });
   child.on("close", (code) => {
     session.exitCode = code ?? 1;
@@ -114,8 +122,10 @@ export async function startCodexDeviceLogin(ownerId: string) {
       getDb().prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, updated_at) VALUES (?, 'disconnected', NULL, ?) ON CONFLICT(owner_id) DO UPDATE SET status='disconnected', connected_at=NULL, updated_at=excluded.updated_at").run(ownerId, new Date().toISOString());
     }
   });
-  getDb().prepare(`INSERT INTO codex_device_connections (owner_id, status, connected_at, updated_at) VALUES (?, 'pending', NULL, ?)
-    ON CONFLICT(owner_id) DO UPDATE SET status='pending', connected_at=NULL, updated_at=excluded.updated_at`).run(ownerId, new Date().toISOString());
+  const now = new Date();
+  getDb().prepare(`INSERT INTO codex_device_connections (owner_id, status, connected_at, device_code, device_login_expires_at, updated_at) VALUES (?, 'pending', NULL, NULL, ?, ?)
+    ON CONFLICT(owner_id) DO UPDATE SET status='pending', connected_at=NULL, device_code=NULL, device_login_expires_at=excluded.device_login_expires_at, updated_at=excluded.updated_at`)
+    .run(ownerId, new Date(now.getTime() + LOGIN_TTL_MS).toISOString(), now.toISOString());
   return loginSnapshot(session);
 }
 
@@ -153,8 +163,13 @@ export async function isCodexConnected(ownerId: string): Promise<boolean> {
   if (prior) return prior;
   const check = runCli(ownerId, ["login", "status"], undefined, 10_000).then(({ code, output }) => {
     const loggedIn = code === 0 && /logged in/i.test(output);
-    getDb().prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(owner_id) DO UPDATE SET status=excluded.status, connected_at=CASE WHEN excluded.status='connected' THEN COALESCE(codex_device_connections.connected_at, excluded.connected_at) ELSE NULL END, updated_at=excluded.updated_at")
-      .run(ownerId, loggedIn ? "connected" : "disconnected", loggedIn ? new Date().toISOString() : null, new Date().toISOString());
+    const db = getDb();
+    const current = db.prepare("SELECT status, device_login_expires_at FROM codex_device_connections WHERE owner_id=?").get(ownerId) as { status: string; device_login_expires_at: string | null } | undefined;
+    const pending = current?.status === "pending" && Boolean(current.device_login_expires_at) && Date.parse(current.device_login_expires_at!) > Date.now();
+    if (loggedIn || !pending) {
+      db.prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, device_code, device_login_expires_at, updated_at) VALUES (?, ?, ?, NULL, NULL, ?) ON CONFLICT(owner_id) DO UPDATE SET status=excluded.status, connected_at=CASE WHEN excluded.status='connected' THEN COALESCE(codex_device_connections.connected_at, excluded.connected_at) ELSE NULL END, device_code=NULL, device_login_expires_at=NULL, updated_at=excluded.updated_at")
+        .run(ownerId, loggedIn ? "connected" : "disconnected", loggedIn ? new Date().toISOString() : null, new Date().toISOString());
+    }
     if (running && loginProcesses.get(ownerId) === running) loginProcesses.delete(ownerId);
     return loggedIn;
   }).catch(() => {
@@ -168,12 +183,18 @@ export async function isCodexConnected(ownerId: string): Promise<boolean> {
 export async function getCodexConnectionStatus(ownerId: string) {
   const session = loginProcesses.get(ownerId);
   const connected = await isCodexConnected(ownerId);
-  const row = getDb().prepare("SELECT connected_at FROM codex_device_connections WHERE owner_id=?").get(ownerId) as { connected_at: string | null } | undefined;
+  const db = getDb();
+  let row = db.prepare("SELECT status, connected_at, device_code, device_login_expires_at FROM codex_device_connections WHERE owner_id=?").get(ownerId) as { status: string; connected_at: string | null; device_code: string | null; device_login_expires_at: string | null } | undefined;
+  if (row?.status === "pending" && (!row.device_login_expires_at || Date.parse(row.device_login_expires_at) <= Date.now())) {
+    db.prepare("UPDATE codex_device_connections SET status='disconnected', device_code=NULL, device_login_expires_at=NULL, updated_at=? WHERE owner_id=?").run(new Date().toISOString(), ownerId);
+    row = { ...row, status: "disconnected", device_code: null };
+  }
+  const pending = row?.status === "pending";
   return {
     connected,
-    status: connected ? "connected" : session && session.exitCode === null ? "pending" : "disconnected",
-    verificationUrl: !connected && session?.exitCode === null ? session.verificationUrl : null,
-    userCode: !connected && session?.exitCode === null ? session.userCode : null,
+    status: connected ? "connected" : pending ? "pending" : session && session.exitCode === null ? "pending" : "disconnected",
+    verificationUrl: !connected && pending ? DEVICE_URL : !connected && session?.exitCode === null ? session.verificationUrl : null,
+    userCode: !connected && pending ? row?.device_code || session?.userCode || null : !connected && session?.exitCode === null ? session.userCode : null,
     connectedAt: connected ? row?.connected_at ?? null : null,
     configured: true,
   };
