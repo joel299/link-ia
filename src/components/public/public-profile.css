@@ -429,6 +429,8 @@
   opacity: 0.88;
 }
 
+
+
 /* Mobile: keep links readable and controls easy to tap on narrow screens. */
 @media (max-width: 480px) {
   .public-page-shell {
@@ -1035,4 +1037,124 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   opacity: 0.88;
+}
+
+/* Mobile layout: use the available screen width and give profile actions
+   enough scale to feel native on a phone instead of a shrunken desktop page. */
+@media (max-width: 600px) {
+  .public-page-shell,
+  .public-page-shell.is-preview {
+    min-height: 100svh;
+    padding: 24px 16px 28px;
+  }
+
+  .public-page-shell.has-cover {
+    padding-top: 0;
+  }
+
+  .public-cover {
+    height: clamp(160px, 25svh, 220px);
+    width: calc(100% + 32px);
+  }
+
+  .public-page-shell.is-preview .public-cover {
+    height: clamp(140px, 22svh, 180px);
+  }
+
+  .public-profile-container,
+  .public-page-shell.has-cover .public-profile-container {
+    width: 100%;
+    max-width: 480px;
+    gap: 24px;
+  }
+
+  .public-profile-header {
+    gap: 14px;
+  }
+
+  .public-avatar-ring {
+    width: clamp(136px, 38vw, 160px);
+    height: clamp(136px, 38vw, 160px);
+    padding: 4px;
+  }
+
+  .public-avatar-img,
+  .public-avatar-fallback {
+    width: 100%;
+    height: 100%;
+  }
+
+  .public-avatar-fallback {
+    font-size: clamp(2rem, 9vw, 2.6rem);
+  }
+
+  .public-profile-name {
+    font-size: clamp(1.75rem, 7vw, 2.125rem);
+    line-height: 1.15;
+  }
+
+  .public-profile-bio {
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+
+  .public-actions-list {
+    gap: 14px;
+  }
+
+  .public-action-link {
+    min-height: 76px;
+    padding: 14px 16px;
+    gap: 14px;
+    border-radius: max(var(--pub-radius), 16px);
+  }
+
+  .public-action-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  .public-action-label {
+    font-size: 1.0625rem;
+    line-height: 1.3;
+  }
+
+  .public-action-sublabel {
+    font-size: 0.9375rem;
+    line-height: 1.35;
+  }
+
+  .public-action-arrow {
+    width: 20px;
+    height: 20px;
+  }
+
+  .public-social-section {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .public-social-title {
+    font-size: 1rem;
+  }
+
+  .public-social-pending {
+    font-size: 0.9375rem;
+  }
+
+  .public-social-stats,
+  .public-social-caption {
+    font-size: 0.875rem;
+  }
+
+  .public-social-badge {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+  }
+
+  .public-footer {
+    margin-top: 28px;
+    font-size: 0.875rem;
+  }
 }

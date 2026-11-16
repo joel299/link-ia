@@ -248,3 +248,10 @@ Auditoria completa solicitada por Joel, **sem alterar código funcional, sem com
 - **Ajuste responsivo:** o menu agora mantém largura legível em viewport estreita e se alinha pela borda direita para não sair da tela. A página pública usa espaçamento fluido, títulos e rótulos maiores e links com área de toque mínima de 64px em telas de até 480px (`src/components/panel/panel.css`, `src/components/public/public-profile.css`).
 - **Validação:** `npm run typecheck` passou; `npm run lint` passou com quatro avisos preexistentes de `<img>`. `npm test` bloqueado por EPERM ao resolver `node_modules/vite` no ambiente Windows. Visualização local não confirmada nesta execução.
 - **Próxima ação:** após sincronizar o commit, conferir o painel publicado em desktop e mobile.
+
+
+### Ajuste de escala mobile da página pública (16/11/2026)
+- **Causa observada no CSS:** o avatar permanecia em 104 px e os links tinham altura mínima de 64 px; o ajuste anterior não aumentava o conteúdo o bastante para parecer dimensionado para celular.
+- **Correção enviada:** em viewports de até 600 px, layout usa a largura disponível, avatar fluido de 136–160 px, nome/bio em tipografia maior, ações com 76 px de altura mínima e ícones de 44 px. A dimensão intrínseca da imagem foi alinhada a 160 px.
+- **Validação:** `npm run typecheck` passou; `npm run lint` passou com quatro avisos preexistentes de `<img>`. Inicialização local tentou abrir em `http://127.0.0.1:3000`, mas o SWC falhou ao canonicalizar o diretório do workspace (Acesso negado, erro 5); inspeção visual em navegador ficou pendente.
+- **Próxima ação:** após o deploy, conferir o perfil público em aparelhos ou viewports de 390 px e 600 px; teste local de navegador não foi concluído nesta sessão.

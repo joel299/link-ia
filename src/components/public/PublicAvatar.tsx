@@ -18,8 +18,8 @@ export function PublicAvatar({ avatarUrl, displayName }: PublicAvatarProps) {
         key={avatarUrl}
         src={avatarUrl}
         alt={`Foto de ${displayName || "perfil"}`}
-        width={96}
-        height={96}
+        width={160}
+        height={160}
         className="public-avatar-img"
         onError={() => setFailedUrl(avatarUrl)}
       />

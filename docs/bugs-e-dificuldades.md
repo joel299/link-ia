@@ -390,3 +390,12 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Decisão:** manter EDIT-003 aberto e não inferir que a nova interface foi publicada. Nenhuma melhoria funcional foi implementada nesta auditoria.
 - **Atualização de publicação:** commit `032870492cf6eecb7ee0b2307b44131d69c36ef0` foi enviado para `main`; o workflow de imagem Coolify estava construindo a imagem e ainda não havia chegado ao gatilho de deploy na última consulta.
 - **Próxima ação:** após o workflow/deploy terminar, verificar em browser os fluxos e dimensões documentados em EDIT-003; abrir melhoria funcional separada para EDIT-001 (intervalos de expediente e pausa de almoço).
+
+
+### UI-002 — componentes da página pública pequenos em celulares (16/11/2026)
+- **Prioridade:** P1 (legibilidade e interação em mobile).
+- **Sintoma:** avatar e controles de ação continuavam pequenos em telas de celular mesmo após o ajuste anterior.
+- **Causa confirmada no CSS:** avatar de 104 px, links com altura mínima de 64 px e regras mobile anteriores sem escala suficiente; há blocos CSS repetidos, então o override final foi colocado ao fim da folha para prevalecer.
+- **Correção:** media query até 600 px amplia avatar (136–160 px), tipografia, ícones (44 px), espaçamento e ações (76 px), com dimensões fluidas por viewport.
+- **Validação:** typecheck passou; lint sem erros (4 avisos preexistentes de `<img>`). Execução visual não confirmada porque o Next/SWC não conseguiu canonicalizar o diretório Windows (erro de acesso 5).
+- **Estado:** correção enviada ao GitHub; confirmação visual após deploy pendente.
