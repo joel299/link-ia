@@ -374,6 +374,8 @@ function initSchema(db: Database.Database): void {
       owner_id TEXT PRIMARY KEY,
       status TEXT NOT NULL CHECK (status IN ('pending', 'connected', 'disconnected')),
       connected_at TEXT,
+      device_code TEXT,
+      device_login_expires_at TEXT,
       updated_at TEXT NOT NULL,
       FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
     );
@@ -468,6 +470,8 @@ function initSchema(db: Database.Database): void {
     "ALTER TABLE profiles ADD COLUMN public_order_json TEXT",
     "ALTER TABLE profiles ADD COLUMN cover_url TEXT",
     "ALTER TABLE profiles ADD COLUMN cover_blur INTEGER NOT NULL DEFAULT 12",
+    "ALTER TABLE codex_device_connections ADD COLUMN device_code TEXT",
+    "ALTER TABLE codex_device_connections ADD COLUMN device_login_expires_at TEXT",
   ]) {
     try {
       db.exec(alterSql);
