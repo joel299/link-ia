@@ -306,7 +306,7 @@ export async function disconnectCodex(ownerId: string) {
 export async function runCodexAnalysis(args: { ownerId: string; model: string; effort: CodexEffort; prompt: string }) {
   if (!CODEX_EFFORTS.includes(args.effort)) throw new Error("Nível de análise inválido.");
   const availableModels = await getCodexModels(args.ownerId, true);
-  const selectedModel = availableModels.find((item) => item.id === args.model);
+  const selectedModel = availableModels.find((item) => item.id === args.model) ?? (args.model === preferredCodexModel.id ? preferredCodexModel : undefined);
   if (!selectedModel) throw new Error("O modelo escolhido não está disponível para esta conta. Atualize a lista de modelos e tente novamente.");
   if (!selectedModel.efforts.includes(args.effort)) throw new Error("Este nível de análise não é compatível com o modelo escolhido. Selecione outro nível e tente novamente.");
   const home = await prepareHome(args.ownerId);
@@ -315,7 +315,7 @@ export async function runCodexAnalysis(args: { ownerId: string; model: string; e
   if (process.platform !== "win32") await fs.chmod(workDir, 0o700);
   const outputPath = path.join(workDir, "answer.txt");
   try {
-    const result = await runCli(args.ownerId, ["--cd", workDir, "exec", "--ephemeral", "--sandbox", "read-only", "--ask-for-approval", "never", "--skip-git-repo-check", "--model", args.model, "--reasoning-effort", args.effort, "--output-last-message", outputPath, "-"], args.prompt, 90_000);
+    const result = await runCli(args.ownerId, ["--cd", workDir, "exec", "--ephemeral", "--sandbox", "read-only", "--ask-for-approval", "never", "--skip-git-repo-check", "--model", args.model, "--config", `model_reasoning_effort=${args.effort}`, "--output-last-message", outputPath, "-"], args.prompt, 90_000);
     if (result.code !== 0) throw new Error(getCodexAnalysisFailureMessage(result.output));
     const answer = (await fs.readFile(outputPath, "utf8")).trim();
     if (!answer) throw new Error("A IA não retornou uma análise concluída.");

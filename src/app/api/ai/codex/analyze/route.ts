@@ -51,6 +51,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ answer }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof AdsServiceError ? error.message : error instanceof Error ? error.message : "Não foi possível analisar as campanhas.";
-    return NextResponse.json({ error: message }, { status: error instanceof AdsServiceError ? error.status : 400 });
+    return NextResponse.json({ error: message }, { status: error instanceof AdsServiceError ? error.status : 502, headers: { "Cache-Control": "no-store" } });
   }
 }
