@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { extractCodexUserCode, getCodexLoginFailureMessage } from "../src/lib/codex-ai";
+import { extractCodexUserCode, getCodexDeviceLoginStatus, getCodexLoginFailureMessage } from "../src/lib/codex-ai";
+
+describe("Codex device login completion", () => {
+  it("treats successful CLI exit as connected and failures as disconnected", () => {
+    expect(getCodexDeviceLoginStatus(0)).toBe("connected");
+    expect(getCodexDeviceLoginStatus(1)).toBe("disconnected");
+    expect(getCodexDeviceLoginStatus(null)).toBe("disconnected");
+  });
+});
 
 describe("Codex device-code output", () => {
   it("extracts the code from the official CLI prompt with ANSI colors", () => {

@@ -104,6 +104,10 @@ export function extractCodexUserCode(output: string): string | null {
   return urlUserCode && codePattern.test(urlUserCode) ? urlUserCode : null;
 }
 
+export function getCodexDeviceLoginStatus(exitCode: number | null): "connected" | "disconnected" {
+  return exitCode === 0 ? "connected" : "disconnected";
+}
+
 export function getCodexLoginFailureMessage(output: string): string {
   const clean = output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "").toLowerCase();
   if (/chatgpt login is disabled|device code login is not enabled|device code authentication (?:is )?(?:disabled|not enabled)|device auth (?:is )?(?:disabled|not enabled)/i.test(clean)) {
@@ -141,9 +145,15 @@ export async function startCodexDeviceLogin(ownerId: string) {
   child.on("close", (code) => {
     session.exitCode = code ?? 1;
     clearTimeout(session.timer);
-    if (session.exitCode !== 0 && !session.userCode) {
-      session.errorMessage = getCodexLoginFailureMessage(session.output);
-      getDb().prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, device_code, device_login_expires_at, updated_at) VALUES (?, 'disconnected', NULL, NULL, NULL, ?) ON CONFLICT(owner_id) DO UPDATE SET status='disconnected', connected_at=NULL, device_code=NULL, device_login_expires_at=NULL, updated_at=excluded.updated_at").run(ownerId, new Date().toISOString());
+    if (loginProcesses.get(ownerId) === session) {
+      const completedAt = new Date().toISOString();
+      if (getCodexDeviceLoginStatus(session.exitCode) === "connected") {
+        getDb().prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, device_code, device_login_expires_at, updated_at) VALUES (?, 'connected', ?, NULL, NULL, ?) ON CONFLICT(owner_id) DO UPDATE SET status='connected', connected_at=excluded.connected_at, device_code=NULL, device_login_expires_at=NULL, updated_at=excluded.updated_at").run(ownerId, completedAt, completedAt);
+        loginProcesses.delete(ownerId);
+      } else {
+        session.errorMessage = getCodexLoginFailureMessage(session.output);
+        getDb().prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, device_code, device_login_expires_at, updated_at) VALUES (?, 'disconnected', NULL, NULL, NULL, ?) ON CONFLICT(owner_id) DO UPDATE SET status='disconnected', connected_at=NULL, device_code=NULL, device_login_expires_at=NULL, updated_at=excluded.updated_at").run(ownerId, completedAt);
+      }
     }
     session.output = "";
   });
