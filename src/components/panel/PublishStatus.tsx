@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import type { ProfileStatus } from "@/lib/types";
@@ -15,7 +14,6 @@ interface PublishStatusProps {
   isPublishing: boolean;
   isUnpublishing?: boolean;
   isDeleting?: boolean;
-  sectionNav?: ReactNode;
   onSave: () => void;
   onPublish: () => void;
   onUnpublish?: () => void;
@@ -30,7 +28,6 @@ export function PublishStatus({
   isPublishing,
   isUnpublishing = false,
   isDeleting = false,
-  sectionNav,
   onSave,
   onPublish,
   onUnpublish,
@@ -51,10 +48,6 @@ export function PublishStatus({
           >
             {isPublished ? "Publicado" : "Rascunho"}
           </span>
-          {sectionNav ? (
-            <div className="editor-section-nav">{sectionNav}</div>
-          ) : null}
-
           {publicPath ? (
             isPublished ? (
               <>

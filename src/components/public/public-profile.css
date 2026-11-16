@@ -429,6 +429,47 @@
   opacity: 0.88;
 }
 
+/* Mobile: keep links readable and controls easy to tap on narrow screens. */
+@media (max-width: 480px) {
+  .public-page-shell {
+    padding: 20px 12px 24px;
+  }
+
+  .public-page-shell.has-cover {
+    padding-right: 12px;
+    padding-bottom: 24px;
+    padding-left: 12px;
+  }
+
+  .public-profile-container,
+  .public-page-shell.has-cover .public-profile-container {
+    gap: 20px;
+  }
+
+  .public-profile-header {
+    gap: 12px;
+  }
+
+  .public-profile-name {
+    font-size: clamp(1.5rem, 7vw, 1.75rem);
+  }
+
+  .public-action-link {
+    min-height: 64px;
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .public-action-label {
+    font-size: 1rem;
+  }
+
+  .public-action-sublabel {
+    font-size: 0.875rem;
+    line-height: 1.35;
+  }
+}
+
 @media (prefers-reduced-transparency: reduce) {
   .public-action-link:not(.public-action-booking) {
     background: var(--pub-card-solid);
@@ -436,6 +477,7 @@
     backdrop-filter: none;
   }
 }
+
 
 /* Public Social Highlights (up to 3 opt-in Instagram posts/Reels) */
 .public-social-section {

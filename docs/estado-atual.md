@@ -240,3 +240,11 @@ Auditoria completa solicitada por Joel, **sem alterar código funcional, sem com
 - **Verificações executadas nesta retomada:** `npm run typecheck` passou; `npm run lint` passou com quatro avisos existentes de `<img>`; `npm test` não iniciou por `EPERM` ao resolver módulo do Vitest; `git diff --check` passou. A falha de build por acesso/canonicalização do caminho Windows segue registrada acima.
 - **Publicação do código:** commit `032870492cf6eecb7ee0b2307b44131d69c36ef0` enviado para `main` em 16/11. O workflow `Publish LinkIA Coolify Image` iniciou o build da imagem; o gatilho do Coolify ainda estava pendente na última consulta. Nenhum deploy manual foi executado.
 - **Decisão e próximo passo:** não implementar melhorias funcionais nesta fase, conforme o prompt de auditoria. Após o workflow concluir, confirmar que o deploy terminou e repetir o percurso visual em desktop/mobile. Abrir uma tarefa separada para EDIT-001 e os demais achados priorizados.
+
+### Correção do seletor de seções (16/11/2026)
+- **Escopo:** correção pontual do dropdown Profile, conforme `docs/Dropdawn Menu.md` e as imagens fornecidas.
+- **Causa confirmada:** o seletor era filho da barra de ações do editor; o painel seguinte cobria visualmente o menu aberto. A referência posiciona o seletor ao lado dos perfis publicados.
+- **Correção:** seletor renderizado no espaço ao lado da lista de perfis, mantendo opções, comportamento de teclado e navegação. Arquivos: `src/app/painel/page.tsx`, `src/components/panel/ProfileEditor.tsx`, `src/components/panel/PublishStatus.tsx` e `src/components/panel/panel.css`.
+- **Ajuste responsivo:** o menu agora mantém largura legível em viewport estreita e se alinha pela borda direita para não sair da tela. A página pública usa espaçamento fluido, títulos e rótulos maiores e links com área de toque mínima de 64px em telas de até 480px (`src/components/panel/panel.css`, `src/components/public/public-profile.css`).
+- **Validação:** `npm run typecheck` passou; `npm run lint` passou com quatro avisos preexistentes de `<img>`. `npm test` bloqueado por EPERM ao resolver `node_modules/vite` no ambiente Windows. Visualização local não confirmada nesta execução.
+- **Próxima ação:** após sincronizar o commit, conferir o painel publicado em desktop e mobile.

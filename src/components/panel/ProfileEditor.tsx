@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import {
   buildPreviewWhatsappUrl,
@@ -85,6 +86,7 @@ const CustomLinksPanel = dynamic(
 interface ProfileEditorProps {
   profile: Profile;
   permissions?: UserPermissions;
+  sectionNavTarget: HTMLElement | null;
   onProfileUpdated: (updated: Profile) => void;
   onProfileDeleted?: (deletedId: string) => void;
 }
@@ -149,6 +151,7 @@ const BUTTON_STYLES: { value: ButtonStyle; label: string }[] = [
 export function ProfileEditor({
   profile,
   permissions,
+  sectionNavTarget,
   onProfileUpdated,
   onProfileDeleted,
 }: ProfileEditorProps) {
@@ -587,18 +590,22 @@ export function ProfileEditor({
         isPublishing={isPublishing}
         isUnpublishing={isUnpublishing}
         isDeleting={isDeleting}
-        sectionNav={
-          <ProfileSectionsNav
-            sections={visibleSections}
-            activeKey={effectiveSection}
-            onSelect={requestSectionChange}
-          />
-        }
         onSave={saveProfile}
         onPublish={handlePublish}
         onUnpublish={handleUnpublish}
         onRequestDelete={handleRequestDelete}
       />
+
+      {sectionNavTarget
+        ? createPortal(
+            <ProfileSectionsNav
+              sections={visibleSections}
+              activeKey={effectiveSection}
+              onSelect={requestSectionChange}
+            />,
+            sectionNavTarget
+          )
+        : null}
 
       {pendingSection ? (
         <GlassSurface as="section" intensity="dense">

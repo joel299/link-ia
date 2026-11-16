@@ -67,6 +67,12 @@
   flex-wrap: wrap;
 }
 
+.profile-sections-slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 .profile-pill-btn {
   min-height: 44px;
   padding: 8px 14px;
@@ -1636,10 +1642,11 @@
   }
 
   .profile-sections-menu {
-    left: 0;
+    left: auto;
     right: 0;
-    width: auto;
-    max-width: none;
+    width: min(340px, calc(100vw - 32px));
+    min-width: min(280px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
   }
 
   .channel-cards {

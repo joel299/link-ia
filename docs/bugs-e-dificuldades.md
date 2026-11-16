@@ -367,6 +367,16 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Correção aplicada:** canais fazem `fetch` direto com atualização em `.then` (sem `setState` síncrono) e o hash é aplicado com `setTimeout(0)`; a página mantém apenas uma busca por canal, sem a duplicação do handler de retorno OAuth.
 - **Validação:** `npm run lint` → 0 erros.
 
+### UI-001 - Dropdown de seções encoberto no editor
+- **Data:** 16/11/2026
+- **Prioridade:** P2 (navegação do editor parcialmente invisível)
+- **Sintoma/evidência:** ao abrir o seletor Profile na barra de ações do editor, as opções ficavam visualmente encobertas pelo painel de conteúdo seguinte; a referência posiciona o controle junto à lista de perfis.
+- **Causa confirmada:** o seletor estava renderizado dentro da barra do editor, acima da superfície de conteúdo que o encobria.
+- **Correção:** renderizar o mesmo componente no espaço ao lado dos perfis, sem alterar os itens ou a lógica de navegação.
+- **Ajuste mobile:** a regra responsiva anterior esticava o menu apenas entre as bordas do botão, deixando-o estreito. O menu agora usa largura de 280–340px (limitada à viewport); a página pública também amplia textos e alvos de toque em celulares.
+- **Validação:** typecheck e lint passaram; lint manteve quatro avisos de `<img>`. Vitest não iniciou por EPERM ao resolver arquivo de `node_modules/vite`; inspeção visual local permanece pendente.
+- **Estado:** correção implementada; validação visual e deploy pendentes.
+
 ### Retomada EDIT-003 — auditoria da versão atual (16/11/2026)
 - **Estado:** parcialmente verificado; auditoria visual do baseline registrada, validação do editor reorganizado no commit local fa13140 pendente.
 - **Evidência:** a auditoria anterior documenta Chrome headless/CDP em 1440×900 e 390×844, incluindo o editor anterior. Na retomada, git status mostrou main um commit à frente de origin/main; portanto, não se usou a página de produção como prova do código local. npm run typecheck passou e npm run lint passou com 4 avisos; npm test foi bloqueado por EPERM no Vitest e npm run build pelo erro 5 de acesso/canonicalização do caminho Windows.

@@ -85,6 +85,8 @@ export default function PainelPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [createFieldErrors, setCreateFieldErrors] = useState<ValidationErrors>({});
   const [slugSuggestion, setSlugSuggestion] = useState<string | null>(null);
+  const [profileSectionsTarget, setProfileSectionsTarget] =
+    useState<HTMLDivElement | null>(null);
 
   function applySnapshot(snapshot: PanelSnapshot) {
     if (snapshot.unauthorized) {
@@ -294,6 +296,12 @@ export default function PainelPage() {
               </span>
             </button>
           ))}
+          {activeProfile ? (
+            <div
+              className="profile-sections-slot"
+              ref={setProfileSectionsTarget}
+            />
+          ) : null}
         </div>
 
         <button
@@ -434,6 +442,7 @@ export default function PainelPage() {
           key={activeProfile.id}
           profile={activeProfile}
           permissions={user?.permissions}
+          sectionNavTarget={profileSectionsTarget}
           onProfileUpdated={handleProfileUpdated}
           onProfileDeleted={handleProfileDeleted}
         />
