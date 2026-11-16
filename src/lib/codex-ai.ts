@@ -7,15 +7,62 @@ import { getDb } from "./db";
 const DEVICE_URL = "https://auth.openai.com/codex/device";
 const LOGIN_TTL_MS = 15 * 60_000;
 const outputLimit = 8 * 1024;
-const models = [
-  { id: "gpt-6-luna", label: "GPT-6 Luna" },
-  { id: "gpt-6.1-terra", label: "GPT-6.1 Terra" },
-  { id: "gpt-6.1-sol", label: "GPT-6.1 Sol" },
-  { id: "gpt-6-astra", label: "GPT-6 Astra" },
-];
-export const CODEX_MODELS = models;
 export const CODEX_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type CodexEffort = (typeof CODEX_EFFORTS)[number];
+export type CodexModel = { id: string; label: string; efforts: CodexEffort[] };
+const defaultEfforts = ["low", "medium", "high", "xhigh"] as CodexEffort[];
+let modelCatalogCache: { ownerId: string; expiresAt: number; models: CodexModel[] } | null = null;
+
+export function parseCodexModelCatalog(output: string): CodexModel[] {
+  let catalog: unknown;
+  try {
+    catalog = JSON.parse(output);
+  } catch {
+    const start = output.search(/[\[{]/);
+    if (start < 0) return [];
+    const end = Math.max(output.lastIndexOf("]"), output.lastIndexOf("}"));
+    if (end <= start) return [];
+    try { catalog = JSON.parse(output.slice(start, end + 1)); } catch { return []; }
+  }
+  const root = catalog && typeof catalog === "object" && !Array.isArray(catalog) ? catalog as Record<string, unknown> : null;
+  const candidates = Array.isArray(catalog) ? catalog : Array.isArray(root?.models) ? root.models : Array.isArray(root?.data) ? root.data : [];
+  return candidates.flatMap((candidate): CodexModel[] => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
+    const item = candidate as Record<string, unknown>;
+    if (item.hidden === true || item.is_available === false || item.available === false || item.status === "unavailable") return [];
+    const id = typeof item.slug === "string" ? item.slug : typeof item.id === "string" ? item.id : "";
+    if (!/^[a-z0-9][a-z0-9._-]{0,80}$/i.test(id)) return [];
+    const rawEfforts = item.supported_reasoning_levels ?? item.supported_reasoning_efforts ?? item.reasoning_efforts;
+    const efforts = Array.isArray(rawEfforts)
+      ? rawEfforts.flatMap((value): CodexEffort[] => {
+          const key = typeof value === "string" ? value : value && typeof value === "object" ? ((value as Record<string, unknown>).reasoning_level ?? (value as Record<string, unknown>).reasoning_effort ?? (value as Record<string, unknown>).effort) : null;
+          return typeof key === "string" && (CODEX_EFFORTS as readonly string[]).includes(key) ? [key as CodexEffort] : [];
+        })
+      : defaultEfforts;
+    return [{ id, label: typeof item.display_name === "string" ? item.display_name : typeof item.name === "string" ? item.name : id, efforts: efforts.length ? [...new Set(efforts)] : defaultEfforts }];
+  });
+}
+
+export async function getCodexModels(ownerId: string, refresh = false): Promise<CodexModel[]> {
+  if (!refresh && modelCatalogCache?.ownerId === ownerId && modelCatalogCache.expiresAt > Date.now()) return modelCatalogCache.models;
+  if (!(await isCodexConnected(ownerId))) throw new Error("A sessão Codex expirou. Reconecte sua conta e tente novamente.");
+  const result = await runCli(ownerId, ["debug", "models"], undefined, 25_000);
+  if (result.code !== 0) throw new Error("Não foi possível consultar os modelos disponíveis na sua sessão Codex. Atualize o Codex CLI no servidor e tente novamente.");
+  const available = parseCodexModelCatalog(result.output);
+  if (!available.length) throw new Error("A sessão Codex não retornou modelos disponíveis. Atualize o Codex CLI no servidor e tente novamente.");
+  modelCatalogCache = { ownerId, expiresAt: Date.now() + 5 * 60_000, models: available };
+  return available;
+}
+
+export function getCodexAnalysisFailureMessage(output: string): string {
+  const clean = output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "").toLowerCase();
+  if (/unsupported model|model.{0,40}(not found|not available|unavailable|does not exist)|unknown model/.test(clean)) return "O modelo escolhido não está disponível para esta conta. Atualize a lista de modelos e tente novamente.";
+  if (/reasoning.{0,40}(unsupported|not supported|invalid)|invalid.{0,30}reasoning/.test(clean)) return "Este nível de análise não é compatível com o modelo escolhido. Selecione outro nível e tente novamente.";
+  if (/rate limit|usage limit|too many requests|quota.{0,20}(exceeded|limit)/.test(clean)) return "O limite de uso desta conta foi atingido. Tente novamente mais tarde.";
+  if (/unauthorized|authentication|not logged in|token.{0,20}(expired|invalid)/.test(clean)) return "A autenticação Codex expirou ou foi recusada. Reconecte sua conta e tente novamente.";
+  if (/timed? out|timeout|network|connection reset|failed to connect|dns/.test(clean)) return "Não foi possível alcançar o serviço Codex agora. Confira a conexão do servidor e tente novamente.";
+  return "A análise falhou no Codex. Tente outro modelo ou nível de análise; se persistir, reconecte a conta.";
+}
 type LoginProcess = {
   ownerId: string;
   child: ChildProcessWithoutNullStreams;
@@ -240,8 +287,11 @@ export async function disconnectCodex(ownerId: string) {
 }
 
 export async function runCodexAnalysis(args: { ownerId: string; model: string; effort: CodexEffort; prompt: string }) {
-  if (!models.some((model) => model.id === args.model) || !CODEX_EFFORTS.includes(args.effort)) throw new Error("Modelo ou nível de análise inválido.");
-  if (!(await isCodexConnected(args.ownerId))) throw new Error("Conecte sua conta ChatGPT na aba IA antes de pedir uma análise.");
+  if (!CODEX_EFFORTS.includes(args.effort)) throw new Error("Nível de análise inválido.");
+  const availableModels = await getCodexModels(args.ownerId, true);
+  const selectedModel = availableModels.find((item) => item.id === args.model);
+  if (!selectedModel) throw new Error("O modelo escolhido não está disponível para esta conta. Atualize a lista de modelos e tente novamente.");
+  if (!selectedModel.efforts.includes(args.effort)) throw new Error("Este nível de análise não é compatível com o modelo escolhido. Selecione outro nível e tente novamente.");
   const home = await prepareHome(args.ownerId);
   const workspaceRoot = path.join(home, "analysis-workspace");
   const workDir = await fs.mkdtemp(path.join(workspaceRoot, "analysis-"));
@@ -249,10 +299,7 @@ export async function runCodexAnalysis(args: { ownerId: string; model: string; e
   const outputPath = path.join(workDir, "answer.txt");
   try {
     const result = await runCli(args.ownerId, ["--cd", workDir, "exec", "--ephemeral", "--sandbox", "read-only", "--ask-for-approval", "never", "--skip-git-repo-check", "--model", args.model, "--reasoning-effort", args.effort, "--output-last-message", outputPath, "-"], args.prompt, 90_000);
-    if (result.code !== 0) {
-      if (/rate limit|usage limit|too many requests/i.test(result.output)) throw new Error("O limite de uso desta conta foi atingido. Tente novamente mais tarde.");
-      throw new Error("A análise não foi concluída. Confira se o Codex continua conectado e tente novamente.");
-    }
+    if (result.code !== 0) throw new Error(getCodexAnalysisFailureMessage(result.output));
     const answer = (await fs.readFile(outputPath, "utf8")).trim();
     if (!answer) throw new Error("A IA não retornou uma análise concluída.");
     return answer.slice(0, 20_000);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractCodexUserCode, getCodexDeviceLoginStatus, getCodexLoginFailureMessage } from "../src/lib/codex-ai";
+import { extractCodexUserCode, getCodexDeviceLoginStatus, getCodexLoginFailureMessage, getCodexAnalysisFailureMessage, parseCodexModelCatalog } from "../src/lib/codex-ai";
 
 describe("Codex device login completion", () => {
   it("treats successful CLI exit as connected and failures as disconnected", () => {
@@ -50,5 +50,28 @@ describe("Codex device login errors", () => {
     const message = getCodexLoginFailureMessage("network failure with private diagnostic");
     expect(message).toContain("encerrou antes de gerar o código");
     expect(message).not.toContain("private diagnostic");
+  });
+});
+
+
+describe("Codex account model catalog", () => {
+  it("exposes only listed available models and their supported reasoning levels", () => {
+    expect(parseCodexModelCatalog(JSON.stringify({ models: [
+      { slug: "model-a", display_name: "Model A", supported_reasoning_levels: [{ reasoning_level: "low" }, { reasoning_level: "high" }] },
+      { slug: "model-hidden", display_name: "Hidden", hidden: true },
+      { slug: "bad id", display_name: "Invalid" },
+    ] }))).toEqual([{ id: "model-a", label: "Model A", efforts: ["low", "high"] }]);
+  });
+});
+
+describe("Codex analysis failure messages", () => {
+  it("classifies unsupported models and effort settings without returning raw CLI output", () => {
+    expect(getCodexAnalysisFailureMessage("model gpt-6-x is not available for this account")).toContain("não está disponível");
+    expect(getCodexAnalysisFailureMessage("reasoning effort max is not supported")).toContain("não é compatível");
+    expect(getCodexAnalysisFailureMessage("API returned unauthorized token expired")).toContain("Reconecte");
+  });
+
+  it("does not expose arbitrary command output", () => {
+    expect(getCodexAnalysisFailureMessage("internal payload secret-value")).not.toContain("secret-value");
   });
 });

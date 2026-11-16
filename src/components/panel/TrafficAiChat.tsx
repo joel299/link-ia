@@ -14,17 +14,12 @@ const planSteps = [
   "Comparar investimento, alcance e resultados",
   "Preparar uma resposta clara com oportunidades e próximos passos",
 ];
-const efforts = [
-  { id: "low", label: "Baixo" },
-  { id: "medium", label: "Médio" },
-  { id: "high", label: "Alto" },
-  { id: "xhigh", label: "Extra alto" },
-  { id: "max", label: "Máximo" },
-];
+const effortLabels: Record<string, string> = { low: "Baixo", medium: "Médio", high: "Alto", xhigh: "Extra alto", max: "Máximo" };
+const defaultEfforts = ["low", "medium", "high", "xhigh"];
 
 export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: TrafficAiChatProps) {
   const [connected, setConnected] = useState(false);
-  const [models, setModels] = useState<Array<{ id: string; label: string }>>([]);
+  const [models, setModels] = useState<Array<{ id: string; label: string; efforts?: string[] }>>([]);
   const [model, setModel] = useState("");
   const [effort, setEffort] = useState("medium");
   const [prompt, setPrompt] = useState("");
@@ -46,11 +41,12 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
         setConnected(Boolean(status.connected));
         if (!status.connected) return;
         const response = await fetch("/api/ai/codex/models", { cache: "no-store" });
-        const data = await response.json().catch(() => ({})) as { models?: Array<{ id: string; label: string }> };
+        const data = await response.json().catch(() => ({})) as { models?: Array<{ id: string; label: string; efforts?: string[] }>; error?: string };
         if (!cancelled && response.ok) {
           const available = data.models || [];
           setModels(available);
-          setModel((current) => current || available[0]?.id || "");
+          setModel((current) => available.some((item) => item.id === current) ? current : available[0]?.id || "");
+          if (!available.length && data.error) setError(data.error);
         }
       } catch {
         if (!cancelled) setError("Não foi possível carregar a conexão com a IA.");
@@ -133,7 +129,8 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
     setError("");
   }
 
-  const canSubmit = connected && hasActiveCampaigns && Boolean(model) && Boolean(prompt.trim()) && !pending && !loading;
+  const selectedEfforts = models.find((item) => item.id === model)?.efforts?.filter((item) => item in effortLabels) || defaultEfforts;
+  const canSubmit = connected && hasActiveCampaigns && Boolean(model) && selectedEfforts.includes(effort) && Boolean(prompt.trim()) && !pending && !loading;
 
   return (
     <GlassSurface intensity="subtle" className="editor-section traffic-ai-chat">
@@ -195,7 +192,7 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
             </button>
             <label className="traffic-ai-select-wrap">
               <span className="sr-only">Modelo da sua conta</span>
-              <select className="traffic-ai-select" aria-label="Modelo da sua conta" value={model} onChange={(event) => setModel(event.target.value)} disabled={!connected || models.length === 0 || loading || Boolean(pending)}>
+              <select className="traffic-ai-select" aria-label="Modelo da sua conta" value={model} onChange={(event) => { const nextModel = models.find((item) => item.id === event.target.value); setModel(event.target.value); if (nextModel?.efforts?.length && !nextModel.efforts.includes(effort)) setEffort(nextModel.efforts[0]); }} disabled={!connected || models.length === 0 || loading || Boolean(pending)}>
                 {models.length === 0 ? <option value="">{connected ? "Carregando modelos..." : "Conecte o ChatGPT"}</option> : models.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
               </select>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
@@ -203,7 +200,7 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
             <label className="traffic-ai-select-wrap traffic-ai-effort">
               <span className="sr-only">Nível de análise</span>
               <select className="traffic-ai-select" aria-label="Nível de análise" value={effort} onChange={(event) => setEffort(event.target.value)} disabled={!connected || models.length === 0 || loading || Boolean(pending)}>
-                {efforts.map((item) => <option key={item.id} value={item.id}>Esforço: {item.label}</option>)}
+                {selectedEfforts.map((item) => <option key={item} value={item}>Esforço: {effortLabels[item]}</option>)}
               </select>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
             </label>
