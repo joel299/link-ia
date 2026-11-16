@@ -28,7 +28,9 @@ FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
 # Codex CLI: login por código de dispositivo isolado por usuário.
-RUN npm install --global @openai/codex
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install --global @openai/codex
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
