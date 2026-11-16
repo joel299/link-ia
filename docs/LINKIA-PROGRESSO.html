@@ -330,5 +330,14 @@
     <h2>Ajuste de escala mobile — 16/11/2026</h2>
     <p>A página pública agora usa avatar fluido de 136–160 px, links com altura mínima de 76 px, ícones de 44 px e tipografia ampliada em telas de até 600 px. Typecheck passou e lint terminou sem erros, com quatro avisos preexistentes de imagens. A inspeção visual local ficou pendente porque o SWC recebeu erro de acesso ao canonicalizar o diretório Windows. Confirmar visualmente após o deploy em 390 px e 600 px.</p>
   </section>
+  <section class="section" aria-labelledby="traffic-mobile-update">
+    <div class="section-head"><h2 id="traffic-mobile-update">Tráfego pago, skeleton e PWA (16/11/2026)</h2><p class="section-note">Ajustes de clareza das campanhas, responsividade e instalação em celular.</p></div>
+    <article class="list-panel surface"><ul class="plain-list">
+      <li><span class="decision-title">Campanhas</span><span class="decision-copy">IDs ocultos na interface; objetivos e métricas em português. O skeleton cobre a carga inicial e a atualização preserva os dados carregados.</span></li>
+      <li><span class="decision-title">Mobile e canais</span><span class="decision-copy">Controles e campanhas refluem em telas estreitas; removidos rótulos técnicos de mídia dos cards de Instagram/TikTok.</span></li>
+      <li><span class="decision-title">PWA</span><span class="decision-copy">Manifest, ícones e modo standalone preparados para instalação. Sem cache offline. Validação visual e em produção pendente.</span></li>
+      <li><span class="decision-title">Verificações</span><span class="decision-copy">Typecheck passou; lint sem erros e quatro avisos existentes. Vitest bloqueado por EPERM e build por acesso do SWC ao workspace Windows. Consulta SQL somente leitura; nenhuma alteração no banco.</span></li>
+    </ul></article>
+  </section>
 </body>
 </html>

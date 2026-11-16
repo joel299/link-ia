@@ -399,3 +399,14 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Correção:** media query até 600 px amplia avatar (136–160 px), tipografia, ícones (44 px), espaçamento e ações (76 px), com dimensões fluidas por viewport.
 - **Validação:** typecheck passou; lint sem erros (4 avisos preexistentes de `<img>`). Execução visual não confirmada porque o Next/SWC não conseguiu canonicalizar o diretório Windows (erro de acesso 5).
 - **Estado:** correção enviada ao GitHub; confirmação visual após deploy pendente.
+
+
+### ADS-001 — Informações técnicas e layout móvel no tráfego pago
+- **Data/prioridade:** 16/11/2026 — P2.
+- **Evidência:** a tela apresentava IDs de conta/campanha e objetivos como OUTCOME_SALES e OUTCOME_TRAFFIC, além de campos técnicos de desempenho; em celular, controles e cards não se organizavam para a viewport.
+- **Causa:** componentes exibiam identificadores e enums diretamente e o layout de período/campanhas não tinha composição específica para telas estreitas.
+- **Correção:** IDs permanecem apenas como valores internos; objetivos e métricas recebem rótulos em português; CSS móvel reorganiza controles e métricas. Skeleton cobre a carga inicial e a atualização preserva conteúdo já carregado.
+- **Instagram/TikTok:** removido o rótulo técnico de tipo de mídia junto às publicações.
+- **PWA:** manifest, metadados de instalação e ícones adicionados; sem service worker ou cache offline nesta entrega.
+- **SQL:** consulta de catálogo de tabelas SQLite somente leitura; nenhuma tabela de campanhas encontrada, nenhum dado alterado.
+- **Validação:** typecheck passou; lint com 0 erros e 4 avisos de imagens. Vitest não iniciou (EPERM); build bloqueado pelo erro 5 do SWC ao acessar/canonicalizar o workspace. Browser e produção não verificados.

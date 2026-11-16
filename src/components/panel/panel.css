@@ -1742,3 +1742,155 @@
   border-radius: 50%;
   background: currentColor;
 }
+
+.traffic-skeleton,
+.traffic-skeleton-campaigns {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.traffic-skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.traffic-skeleton-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.traffic-skeleton-campaign-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.traffic-refresh-status {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .app-header-inner {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .app-header-brand-nav {
+    width: 100%;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .app-nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .app-nav-link {
+    flex: 0 0 auto;
+    min-height: 44px;
+  }
+
+  .app-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .app-user-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .panel-main {
+    padding: 12px;
+  }
+
+  .traffic-page-header,
+  .traffic-header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .traffic-page-header .profile-tabs {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .traffic-page-header .profile-pill-btn {
+    flex: 0 0 auto;
+  }
+
+  .traffic-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .traffic-account-row {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .traffic-account-row .input,
+  .traffic-account-row .btn,
+  .traffic-period-select,
+  .traffic-date-input {
+    width: 100%;
+    min-width: 0;
+    flex-basis: 100%;
+  }
+
+  .channel-kv-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .campaign-card {
+    padding: 14px;
+  }
+
+  .campaign-card-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .campaign-name {
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+  }
+
+  .campaign-metrics-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    font-size: 0.875rem;
+  }
+
+  .campaign-metrics-row span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .traffic-skeleton-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

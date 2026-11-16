@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Inter, Manrope } from "next/font/google";
 import "./globals.css";
 
@@ -21,6 +21,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
+  applicationName: "LinkIA",
   title: {
     default: "LinkIA — Sua página de bio profissional",
     template: "%s | LinkIA",
@@ -34,7 +35,17 @@ export const metadata: Metadata = {
         type: "image/svg+xml",
       },
     ],
+    apple: "/apple-icon.png",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "LinkIA",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#101312",
 };
 
 const themeInitScript = `

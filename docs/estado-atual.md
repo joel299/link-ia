@@ -255,3 +255,12 @@ Auditoria completa solicitada por Joel, **sem alterar código funcional, sem com
 - **Correção enviada:** em viewports de até 600 px, layout usa a largura disponível, avatar fluido de 136–160 px, nome/bio em tipografia maior, ações com 76 px de altura mínima e ícones de 44 px. A dimensão intrínseca da imagem foi alinhada a 160 px.
 - **Validação:** `npm run typecheck` passou; `npm run lint` passou com quatro avisos preexistentes de `<img>`. Inicialização local tentou abrir em `http://127.0.0.1:3000`, mas o SWC falhou ao canonicalizar o diretório do workspace (Acesso negado, erro 5); inspeção visual em navegador ficou pendente.
 - **Próxima ação:** após o deploy, conferir o perfil público em aparelhos ou viewports de 390 px e 600 px; teste local de navegador não foi concluído nesta sessão.
+
+
+### Ajustes de tráfego pago e experiência móvel (16/11/2026)
+- **Correção:** a lista de contas e campanhas não exibe IDs; objetivos técnicos da Meta são apresentados em linguagem simples e os indicadores recebem rótulos em português.
+- **Carregamento:** o tráfego pago usa o skeleton de seção na carga inicial; durante atualização mantém os dados existentes e sinaliza o processo.
+- **Canais:** removidos os rótulos técnicos de tipo de mídia dos cards de Instagram e TikTok.
+- **Mobile/PWA:** controles de período, conta, cards de campanha e navegação foram adaptados para telas estreitas. Adicionados manifest, ícones e abertura standalone para instalação como app; sem cache offline.
+- **Banco:** consulta SQL somente leitura confirmou tabelas sociais, sem tabela de campanhas que exigisse alteração; nenhuma escrita ou migração foi feita.
+- **Validação:** typecheck passou; lint terminou sem erros e quatro avisos preexistentes de imagens. Vitest bloqueado por EPERM e build bloqueado pelo acesso/canonicalização do diretório Windows. Inspeção visual em browser e produção pendente.

@@ -6,6 +6,7 @@ export type SectionSkeletonVariant =
   | "appearance"
   | "schedule"
   | "catalog"
+  | "traffic"
   | "generic";
 
 interface SectionSkeletonProps {
@@ -129,6 +130,37 @@ export function SectionSkeleton({
               <Bar width="100%" height={32} />
             </div>
           ))}
+        </div>
+      ) : null}
+
+      {variant === "traffic" ? (
+        <div className="traffic-skeleton" aria-hidden="true">
+          <div className="traffic-skeleton-card">
+            <Bar width="28%" height={14} />
+            <div className="traffic-skeleton-summary">
+              <Bar width="76%" height={12} />
+              <Bar width="64%" height={12} />
+              <Bar width="52%" height={12} />
+            </div>
+            <Bar width="100%" height={44} />
+          </div>
+          <div className="traffic-skeleton-campaigns">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div className="traffic-skeleton-card" key={index}>
+                <div className="traffic-skeleton-campaign-heading">
+                  <Bar width="58%" height={14} />
+                  <Bar width="18%" height={24} />
+                </div>
+                <Bar width="36%" height={10} />
+                <div className="traffic-skeleton-summary">
+                  <Bar width="78%" height={12} />
+                  <Bar width="64%" height={12} />
+                  <Bar width="72%" height={12} />
+                  <Bar width="54%" height={12} />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 

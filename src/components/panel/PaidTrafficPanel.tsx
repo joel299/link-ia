@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { GlassSurface } from "@/components/ui/GlassSurface";
+import { SectionSkeleton } from "./SectionSkeleton";
 import type {
   AdCampaignOperationView,
   AdCampaignView,
@@ -56,7 +57,7 @@ const PROVIDER_TABS: { id: AdsProvider; label: string; subtitle: string }[] = [
   {
     id: "tiktok_ads",
     label: "TikTok Ads",
-    subtitle: "Contas de anunciante (advertiser) e campanhas autorizadas",
+    subtitle: "Contas de anúncios e campanhas conectadas",
   },
 ];
 
@@ -75,6 +76,50 @@ function formatCampaignStatus(status: string): string {
     default:
       return status || "Sem status";
   }
+}
+
+function formatCampaignObjective(objective: string): string {
+  const labels: Record<string, string> = {
+    OUTCOME_AWARENESS: "Divulgar a marca",
+    OUTCOME_ENGAGEMENT: "Gerar interações",
+    OUTCOME_LEADS: "Conseguir contatos",
+    OUTCOME_SALES: "Aumentar vendas",
+    OUTCOME_TRAFFIC: "Levar pessoas ao site",
+    OUTCOME_APP_PROMOTION: "Divulgar o aplicativo",
+    WEBSITE_CONVERSIONS: "Gerar resultados no site",
+    WEB_CONVERSIONS: "Gerar resultados no site",
+    PRODUCT_SALES: "Aumentar vendas",
+    COMMUNITY_INTERACTION: "Gerar interações",
+    APP_INSTALL: "Divulgar o aplicativo",
+    STORE_VISITS: "Atrair clientes para a loja",
+    BRAND_AWARENESS: "Divulgar a marca",
+    LINK_CLICKS: "Levar pessoas ao site",
+    CONVERSIONS: "Gerar resultados no site",
+    LEAD_GENERATION: "Conseguir contatos",
+    POST_ENGAGEMENT: "Gerar interações",
+    REACH: "Alcançar mais pessoas",
+    VIDEO_VIEWS: "Aumentar visualizações",
+    APP_INSTALLS: "Divulgar o aplicativo",
+    MESSAGES: "Receber mensagens",
+    TRAFFIC: "Levar pessoas ao site",
+    SALES: "Aumentar vendas",
+    ENGAGEMENT: "Gerar interações",
+    AWARENESS: "Divulgar a marca",
+    LEADS: "Conseguir contatos",
+  };
+  return labels[objective.toUpperCase()] || "Divulgar e alcançar clientes";
+}
+
+function formatProviderError(
+  message: string | null,
+  fallback: string
+): string | null {
+  if (!message) return null;
+  return /\b(?:id|code)\s*[:=]|act_\d+|OUTCOME_|graph api|oauth|composio|stack|exception|\b[45]\d{2}\b/i.test(
+    message
+  )
+    ? fallback
+    : message;
 }
 
 const STATUS_META: Record<
@@ -544,10 +589,13 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
         </div>
       ) : null}
 
-      {currentTab.loading ? (
+      {currentTab.loading && !overview ? (
         <GlassSurface intensity="subtle" className="editor-section">
           <div className="editor-section-inner">
-            <p className="field-hint">Carregando dados de tráfego pago...</p>
+            <SectionSkeleton
+              variant="traffic"
+              label="Carregando contas e campanhas de anúncios"
+            />
           </div>
         </GlassSurface>
       ) : currentTab.error ? (
@@ -568,6 +616,12 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
         </GlassSurface>
       ) : overview ? (
         <>
+          {currentTab.loading ? (
+            <p className="traffic-refresh-status" role="status">
+              Atualizando dados das campanhas...
+            </p>
+          ) : null}
+
           {/* 1. Connection & Ad Account Selection */}
           <GlassSurface intensity="subtle" className="editor-section">
             <div className="editor-section-inner">
@@ -616,9 +670,15 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
                 </div>
               ) : null}
 
-              {overview.connection.lastError ? (
+              {formatProviderError(
+                overview.connection.lastError,
+                "Não foi possível atualizar a conexão. Reconecte sua conta de anúncios e tente novamente."
+              ) ? (
                 <div className="alert-banner alert-error">
-                  {overview.connection.lastError}
+                  {formatProviderError(
+                    overview.connection.lastError,
+                    "Não foi possível atualizar a conexão. Reconecte sua conta de anúncios e tente novamente."
+                  )}
                 </div>
               ) : null}
 
@@ -633,12 +693,13 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
                   <span className="channel-kv-label">
                     {activeTab === "meta_ads"
                       ? "Conta de anúncios ativa"
-                      : "Advertiser ativo"}
+                      : "Conta do TikTok Ads ativa"}
                   </span>
                   <span className="channel-kv-value">
                     {overview.connection.selectedAdAccountName ||
-                      overview.connection.selectedAdAccountId ||
-                      "Nenhuma selecionada"}
+                      (overview.connection.selectedAdAccountId
+                        ? "Conta de anúncios selecionada"
+                        : "Nenhuma selecionada")}
                   </span>
                 </div>
                 <div>
@@ -734,7 +795,7 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
                   <label htmlFor="adAccountSelect" className="field-label">
                     {activeTab === "meta_ads"
                       ? "Selecionar conta de anúncios"
-                      : "Selecionar conta de anunciante"}
+                      : "Selecionar conta do TikTok Ads"}
                   </label>
                   {overview.assets.length === 0 ? (
                     <p className="field-hint">
@@ -754,7 +815,7 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
                       >
                         {overview.assets.map((asset) => (
                           <option key={asset.id} value={asset.externalId}>
-                            {asset.displayName} ({asset.externalId})
+                            {asset.displayName || "Conta de anúncios"}
                           </option>
                         ))}
                       </select>
@@ -789,8 +850,7 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
                   >
                     <select
                       aria-label="Período das métricas"
-                      className="input"
-                      style={{ width: "auto", minWidth: "160px" }}
+                      className="input traffic-period-select"
                       value={datePreset}
                       onChange={(e) => {
                         const next = e.target.value as AdsDatePreset;
@@ -813,16 +873,14 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
                         <input
                           type="date"
                           aria-label="Data inicial"
-                          className="input"
-                          style={{ width: "auto" }}
+                          className="input traffic-date-input"
                           value={customSince}
                           onChange={(e) => setCustomSince(e.target.value)}
                         />
                         <input
                           type="date"
                           aria-label="Data final"
-                          className="input"
-                          style={{ width: "auto" }}
+                          className="input traffic-date-input"
                           value={customUntil}
                           onChange={(e) => setCustomUntil(e.target.value)}
                         />
@@ -849,15 +907,21 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
                 ) : null}
               </div>
 
-              {overview.campaignsError ? (
+              {formatProviderError(
+                overview.campaignsError,
+                "Não foi possível consultar as campanhas neste momento. Tente atualizar os dados."
+              ) ? (
                 <div className="alert-banner alert-warning">
-                  {overview.campaignsError}
+                  {formatProviderError(
+                    overview.campaignsError,
+                    "Não foi possível consultar as campanhas neste momento. Tente atualizar os dados."
+                  )}
                 </div>
               ) : null}
 
               {!isConnected || !hasSelectedAccount ? (
                 <p className="field-hint">
-                  Conecte uma conta e selecione um identificador de anúncios
+                  Conecte uma conta e selecione uma conta de anúncios
                   acima para listar campanhas e indicadores.
                 </p>
               ) : overview.campaigns.length === 0 ? (
@@ -872,7 +936,7 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
                         <div>
                           <strong className="campaign-name">{camp.name}</strong>
                           <span className="field-hint">
-                            ID: {camp.id} · Objetivo: {camp.objective}
+                            {formatCampaignObjective(camp.objective)}
                           </span>
                         </div>
                         <span className="badge badge-draft">
@@ -887,8 +951,12 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
                         <span>Impressões: {camp.impressions || "—"}</span>
                         <span>Cliques: {camp.clicks || "—"}</span>
                         {camp.reach ? <span>Alcance: {camp.reach}</span> : null}
-                        {camp.ctr ? <span>CTR: {camp.ctr}%</span> : null}
-                        {camp.cpc ? <span>CPC: {camp.cpc}</span> : null}
+                        {camp.ctr ? (
+                          <span>Taxa de cliques: {camp.ctr}%</span>
+                        ) : null}
+                        {camp.cpc ? (
+                          <span>Custo por clique: {camp.cpc}</span>
+                        ) : null}
                       </div>
                     </div>
                   ))}
