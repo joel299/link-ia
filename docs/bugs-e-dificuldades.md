@@ -428,8 +428,14 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Validação:** typecheck passou; lint passou com quatro avisos preexistentes de `<img>`. Verificação visual em dispositivo e build local ainda não executados nesta mudança.
 
 ### AI-001 - Integração individual de conta ChatGPT/Codex para tráfego pago (16/11/2026)
-- **Estado:** código implementado; teste real da OpenAI pendente de credenciais provisionadas para o LinkIA hospedado.
-- **Implementado:** OAuth/OIDC por usuário com PKCE, state de uso único, nonce e validação da assinatura/claims; credenciais de acesso/renovação cifradas por usuário; seção IA de conexão; modelos carregados da conta; chat no painel de tráfego que consulta campanhas ativas no servidor; prompt global privado configurável via painel admin.
-- **Proteções:** só campanhas do perfil próprio e provedor permitido por `requireUserFeature` são enviados; prompt/configuração não chegam ao browser cliente; sem ação de escrita em campanhas; `store:false` para a requisição Responses.
-- **Configuração necessária:** `OPENAI_SIWC_CLIENT_ID`, `OPENAI_SIWC_CLIENT_SECRET` quando exigido pelo client, `OPENAI_SIWC_REDIRECT_URI=https://linkia.iainfinito.com.br/api/ai/codex/callback` e `CODEX_TOKEN_ENCRYPTION_KEY` (64 hex chars). Sem client hospedado aprovado e as variáveis no ambiente, OAuth/inferência não pode ser validado.
-- **Validação:** typecheck passou; lint sem erros e quatro avisos de `<img>` já existentes; Vitest falhou ao carregar Vite por EPERM, build falhou ao canonicalizar caminho do workspace via SWC, e a conexão local foi bloqueada por permissão de socket. Teste de login e inferência real não executado.
+- **Estado:** histórico supersedido em 16/11/2026 pelo fluxo Codex device-code descrito em AI-002.
+- **Histórico:** a implementação original usava OAuth/OIDC próprio com PKCE, criptografia dos tokens e credenciais `OPENAI_SIWC_*`; esse fluxo foi substituído porque não correspondia ao playbook escolhido. As variáveis e o callback desse desenho não devem ser configurados.
+- **Validação histórica:** a tela de análise e as proteções por perfil/permissão permanecem no produto; autenticação real depende agora do CLI Codex, sem teste externo nesta sessão.
+
+
+### AI-002 — autenticação do Codex para cada usuário
+- **Data:** 16/11/2026
+- **Estado:** correção implementada localmente; autenticação real e implantação não verificadas.
+- **Correção:** fluxo próprio de OAuth removido; o usuário LinkIA executa `codex login --device-auth` em pasta privada e persistente por usuário. O estado usa `codex login status`; análise usa `codex exec` com sandbox somente leitura.
+- **Configuração:** instalar o CLI na imagem e persistir `CODEX_HOME_ROOT`. Removidas do exemplo variáveis `OPENAI_SIWC_*` e `CODEX_TOKEN_ENCRYPTION_KEY`.
+- **Validação:** typecheck e lint passaram (4 avisos preexistentes); Vitest bloqueado por EPERM no Vite; login real, build Docker e produção pendentes.

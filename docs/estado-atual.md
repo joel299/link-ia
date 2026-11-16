@@ -278,3 +278,10 @@ Auditoria completa solicitada por Joel, **sem alterar código funcional, sem com
 - A integração de IA permanece aguardando definição de autenticação e faturamento compatível com o LinkIA remoto multiusuário; o playbook Codex fornecido é de uso local e não pode ser copiado como login de produção.
 
 - **Resultado final desta implementação (16/11/2026):** aba IA de conexão individual ChatGPT/Codex, chat de análise no tráfego pago, prompt do agente configurável apenas por admin e tokens OAuth cifrados com chave externa. Typecheck passou; lint passou com quatro avisos preexistentes de imagens. `npm test` e `npm run build` foram bloqueados por EPERM/canonicalização do ambiente Windows; acesso HTTP local também foi negado pelo sandbox. Login OAuth real permanece pendente da configuração aprovada no ambiente: client ID, client secret se o client for confidencial, callback HTTPS e chave de criptografia.
+
+
+### Correção da conexão de IA por usuário: Codex device code (16/11/2026)
+- O fluxo OAuth próprio do primeiro desenho foi substituído por `codex login --device-auth`, conforme o playbook. Cada usuário LinkIA recebe um `CODEX_HOME` separado, derivado do ID interno e mantido no volume persistente.
+- O servidor apresenta URL e código temporário ao usuário autenticado, consulta `codex login status`, permite desconectar e executa análises com `codex exec --ephemeral --sandbox read-only` em workspace isolado. O prompt administrativo continua privado no servidor.
+- Docker instala o Codex CLI e os arquivos de exemplo/Compose usam `CODEX_BIN` e `CODEX_HOME_ROOT`. As variáveis de OAuth e criptografia do desenho antigo foram removidas do exemplo.
+- `npm run typecheck` e `npm run lint` passaram na cópia local; lint manteve quatro avisos preexistentes de `<img>`. Vitest não iniciou por EPERM no Vite, e o CLI Codex não está instalado no host para validar login real. Build da imagem, device-code real e produção permanecem pendentes.

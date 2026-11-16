@@ -27,11 +27,16 @@ RUN mkdir -p /app/public && npm run build
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
+# Codex CLI: login por código de dispositivo isolado por usuário.
+RUN npm install --global @openai/codex
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV DATA_DIR=/app/data
+ENV CODEX_BIN=codex
+ENV CODEX_HOME_ROOT=/app/data/codex-users
 
 # Cria o diretório de persistência com permissão para o usuário não-root (node)
 RUN mkdir -p /app/data && chown -R node:node /app

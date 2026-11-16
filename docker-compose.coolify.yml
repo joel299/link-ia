@@ -9,6 +9,8 @@ services:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
       DATA_DIR: /app/data
+      CODEX_BIN: "${CODEX_BIN:-codex}"
+      CODEX_HOME_ROOT: /app/data/codex-users
       SESSION_SECRET: "${SESSION_SECRET:?Defina SESSION_SECRET no Coolify}"
       COOKIE_SECURE: "${COOKIE_SECURE:-true}"
       APP_BASE_URL: "${APP_BASE_URL:?Defina APP_BASE_URL no Coolify}"

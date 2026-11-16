@@ -11,6 +11,7 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
   const [connected, setConnected] = useState(false);
   const [models, setModels] = useState<Array<{ id: string; label: string }>>([]);
   const [model, setModel] = useState("");
+  const [effort, setEffort] = useState("medium");
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,7 +26,7 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
       setConnected(Boolean(status.connected));
       if (status.connected) {
         const modelResponse = await fetch("/api/ai/codex/models", { cache: "no-store" });
-        const data = await modelResponse.json().catch(() => ({})) as { models?: Array<{ id: string; label: string }> };
+        const data = await modelResponse.json().catch(() => ({})) as { models?: Array<{ id: string; label: string }>; efforts?: string[] };
         if (!cancelled && modelResponse.ok) {
           const available = data.models || [];
           setModels(available);
@@ -47,7 +48,7 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
     try {
       const response = await fetch("/api/ai/codex/analyze", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ profileId: profile.id, provider, prompt: question, model, conversation: messages }),
+        body: JSON.stringify({ profileId: profile.id, provider, prompt: question, model, effort, conversation: messages }),
       });
       const data = await response.json().catch(() => ({})) as { answer?: string; error?: string };
       if (!response.ok || !data.answer) throw new Error(data.error || "A análise não foi concluída.");
@@ -70,6 +71,10 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
           <label className="field-label" htmlFor={`ai-model-${profile.id}`}>Modelo da sua conta</label>
           <select id={`ai-model-${profile.id}`} className="input" value={model} onChange={(event) => setModel(event.target.value)} disabled={!connected || models.length === 0}>
             {models.length === 0 ? <option value="">{connected ? "Carregando modelos..." : "Conecte o ChatGPT na seção IA"}</option> : models.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+          </select>
+          <label className="field-label" htmlFor={`ai-effort-${profile.id}`}>Nível de análise</label>
+          <select id={`ai-effort-${profile.id}`} className="input" value={effort} onChange={(event) => setEffort(event.target.value)} disabled={!connected || models.length === 0}>
+            <option value="low">Baixo</option><option value="medium">Médio</option><option value="high">Alto</option><option value="xhigh">Extra alto</option><option value="max">Ultra</option>
           </select>
           <label className="field-label" htmlFor={`ai-prompt-${profile.id}`}>O que você quer entender?</label>
           <textarea id={`ai-prompt-${profile.id}`} className="input" rows={3} maxLength={4000} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Ex.: Quais campanhas estão gastando sem gerar cliques?" disabled={!connected || !hasActiveCampaigns || loading} />

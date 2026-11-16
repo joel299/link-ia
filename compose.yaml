@@ -10,6 +10,8 @@ services:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
       DATA_DIR: /app/data
+      CODEX_BIN: "${CODEX_BIN:-codex}"
+      CODEX_HOME_ROOT: /app/data/codex-users
       COOKIE_SECURE: "${COOKIE_SECURE:-false}"
       SESSION_SECRET: "${SESSION_SECRET:-}"
       APP_BASE_URL: "${APP_BASE_URL:-http://localhost:3000}"

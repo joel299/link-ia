@@ -338,6 +338,14 @@ function initSchema(db: Database.Database): void {
       FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE CASCADE
     );
 
+
+    CREATE TABLE IF NOT EXISTS codex_device_connections (
+      owner_id TEXT PRIMARY KEY,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'connected', 'disconnected')),
+      connected_at TEXT,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
     CREATE TABLE IF NOT EXISTS codex_connections (
       owner_id TEXT PRIMARY KEY,
       openai_subject TEXT NOT NULL UNIQUE,
