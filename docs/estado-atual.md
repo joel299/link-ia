@@ -324,3 +324,9 @@ Após dois deploys saudáveis, a verificação no painel ainda mostrou estado de
 - **Painel:** erro de início agora é anunciado como alerta acessível.
 - **Validação:** teste unitário cobre erro de permissão e confirma que detalhes brutos não vazam. CI e produção ainda precisam validar esta nova versão.
 - **Pendente externo:** se a mensagem indicar a configuração, habilitar login por código nas configurações de segurança da conta ChatGPT ou no workspace e iniciar uma nova tentativa.
+
+### Investigação da análise Codex HTTP 502 (16/11/2026)
+- Evidência: DevTools mostrou `POST /api/ai/codex/analyze` com 502, requisição de 202 bytes e resposta JSON de 185 bytes em cerca de 2,5 s. O corpo da resposta não foi inspecionado. Logs de Runtime visíveis mostravam somente boot saudável, sem a chamada.
+- Fluxo confirmado: a rota consulta campanhas via AdsService e executa `codex exec` para inferência; Composio SDK é usado para a integração de anúncios, não como CLI de inferência.
+- Correção: a rota registra origem, classe do erro e status, sem prompt, dados de campanha, usuário ou saída do CLI. GPT-6 Luna é preferido quando está disponível para a conta; outro modelo permitido segue como fallback.
+- Causa do 502 permanece não confirmada. Ausência do binário na imagem anterior é hipótese. Após a publicação, correlacionar uma consulta autorizada com os logs.

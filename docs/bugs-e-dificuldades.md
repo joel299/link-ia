@@ -479,3 +479,11 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Evidência:** na produção, após deploy saudável, o painel voltou a “Desconectado” e não exibiu o código. A rota convertia o encerramento assíncrono do CLI em estado desconectado, sem explicar a saída. A documentação oficial do Codex informa que device code login precisa estar habilitado para conta pessoal ou pelo administrador do workspace.
 - **Correção:** classificar somente mensagens de configuração conhecidas e exibir instrução segura; saídas arbitrárias do CLI e códigos nunca são mostrados ou armazenados.
 - **Validação:** teste cobre a classificação específica e impede vazamento da saída. Requer CI e uma nova tentativa no ambiente real.
+
+### AI-009 — análise de tráfego respondeu HTTP 502
+- **Data:** 16/11/2026
+- **Evidência:** DevTools mostrou `POST /api/ai/codex/analyze` → 502; payload de 202 bytes e resposta JSON de 185 bytes em aproximadamente 2,5 s. O corpo não foi inspecionado. Os logs de Runtime visíveis tinham somente o boot saudável.
+- **Causa:** não confirmada. O tamanho não sustenta a hipótese de payload excessivo. A rota carrega campanhas por AdsService e chama `codex exec` para inferência.
+- **Correção:** log seguro com origem, classe e status, sem conteúdo da pergunta, campanhas, ID do usuário ou saída Codex. Se disponível na conta, GPT-6 Luna é o modelo inicial; mantém-se fallback para modelo permitido.
+- **Limite:** falta validar a imagem atualizada e repetir consulta autorizada correlacionada ao log. Ausência do binário na imagem anterior permanece hipótese.
+- **Verificação final:** após integrar o histórico remoto, typecheck, build, configuração do Compose e 86 testes passaram; lint teve zero erros e quatro avisos existentes.

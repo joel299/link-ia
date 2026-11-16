@@ -45,7 +45,7 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
         if (!cancelled && response.ok) {
           const available = data.models || [];
           setModels(available);
-          setModel((current) => available.some((item) => item.id === current) ? current : available[0]?.id || "");
+          setModel((current) => available.some((item) => item.id === current) ? current : available.find((item) => item.id === "gpt-6-luna")?.id || available[0]?.id || "");
           if (!available.length && data.error) setError(data.error);
         }
       } catch {
