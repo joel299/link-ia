@@ -6,7 +6,6 @@ import type {
   CustomLinkItem,
   PublicCustomLinkItem,
 } from "@/lib/types";
-import { CollapsibleSection } from "./CollapsibleSection";
 
 interface CustomLinksPanelProps {
   profileId: string;
@@ -266,17 +265,19 @@ export function CustomLinksPanel({
   }
 
   return (
-    <CollapsibleSection
-      id="secao-links-personalizados"
-      title="5. Links personalizados"
-      description="Adicione botões extras na sua página pública, como endereço no Google Maps, site ou portfólio."
-      defaultOpen={false}
-      badge={
-        items.length > 0 ? (
+    <section id="secao-links-personalizados" className="settings-block">
+      <header className="settings-block-head">
+        <div>
+          <h3 className="settings-subtitle">Links personalizados</h3>
+          <p className="field-hint">
+            Botões extras na sua página pública, como endereço no Google Maps,
+            site ou portfólio.
+          </p>
+        </div>
+        {items.length > 0 ? (
           <span className="badge badge-draft">{items.length}</span>
-        ) : null
-      }
-    >
+        ) : null}
+      </header>
       {error ? (
         <div role="alert" className="alert-banner alert-error">
           {error}
@@ -594,6 +595,6 @@ export function CustomLinksPanel({
           ))}
         </ul>
       )}
-    </CollapsibleSection>
+    </section>
   );
 }

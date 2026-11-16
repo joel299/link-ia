@@ -49,6 +49,8 @@ function initSchema(db: Database.Database): void {
       display_name TEXT NOT NULL,
       bio TEXT NOT NULL DEFAULT '',
       avatar_url TEXT,
+      cover_url TEXT,
+      cover_blur INTEGER NOT NULL DEFAULT 12,
       instagram_input TEXT NOT NULL DEFAULT '',
       instagram_url TEXT,
       instagram_enabled INTEGER NOT NULL DEFAULT 1,
@@ -391,6 +393,8 @@ function initSchema(db: Database.Database): void {
     "ALTER TABLE profile_social_media ADD COLUMN like_count INTEGER",
     "ALTER TABLE profile_social_media ADD COLUMN comment_count INTEGER",
     "ALTER TABLE profiles ADD COLUMN public_order_json TEXT",
+    "ALTER TABLE profiles ADD COLUMN cover_url TEXT",
+    "ALTER TABLE profiles ADD COLUMN cover_blur INTEGER NOT NULL DEFAULT 12",
   ]) {
     try {
       db.exec(alterSql);

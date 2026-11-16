@@ -125,6 +125,8 @@ describe("validateProfileForPublish", () => {
     displayName: "Joel Teste",
     bio: "Barbearia",
     avatarUrl: null,
+    coverUrl: null,
+    coverBlur: 12,
     instagramInput: "@joel",
     instagramUrl: "https://instagram.com/joel",
     instagramEnabled: true,

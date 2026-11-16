@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import type { ProfileStatus } from "@/lib/types";
@@ -7,12 +8,14 @@ import type { ProfileStatus } from "@/lib/types";
 export type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
 interface PublishStatusProps {
+  profileName: string;
   status: ProfileStatus;
   slug: string;
   saveState: SaveState;
   isPublishing: boolean;
   isUnpublishing?: boolean;
   isDeleting?: boolean;
+  sectionNav?: ReactNode;
   onSave: () => void;
   onPublish: () => void;
   onUnpublish?: () => void;
@@ -20,12 +23,14 @@ interface PublishStatusProps {
 }
 
 export function PublishStatus({
+  profileName,
   status,
   slug,
   saveState,
   isPublishing,
   isUnpublishing = false,
   isDeleting = false,
+  sectionNav,
   onSave,
   onPublish,
   onUnpublish,
@@ -40,11 +45,15 @@ export function PublishStatus({
     <GlassSurface intensity="standard">
       <div className="editor-status-bar">
         <div className="editor-status-meta">
+          <h1 className="editor-profile-name">{profileName || "Perfil"}</h1>
           <span
             className={`badge ${isPublished ? "badge-published" : "badge-draft"}`}
           >
             {isPublished ? "Publicado" : "Rascunho"}
           </span>
+          {sectionNav ? (
+            <div className="editor-section-nav">{sectionNav}</div>
+          ) : null}
 
           {publicPath ? (
             isPublished ? (

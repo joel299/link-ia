@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ChangeEvent } from "react";
 import { PublicAvatar } from "@/components/public/PublicAvatar";
+import { uploadImage } from "./image-upload";
 
 interface AvatarUploaderProps {
   avatarUrl: string | null;
@@ -25,41 +26,18 @@ export function AvatarUploader({
     if (!file) return;
 
     setUploadError(null);
-
-    if (!file.type.startsWith("image/")) {
-      setUploadError("Envie um arquivo de imagem (PNG, JPG ou WebP).");
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      setUploadError("A imagem deve ter no máximo 2 MB.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-
     setUploading(true);
-    try {
-      const res = await fetch("/api/uploads", {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.url) {
-        setUploadError(data.error || "Não foi possível enviar a imagem.");
-        return;
-      }
-      onChange(data.url);
-    } catch {
-      setUploadError("Erro de conexão ao enviar imagem.");
-    } finally {
-      setUploading(false);
-      if (inputRef.current) {
-        inputRef.current.value = "";
-      }
+    const result = await uploadImage(file);
+    setUploading(false);
+    if (inputRef.current) {
+      inputRef.current.value = "";
     }
+
+    if (result.error || !result.url) {
+      setUploadError(result.error ?? "Não foi possível enviar a imagem.");
+      return;
+    }
+    onChange(result.url);
   }
 
   const combinedError = uploadError || error;

@@ -36,6 +36,15 @@
   --color-on-primary: #ffffff;
   --color-accent: #9a762f;
   --color-on-accent: #17140e;
+  /* Vibrant green for borders, focus glows and tints only — never small text. */
+  --color-primary-vivid: #15b478;
+  --color-primary-soft: rgba(22, 120, 78, 0.12);
+
+  /* Official channel brand accents (decorative) */
+  --color-brand-whatsapp: #128c5e;
+  --color-brand-instagram: #c13584;
+  --color-brand-tiktok: #101312;
+  --color-brand-facebook: #1877f2;
 
   /* Semantic Status */
   --color-danger: #b42318;
@@ -99,6 +108,15 @@
   --color-on-primary: #0d1a12;
   --color-accent: #e2c987;
   --color-on-accent: #211b0d;
+  /* Vibrant green for borders, focus glows and tints only — never small text. */
+  --color-primary-vivid: #3ddc97;
+  --color-primary-soft: rgba(51, 185, 120, 0.18);
+
+  /* Official channel brand accents (decorative) */
+  --color-brand-whatsapp: #25d366;
+  --color-brand-instagram: #e1306c;
+  --color-brand-tiktok: #f0f4f0;
+  --color-brand-facebook: #4a9bff;
 
   /* Semantic Status */
   --color-danger: #f97066;

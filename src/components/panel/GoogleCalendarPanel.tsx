@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState, type MutableRefObject } from "react";
-import { CollapsibleSection } from "./CollapsibleSection";
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import { SectionSkeleton } from "./SectionSkeleton";
 import {
   DEFAULT_WEEKLY_SCHEDULE,
   type BookingSettings,
@@ -15,8 +15,24 @@ interface GoogleCalendarPanelProps {
   profileSlug: string;
   hasValidWhatsapp: boolean;
   onInternalBookingChange: (enabled: boolean) => void;
+  onDirtyChange?: (dirty: boolean) => void;
   saveBookingRef?: MutableRefObject<(() => Promise<boolean>) | null>;
 }
+
+type SchedulePresetKey = "seg-sex" | "seg-sab" | "seg-dom";
+
+const SCHEDULE_PRESETS: {
+  key: SchedulePresetKey;
+  label: string;
+  days: number[];
+}[] = [
+  { key: "seg-sex", label: "Seg a sex", days: [1, 2, 3, 4, 5] },
+  { key: "seg-sab", label: "Seg a sáb", days: [1, 2, 3, 4, 5, 6] },
+  { key: "seg-dom", label: "Seg a dom", days: [0, 1, 2, 3, 4, 5, 6] },
+];
+
+const PRESET_START_TIME = "08:00";
+const PRESET_END_TIME = "18:00";
 
 const TIMEZONES = [
   { value: "America/Sao_Paulo", label: "America/Sao_Paulo (Brasília)" },
@@ -105,6 +121,42 @@ interface CalendarSnapshot {
   error?: string;
 }
 
+function areSettingsEquivalent(a: BookingSettings, b: BookingSettings): boolean {
+  if (
+    a.timezone !== b.timezone ||
+    a.serviceName !== b.serviceName ||
+    a.slotDurationMinutes !== b.slotDurationMinutes ||
+    a.bufferMinutes !== b.bufferMinutes ||
+    a.minNoticeMinutes !== b.minNoticeMinutes ||
+    a.horizonDays !== b.horizonDays ||
+    a.enabled !== b.enabled
+  ) {
+    return false;
+  }
+  if (a.weeklySchedule.length !== b.weeklySchedule.length) return false;
+  return a.weeklySchedule.every((day) => {
+    const other = b.weeklySchedule.find((d) => d.dayOfWeek === day.dayOfWeek);
+    return (
+      Boolean(other) &&
+      other!.enabled === day.enabled &&
+      other!.startTime === day.startTime &&
+      other!.endTime === day.endTime
+    );
+  });
+}
+
+function matchesPreset(settings: BookingSettings, days: number[]): boolean {
+  return settings.weeklySchedule.every((day) => {
+    const shouldBeEnabled = days.includes(day.dayOfWeek);
+    return (
+      day.enabled === shouldBeEnabled &&
+      (!shouldBeEnabled ||
+        (day.startTime === PRESET_START_TIME &&
+          day.endTime === PRESET_END_TIME))
+    );
+  });
+}
+
 async function fetchCalendarSnapshot(profileId: string): Promise<CalendarSnapshot> {
   try {
     const [connRes, setRes] = await Promise.all([
@@ -145,6 +197,7 @@ export function GoogleCalendarPanel({
   profileSlug,
   hasValidWhatsapp,
   onInternalBookingChange,
+  onDirtyChange,
   saveBookingRef,
 }: GoogleCalendarPanelProps) {
   const [connection, setConnection] = useState<CalendarConnectionView | null>(
@@ -155,6 +208,10 @@ export function GoogleCalendarPanel({
   );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [pendingPreset, setPendingPreset] = useState<SchedulePresetKey | null>(
+    null
+  );
+  const savedSettingsRef = useRef<BookingSettings | null>(null);
   const [callbackNotice, setCallbackNotice] = useState<{
     type: "success" | "warning" | "error";
     text: string;
@@ -178,6 +235,7 @@ export function GoogleCalendarPanel({
       const nextSettings = snap.settings ?? createDefaultSettings(profileId);
       setConnection(nextConn);
       setSettings(nextSettings);
+      savedSettingsRef.current = nextSettings;
       setLoading(false);
 
       const active =
@@ -307,8 +365,30 @@ export function GoogleCalendarPanel({
         day.dayOfWeek === dayOfWeek ? { ...day, ...patch } : day
       ),
     }));
+    setPendingPreset(null);
     setActionSuccess(null);
     setActionError(null);
+  }
+
+  function applyPreset(days: number[]) {
+    setSettings((prev) => ({
+      ...prev,
+      weeklySchedule: prev.weeklySchedule.map((day) => ({
+        ...day,
+        enabled: days.includes(day.dayOfWeek),
+        startTime: days.includes(day.dayOfWeek)
+          ? PRESET_START_TIME
+          : day.startTime,
+        endTime: days.includes(day.dayOfWeek)
+          ? PRESET_END_TIME
+          : day.endTime,
+      })),
+    }));
+    setPendingPreset(null);
+    setActionError(null);
+    setActionSuccess(
+      "Modelo aplicado. Clique em \u201CSalvar disponibilidade\u201D para confirmar."
+    );
   }
 
   const persistSettings = useCallback(
@@ -341,6 +421,7 @@ export function GoogleCalendarPanel({
           return false;
         }
         setSettings(data.settings);
+        savedSettingsRef.current = data.settings as BookingSettings;
         const active =
           connection?.status === "connected" && Boolean(data.settings.enabled);
         onInternalBookingChange(active);
@@ -368,6 +449,12 @@ export function GoogleCalendarPanel({
     };
   }, [saveBookingRef, persistSettings, settings]);
 
+  useEffect(() => {
+    if (!onDirtyChange) return;
+    const saved = savedSettingsRef.current;
+    onDirtyChange(saved ? !areSettingsEquivalent(saved, settings) : false);
+  }, [settings, onDirtyChange]);
+
   async function handleSaveSettings() {
     await persistSettings(settings);
   }
@@ -379,60 +466,66 @@ export function GoogleCalendarPanel({
   const canActivate = isConnected && hasActiveDay && hasValidWhatsapp;
 
   return (
-    <CollapsibleSection
-      id="secao-agendamento"
-      title="4. Agendamento (Google Agenda)"
-      description="Conecte sua agenda para exibir horários livres e receber reservas direto no LinkIA."
-      leadingIcon={
-        <span className="calendar-icon-box">
-          <GoogleCalendarIcon />
-        </span>
-      }
-      defaultOpen={Boolean(callbackNotice)}
-    >
-
-        {loading ? (
-          <p className="field-hint">Carregando status da Google Agenda...</p>
-        ) : loadError ? (
-          <div className="alert-banner alert-error" role="alert">
-            <span>{loadError}</span>
-            <button
-              type="button"
-              onClick={handleRetryLoad}
-              className="btn btn-secondary"
-              style={{ marginLeft: "12px", minHeight: "36px" }}
+    <div className="schedule-section">
+      {loading ? (
+        <SectionSkeleton
+          variant="schedule"
+          label="Carregando configurações da Google Agenda"
+        />
+      ) : loadError ? (
+        <div className="section-error" role="alert">
+          <p>{loadError}</p>
+          <button type="button" onClick={handleRetryLoad} className="btn btn-secondary">
+            Tentar novamente
+          </button>
+        </div>
+      ) : (
+        <>
+          {callbackNotice ? (
+            <div
+              role={callbackNotice.type === "error" ? "alert" : "status"}
+              className={`alert-banner ${
+                callbackNotice.type === "success"
+                  ? "alert-success"
+                  : callbackNotice.type === "warning"
+                    ? "alert-warning"
+                    : "alert-error"
+              }`}
             >
-              Tentar novamente
-            </button>
+              {callbackNotice.text}
+            </div>
+          ) : null}
+
+          <div
+            className={`schedule-status${canActivate && settings.enabled ? " is-active" : ""}`}
+            role="status"
+          >
+            <span className="schedule-status-title">
+              {canActivate && settings.enabled
+                ? "Agendamento público ativo"
+                : "Agendamento público inativo"}
+            </span>
+            <span className="schedule-status-desc">
+              {canActivate && settings.enabled
+                ? "Seu link de agendamento já exibe horários disponíveis."
+                : "Complete os pré-requisitos abaixo e salve para começar a receber reservas."}
+            </span>
           </div>
-        ) : (
-          <>
-            {callbackNotice ? (
-              <div
-                role={callbackNotice.type === "error" ? "alert" : "status"}
-                className={`alert-banner ${
-                  callbackNotice.type === "success"
-                    ? "alert-success"
-                    : callbackNotice.type === "warning"
-                      ? "alert-warning"
-                      : "alert-error"
-                }`}
-              >
-                {callbackNotice.text}
-              </div>
-            ) : null}
 
-            {connection?.isMock ? (
-              <div role="status" className="alert-banner alert-warning">
-                <strong>Modo Simulação Local:</strong> a integração está usando
-                agenda simulada para testes locais (sem gravação no Google real).
-              </div>
-            ) : null}
+          {connection?.isMock ? (
+            <div role="status" className="alert-banner alert-warning">
+              <strong>Modo Simulação Local:</strong> a integração está usando
+              agenda simulada para testes locais (sem gravação no Google real).
+            </div>
+          ) : null}
 
-            {/* Connection card */}
+          {/* Connection card */}
             <div className="link-card-group">
               <div className="link-card-top" style={{ flexWrap: "wrap" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                  <span className="calendar-icon-box" aria-hidden="true">
+                    <GoogleCalendarIcon />
+                  </span>
                   <strong>Google Agenda</strong>
                   <span className={`badge ${meta.badgeClass}`}>
                     {meta.label}
@@ -770,6 +863,88 @@ export function GoogleCalendarPanel({
                 </div>
               </div>
 
+              <div className="field-group schedule-presets">
+                <span className="field-label">Modelos de dias e horários</span>
+                <p className="field-hint">
+                  Aplicam 08:00 às 18:00 nos dias escolhidos. Nada é salvo até
+                  você clicar em &ldquo;Salvar disponibilidade&rdquo;.
+                </p>
+                <div className="choice-row">
+                  {SCHEDULE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.key}
+                      type="button"
+                      className="choice-btn"
+                      aria-pressed={matchesPreset(settings, preset.days)}
+                      onClick={() => setPendingPreset(preset.key)}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="choice-btn"
+                    aria-pressed={
+                      !SCHEDULE_PRESETS.some((preset) =>
+                        matchesPreset(settings, preset.days)
+                      )
+                    }
+                    onClick={() => setPendingPreset(null)}
+                  >
+                    Personalizar
+                  </button>
+                </div>
+
+                {pendingPreset ? (
+                  <div
+                    className="schedule-preset-confirm"
+                    role="group"
+                    aria-label="Confirmar modelo de horário"
+                  >
+                    <p className="field-hint">
+                      Aplicar{" "}
+                      <strong>
+                        {
+                          SCHEDULE_PRESETS.find(
+                            (preset) => preset.key === pendingPreset
+                          )?.label
+                        }
+                      </strong>{" "}
+                      com 08:00–18:00? Os dias e horários atuais serão
+                      substituídos na sua configuração local.
+                    </p>
+                    <div className="channel-actions">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() =>
+                          applyPreset(
+                            SCHEDULE_PRESETS.find(
+                              (preset) => preset.key === pendingPreset
+                            )?.days ?? []
+                          )
+                        }
+                      >
+                        Aplicar modelo
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => setPendingPreset(null)}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="field-hint">
+                    Para personalizar, edite os dias e horários abaixo. O
+                    intervalo contínuo inclui o almoço; ajuste os horários se
+                    precisar de pausa.
+                  </p>
+                )}
+              </div>
+
               <div className="field-group">
                 <span className="field-label">Dias e horários de atendimento</span>
                 <div className="weekly-schedule-list">
@@ -832,7 +1007,7 @@ export function GoogleCalendarPanel({
             </div>
           </>
         )}
-    </CollapsibleSection>
+    </div>
   );
 }
 

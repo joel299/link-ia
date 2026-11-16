@@ -35,6 +35,64 @@
   --pub-muted: rgba(24, 33, 28, 0.72);
 }
 
+/* Cover photo with a blurred first-fold transition */
+.public-page-shell.has-cover {
+  padding-top: 0;
+}
+
+.public-cover {
+  position: relative;
+  width: 100%;
+  max-width: var(--public-max-width);
+  margin: 0 auto;
+  height: clamp(150px, 26vh, 230px);
+  overflow: hidden;
+  flex-shrink: 0;
+  border-radius: 0 0 var(--radius-lg, 16px) var(--radius-lg, 16px);
+  background: var(--pub-card-solid);
+}
+
+.public-page-shell.is-preview .public-cover {
+  height: 118px;
+}
+
+.public-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.public-cover-blur {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(var(--cover-blur, 12px));
+  backdrop-filter: blur(var(--cover-blur, 12px));
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 22%,
+    rgba(0, 0, 0, 0.55) 62%,
+    #000 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 22%,
+    rgba(0, 0, 0, 0.55) 62%,
+    #000 100%
+  );
+  background: linear-gradient(
+    to bottom,
+    transparent 45%,
+    var(--pub-bg) 100%
+  );
+  opacity: 0.92;
+}
+
+.public-page-shell.has-cover .public-profile-container {
+  gap: 22px;
+}
+
 .public-profile-container {
   width: 100%;
   max-width: 480px;

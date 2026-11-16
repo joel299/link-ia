@@ -1,7 +1,7 @@
 # Estado atual — LinkIA
 
 **Última atualização:** 15/11/2026  
-**Status:** MVP + Google Calendar (Composio) + Agendamento público + Catálogo/Carrossel + Destaques do Instagram + Canais conectados + Tráfego Pago (`/painel/trafego`, restrito a perfis publicados) + Páginas legais públicas (`/termos-de-uso`, `/politica-de-privacidade`) + Correções finais de painel (remoção de badge MVP e campo URL de foto, CRUD completo com despublicar e exclusão confirmada, seções 1–4 colapsáveis, links personalizados HTTPS e ordenação configurável da prévia e página pública) implementados e validados localmente em `http://127.0.0.1:3000`. Pendente preenchimento dos dados empresariais/jurídicos nas minutas legais, atualização externa de `COMPOSIO_META_ADS_AUTH_CONFIG_ID` para `metaads`, teste em Docker Linux e descoberta da plataforma Qualify.
+**Status:** MVP + Google Calendar (Composio) + Agendamento público + Catálogo/Carrossel + Destaques do Instagram + Canais conectados + Tráfego Pago (`/painel/trafego`, restrito a perfis publicados) + Páginas legais públicas (`/termos-de-uso`, `/politica-de-privacidade`) + Correções finais de painel (remoção de badge MVP e campo URL de foto, CRUD completo com despublicar e exclusão confirmada, links personalizados HTTPS e ordenação configurável da prévia e página pública) + Editor de perfil reorganizado em cinco seções sob demanda (menu **Profile**, skeletons, capa com desfoque, canais em cards/Drawer, modelos de agendamento e prévia com indicador de não salvo) implementados e validados localmente em `http://127.0.0.1:3000`. Pendente preenchimento dos dados empresariais/jurídicos nas minutas legais, atualização externa de `COMPOSIO_META_ADS_AUTH_CONFIG_ID` para `metaads`, teste em Docker Linux, descoberta da plataforma Qualify e validação visual em navegador.
 
 ## Retomada rápida
 
@@ -34,6 +34,20 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
   - Variáveis `APP_BASE_URL`, `COMPOSIO_API_KEY`, `COMPOSIO_GOOGLE_CALENDAR_AUTH_CONFIG_ID` e `COMPOSIO_ALLOW_LOCAL_MOCK` adicionadas em `.env.example`, `compose.yaml` e documentação.
   - `docker compose config --quiet` validado.
 
+### Editor de perfil reorganizado (15/11/2026)
+
+- **Navegação:** o cabeçalho do editor exibe nome do perfil + badge de estado (`Publicado`/`Rascunho`) + dropdown **Profile** com as cinco seções (Identidade, Canais conectados, Aparência pública, Agendamento, Serviços e Produtos). A seção ativa é marcada no menu; a escolha apenas troca a seção montada e atualiza o hash (`#identidade`, `#canais`, `#aparencia`, `#agendamento`, `#servicos`) via `history.replaceState`, preservando refresh e o botão Voltar.
+- **Carregamento sob demanda:** apenas a seção ativa é montada. `ConnectedChannelsPanel`, `GoogleCalendarPanel`, `CatalogPanel` e `CustomLinksPanel` são importados com `next/dynamic` (`ssr: false`) e buscam seus dados somente ao abrir a seção. Não há fetch inicial de canais, agenda ou catálogo; cada abertura faz uma busca por canal/recurso. Caches ficam no estado do editor por perfil (componente remontado por `key`), e a prévia mantém os últimos dados carregados.
+- **Alterações não salvas:** ao trocar de seção com alterações pendentes, o editor exibe **Salvar e continuar**, **Descartar e continuar** (restaura o último perfil salvo) e **Cancelar**. `beforeunload` alerta antes de refresh/fechamento. “Descartar” também limpa o estado sujo do agendamento.
+- **Skeletons:** `SectionSkeleton` cobre identidade, canais, aparência, agenda, catálogo e genérico, somente no conteúdo da seção; não aparece quando já há dados. Erros usam bloco simples com **Tentar novamente**. Respeita `prefers-reduced-motion` e tema claro/escuro.
+- **Identidade + capa:** `profiles.cover_url` e `profiles.cover_blur` (0–24, padrão 12) adicionados ao SQLite com ALTERs idempotentes. Upload reutiliza `/api/uploads` (PNG/JPEG/WebP, 2 MB, validação de *magic bytes*); a URL técnica não é exibida. `CoverUploader` oferece prévia, envio/remoção e intensidade de desfoque. `PublicProfileView` renderiza capa full-width limitada a `480px` com `backdrop-filter` mascarado; a prévia do editor recebe capa/blur.
+- **Canais conectados:** todos os canais habilitados pela permissão são consultados na abertura da seção; cards compactos com ícone e cor da marca mostram estado real (`Conectado`, `Desconectado`, `Ação necessária`, erro) e ação correta (`Gerenciar`/`Conectar`/`Reconectar`). Detalhes abrem em `ChannelDrawer` (desktop lateral, mobile bottom sheet) com Escape, backdrop, gesto de arrastar para baixo, foco inicial e bloqueio de scroll. WhatsApp mantém as duas opções (Business ou apenas número) e não exibe QR fictício; Facebook não é apresentado como Meta Ads.
+- **Aparência:** blocos diretos (Tema, Cores, Tipografia, Botões) sem accordion; escolhas salvas por perfil e refletidas imediatamente na prévia.
+- **Agendamento:** faixa de status real (ativo/inativo + pré-requisitos), modelos **Seg a sex**, **Seg a sáb**, **Seg a dom** (08:00–18:00) e **Personalizar**. O modelo só substitui os dias locais após confirmação e só é persistido em **Salvar disponibilidade**; fuso, duração, pausa e antecedência são preservados. Como `WeeklyAvailabilityDay` suporta um único intervalo por dia, o modelo cobre 08:00–18:00 contínuo — dois períodos exigiriam mudança no backend (registrado em `bugs-e-dificuldades.md`).
+- **Serviços e Produtos:** mantém o CRUD existente dentro de `SectionShell`, com skeleton ao abrir, erro com retry e prévia sincronizada.
+- **Prévia:** continua vinculada ao perfil aberto, reflete campos, cores, capa e ordem pública, e mostra um indicador textual discreto **Não salvo** quando há alterações pendentes. Não expõe URLs internas, IDs ou debug.
+- **Design system:** verde vibrante controlado adicionado como `--color-primary-vivid` e `--color-primary-soft`, usados apenas em bordas/foco/indicadores; textos pequenos continuam com `--color-primary`/`--color-success` de contraste seguro. Paleta preto/verde/dourado preservada; ícones de marca usam cores oficiais apenas como acento decorativo.
+
 ### Itens ainda pendentes ou não verificados
 
 - **Integração real com Composio (Connect Link):** validada em `http://localhost:3000` com `.env` carregado (`COMPOSIO_API_KEY` e `COMPOSIO_GOOGLE_CALENDAR_AUTH_CONFIG_ID` sem expor segredos):
@@ -47,6 +61,12 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
 
 ## Validações realizadas (após últimas correções)
 
+- **Editor reorganizado (15/11/2026):**
+  - `npm run typecheck`: **0 erros**.
+  - `npm run lint`: **0 erros** (4 warnings de `<img>` em `CatalogPanel`, `PublicAvatar`, `PublicCatalogCarousel`; `.agents/**` passou a ser ignorado no `eslint.config.mjs`).
+  - `npm test`: **8 arquivos, 69/69 testes passaram**.
+  - `npm run build`: **sucesso** (`next build`).
+  - Percorrer visual dos 13 pontos em navegador (1440/390, claro/escuro, skeleton, requests) **não executado**: sem credenciais de conta autorizada no ambiente e sem DevTools remoto; validação limitada a build, tipos, lint, testes e revisão de código. Integração real com Google/WhatsApp/Instagram continua dependente de credenciais e consentimento externos.
 - `npm run lint`: **0 erros** (1 warning esperado `@next/next/no-img-element` em `PublicAvatar.tsx`).
 - `npm run typecheck`: **0 erros**.
 - `npm test`: **4 arquivos, 24/24 testes passaram** (`validation.test.ts`: 13, `catalog.test.ts`: 2, `profiles.test.ts`: 2, `scheduling.test.ts`: 7, incluindo `horizonDays` dinâmico, `getAvailableSlotsForRange` e isolamento/preços do catálogo).
@@ -146,3 +166,76 @@ O LinkIA é um MVP para criar e publicar páginas de bio personalizadas e recebe
 - **Ajuste:** `getSessionUser()` agora executa o bootstrap idempotente antes de consultar o papel da conta, para reconciliar a sessão com a configuração atual do serviço. A promoção continua restrita ao e-mail configurado e à senha bootstrap válida. Teste de regressão cobre uma sessão existente.
 - **Validação local:** `npm run typecheck` e `npm run lint` passaram (4 avisos existentes de `<img>`); `npm test` bloqueado pelo erro Windows `EPERM` ao resolver `node_modules/vite/dist/node/module-runner.js`.
 - **Pendente:** confirmar que o e-mail configurado corresponde à conta usada e validar `/painel/admin` autenticado após publicação; a aba está deslogada, portanto a rota autenticada ainda não foi validada.
+
+### Atalho de URL administrativa (15/11/2026)
+- A captura de produção abriu `/login/admin`, caminho inexistente; a rota implementada é `/painel/admin`.
+- `/painel/admin` foi confirmado carregando em produção com a conta Joel como `Admin` e dois usuários listados.
+- Criado alias `/login/admin` que redireciona à rota administrativa real; autenticação e autorização permanecem aplicadas na rota de destino.
+
+---
+
+## Auditoria de frontend — 15/11/2026
+
+Auditoria completa solicitada por Joel, **sem alterar código funcional, sem commit, sem publicar e sem deploy**. Objetivo: avaliar qualidade e oportunidades de melhoria do frontend com evidência reproduzível.
+
+### Escopo e método
+- Leitura prévia de `AGENTS.md`, `diretorio-geral.md`, `estado-atual.md`, `bugs-e-dificuldades.md`, `SDD-PRD-link-bio-mvp.md` e `SYSTEM_DESIGN_LINKIA.md`; inspeção de `git status` (alterações do usuário preservadas) e da estrutura de `src/`.
+- Skill visual `design-taste-frontend` (tasteskill 2.5.1) instalada via `npx skills add Leonxlnx/taste-skill` em `.agents/skills/design-taste-frontend`; `SKILL.md` e `references/system.md` lidos. A skill é voltada a landing/company sites, então foram aplicados apenas os princípios transferíveis (hierarquia, alvos de toque, foco visível, contraste, consistência), sem impor "uma seção por tela".
+- Inspeção de UI em Chrome headless via CDP (sem dependências novas), com medições de landmarks, headings, contraste (WCAG), alvos de toque, overflow, foco e ordem de Tab.
+- Público: `http://127.0.0.1:3000` (`/`, `/login`, `/termos-de-uso`, `/politica-de-privacidade`, `/soueujoe`, `/soueujoe/agendar`, 404), em 1440×900 e 390×844, temas escuro e claro.
+- Painel autenticado: build de produção standalone em `127.0.0.1:3100` com **cópia** do SQLite em `DATA_DIR` temporário (usuário demo promovido a `admin` apenas na cópia) e cookie de sessão assinado com o `SESSION_SECRET` local. O banco real `data/linkia.db` não foi alterado.
+- Telas do painel auditadas: gate legal, editor desktop (escuro/claro), seções abertas, abas Editar/Prévia no mobile, `/painel/trafego` e `/painel/admin` (desktop e mobile).
+
+### Pontos fortes observados
+- Layout responsivo sem overflow horizontal em todas as rotas medidas (1440 e 390).
+- Página pública `/soueujoe` com estrutura correta (`h1` único, um `main`/`header`/`footer`), CTAs de 64px de altura e contraste 8,65:1.
+- Tema claro/escuro consistente, sem "flash" de tema (script de inicialização no `layout.tsx`) e fallback sólido quando `backdrop-filter` não existe.
+- Editor mostra estados reais de carregamento e erro, sem inventar progresso; mensagens de erro de integração chegam sanitizadas (nenhum JSON cru ou detalhe interno exposto).
+- No mobile, ao alternar para Prévia o editor recebe `display: none` — não há foco fantasma em campos ocultos.
+- `/painel/admin` com 3 usuários e chips de permissão legíveis (13px, contraste 4,61:1) em desktop e mobile.
+- Gate legal com `h1` correto e foco/estrutura previsíveis.
+
+### Problemas encontrados (detalhe e evidência em `bugs-e-dificuldades.md`, AUD-001 a AUD-015)
+- **P1:** modal de agendamento sem foco inicial, sem armadilha de foco, sem `Escape` e sem bloqueio de rolagem; Tab percorre o fundo da página com o modal aberto (AUD-002).
+- **P2:** landmarks duplicados na home e no painel (`main`/`header` 2×), porque `PublicProfileView` mantém `<main>/<header>/<footer>` no modo `isPreview` (AUD-001); editor sem `h1` e seções em `SPAN` (AUD-007); contraste 3,63:1 no selo da home (AUD-003); `.section-title` sem CSS, gerando dois tamanhos para o mesmo título (AUD-004); tráfego pago mostrando "Conectado" e "sem autorização" ao mesmo tempo (AUD-008); cabeçalho mobile de 269px + barra de perfil de 159px empurrando o primeiro campo para `top: 934` (AUD-009); alvos de toque de 33–40px (AUD-010); `npm run lint` quebrado por varrer `.agents` (AUD-012); host `linka.infinito.com.br` no rodapé contra `linkia.iainfinito.com.br` na documentação (AUD-013).
+- **P3:** input de avatar 1×1 focável antes do botão "Enviar imagem" (AUD-006); `.public-social-*` repetido 4× no CSS (AUD-005); grade de recursos 2+1 na home (AUD-011); diálogo de exclusão com `aria-modal="false"` e foco em `BODY` (AUD-014).
+
+### Validações realmente executadas
+- `npm run typecheck`: **passou**.
+- `npm test`: **8 arquivos / 69 testes passaram**.
+- `npm run build`: **sucesso** (~5s de compilação + TypeScript), com 2 warnings de tracing dinâmico em `src/lib/db.ts` (`DATA_DIR`).
+- `npm run lint`: **falhou (exit 1)** — 15 erros e 241 warnings, todos em `.agents/skills/design-taste-frontend/assets/**`; em `src/`, apenas 4 warnings `@next/next/no-img-element`. Não é regressão de código do produto (AUD-012).
+- Servidor de produção standalone: `/api/health` 200; `/soueujoe` 200; `/soueujoe/agendar` 200; `/painel/admin` como cliente → 307 para `/painel`.
+- Erro de integração reproduzido: `ConnectedAccount_ToolkitMismatch` (conta `ca_zF8pU19BbQef` pertence ao toolkit `facebook`, não `metaads`), apresentado na UI sem detalhe interno.
+
+### Limitações desta auditoria
+- Sem Lighthouse, INP, LCP, CLS ou medição de memória/render; as conclusões de performance são qualitativas (peso de CSS, duplicação de regras).
+- O painel autenticado foi auditado no **build de produção standalone**, com banco temporário; o ciclo de recarregamento observado no `next dev` (Turbopack) não foi reproduzido em produção e ficou registrado como atrito de ambiente (AUD-015), não como bug de produto.
+- Nenhum OAuth real (Meta Ads, Google Agenda, canais sociais) foi concluído; as telas de conexão foram avaliadas apenas em estado desconectado/erro.
+- Leitor de tela real (NVDA/VoiceOver) não foi usado; as conclusões vêm da árvore semântica e da ordem de foco no DOM.
+- Não foi avaliado Docker Linux nem o ambiente Coolify.
+
+### Próximo passo sugerido
+1. Corrigir AUD-002 (modal de agendamento) — maior impacto e escopo pequeno e isolado.
+2. Corrigir AUD-001 (landmarks no modo `isPreview`) e AUD-007 (`h1` do editor), que compartilham a mesma área.
+3. Adicionar `".agents/**"` ao `globalIgnores` do `eslint.config.mjs` para restaurar o gate de lint (AUD-012).
+4. Tratar AUD-003, AUD-004, AUD-009 e AUD-013 (contraste, CSS ausente, chrome mobile, host) antes de nova publicação.
+5. Consolidar `public-profile.css` (AUD-005) em mudança separada, comparando capturas antes/depois.
+
+> **Atualização (15/11/2026):** AUD-007, AUD-012 e AUD-014 foram corrigidos na reorganização do editor de perfil (menu **Profile**, seções sob demanda, `h1` do perfil e diálogo de exclusão acessível). Os demais achados permanecem abertos. Ver `bugs-e-dificuldades.md` e a seção "Editor de perfil reorganizado" acima.
+
+### Retomada da auditoria do frontend (16/11/2026)
+- **Estado encontrado:** a auditoria base (AUD-001 a AUD-015) e os registros do editor reorganizado (EDIT-001 a EDIT-004) já estavam documentados. O commit local fa13140 adiciona uma reorganização extensa do editor e atualiza parte desses documentos; main local está um commit à frente de origin/main. Esse estado não prova publicação em produção.
+- **Skill visual:** design-taste-frontend já existe em .agents/skills/design-taste-frontend; skills-lock.json confirma origem Leonxlnx/taste-skill. A skill e a referência references/system.md foram lidas na auditoria anterior. A nova tentativa de npx skills add Leonxlnx/taste-skill falhou com ENOTFOUND registry.npmjs.org; não houve nova instalação. Foram usados somente princípios aplicáveis a um painel SaaS, sem impor o formato de landing page da skill.
+- **Verificações no estado atual:** npm run typecheck passou; npm run lint passou sem erros e com quatro avisos @next/next/no-img-element. npm test não iniciou por EPERM ao carregar a configuração do Vitest. npm run build falhou porque o SWC não conseguiu canonicalizar/acessar o diretório do workspace (Acesso negado, erro 5). Esses dois bloqueios impedem confirmar a compilação e os testes do commit local nesta sessão.
+- **Escopo visual atual:** a medição visual detalhada existente refere-se ao baseline anterior à reorganização do editor. O commit local mudou componentes centrais do painel; as telas dessa versão não foram revalidadas em navegador nesta retomada. A validação anterior em produção corresponde à versão publicada e não comprova o commit local ainda não sincronizado.
+- **Alterações desta retomada:** somente documentação de auditoria; nenhum código funcional foi alterado. O bloco automático Next.js em AGENTS.md, os arquivos novos do usuário e os arquivos de instalação da skill foram preservados.
+- **Próximo passo:** executar o percurso desktop/mobile do editor do commit fa13140 em ambiente local que permita build e navegação, registrar PASS/FAIL/NOT_VERIFIED e então atualizar o estado dos achados sem fechar itens com base apenas em leitura do código.
+
+### Fechamento da retomada da auditoria (16/11/2026)
+- **Comparativo com a tarefa original:** o commit local `fa13140` já inclui o menu Profile com cinco seções, montagem sob demanda, skeletons, capa com controle de desfoque, Drawer de canais, estados de salvamento e ajustes da prévia. A auditoria anterior documenta os pontos concluídos e as recomendações ainda abertas; nenhum desses itens foi reimplementado nesta retomada.
+- **Limitação funcional registrada:** o documento `docs/4. Agendamento (Google Agenda).md` pede dois intervalos (08:00–12:00 e 13:00–18:00) nos três modelos. O commit `fa13140` ainda aplica 08:00–18:00 contínuo. Isso permanece como recomendação de implementação posterior (EDIT-001), fora do escopo desta auditoria; os horários atuais não foram alterados.
+- **Conferência visual em produção:** em 16/11, o painel aberto em `https://linkia.iainfinito.com.br/painel` ainda mostrou a estrutura anterior do editor (seções em acordeão e Catálogo na mesma página). Como `fa13140` não está no `origin/main`, a tela de produção não foi usada como validação desse commit.
+- **Tentativa de validação local:** `npm run dev -- --hostname 127.0.0.1 --port 3000` não ficou acessível; a verificação HTTP retornou bloqueio de permissão de socket do ambiente. O percurso visual do commit atual continua `NOT_VERIFIED`.
+- **Verificações executadas nesta retomada:** `npm run typecheck` passou; `npm run lint` passou com quatro avisos existentes de `<img>`; `npm test` não iniciou por `EPERM` ao resolver módulo do Vitest; `git diff --check` passou. A falha de build por acesso/canonicalização do caminho Windows segue registrada acima.
+- **Decisão e próximo passo:** não implementar melhorias funcionais nesta fase, conforme o prompt de auditoria. Publicar o commit local existente e os documentos desta auditoria; depois do deploy, repetir o percurso visual em desktop/mobile e abrir uma tarefa separada para EDIT-001 e os demais achados priorizados.

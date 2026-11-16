@@ -328,6 +328,43 @@ export function validateAvatarUrl(url: string | null | undefined): {
   }
 }
 
+export const COVER_BLUR_MIN = 0;
+export const COVER_BLUR_MAX = 24;
+export const COVER_BLUR_DEFAULT = 12;
+
+/**
+ * Validates the cover blur intensity used on the public profile first fold.
+ */
+export function validateCoverBlur(value: unknown): {
+  valid: boolean;
+  blur: number;
+  error?: string;
+} {
+  if (value === null || value === undefined) {
+    return { valid: true, blur: COVER_BLUR_DEFAULT };
+  }
+  const numeric = typeof value === "string" ? Number(value) : value;
+  if (
+    typeof numeric !== "number" ||
+    !Number.isFinite(numeric) ||
+    !Number.isInteger(numeric)
+  ) {
+    return {
+      valid: false,
+      blur: COVER_BLUR_DEFAULT,
+      error: "A intensidade do desfoque deve ser um número inteiro.",
+    };
+  }
+  if (numeric < COVER_BLUR_MIN || numeric > COVER_BLUR_MAX) {
+    return {
+      valid: false,
+      blur: COVER_BLUR_DEFAULT,
+      error: `A intensidade do desfoque deve ficar entre ${COVER_BLUR_MIN} e ${COVER_BLUR_MAX}.`,
+    };
+  }
+  return { valid: true, blur: numeric };
+}
+
 /**
  * Validates and merges a partial ProfileTheme against a base theme.
  */

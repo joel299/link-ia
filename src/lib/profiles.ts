@@ -20,8 +20,10 @@ import {
   normalizeWhatsApp,
   sanitizePlainText,
   TEXT_LIMITS,
+  COVER_BLUR_DEFAULT,
   validateAvatarUrl,
   validateBookingUrl,
+  validateCoverBlur,
   validateProfileForPublish,
   validateSlug,
   validateTheme,
@@ -34,6 +36,8 @@ interface ProfileRow {
   display_name: string;
   bio: string;
   avatar_url: string | null;
+  cover_url?: string | null;
+  cover_blur?: number | null;
   instagram_input: string;
   instagram_url: string | null;
   instagram_enabled: number;
@@ -118,6 +122,11 @@ function rowToProfile(row: ProfileRow): Profile {
     displayName: row.display_name,
     bio: row.bio,
     avatarUrl: row.avatar_url,
+    coverUrl: row.cover_url ?? null,
+    coverBlur:
+      typeof row.cover_blur === "number"
+        ? row.cover_blur
+        : COVER_BLUR_DEFAULT,
     instagramInput: row.instagram_input,
     instagramUrl: row.instagram_url,
     instagramEnabled: Boolean(row.instagram_enabled),
@@ -409,6 +418,28 @@ export function updateProfile(
     }
   }
 
+  let nextCoverUrl = current.coverUrl;
+  if (input.coverUrl !== undefined) {
+    const coverCheck = validateAvatarUrl(input.coverUrl);
+    if (!coverCheck.valid) {
+      errors.coverUrl =
+        "A foto de capa deve usar HTTPS ou ser enviada pelo painel.";
+    } else {
+      nextCoverUrl = coverCheck.url;
+    }
+  }
+
+  let nextCoverBlur = current.coverBlur;
+  if (input.coverBlur !== undefined) {
+    const blurCheck = validateCoverBlur(input.coverBlur);
+    if (!blurCheck.valid) {
+      errors.coverBlur =
+        blurCheck.error ?? "Intensidade de desfoque inválida.";
+    } else {
+      nextCoverBlur = blurCheck.blur;
+    }
+  }
+
   let nextInstagramInput = current.instagramInput;
   let nextInstagramUrl = current.instagramUrl;
   if (input.instagramInput !== undefined) {
@@ -521,6 +552,8 @@ export function updateProfile(
         display_name = ?,
         bio = ?,
         avatar_url = ?,
+        cover_url = ?,
+        cover_blur = ?,
         instagram_input = ?,
         instagram_url = ?,
         instagram_enabled = ?,
@@ -539,6 +572,8 @@ export function updateProfile(
       nextDisplayName,
       nextBio,
       nextAvatarUrl,
+      nextCoverUrl,
+      nextCoverBlur,
       nextInstagramInput,
       nextInstagramUrl,
       nextInstagramEnabled ? 1 : 0,
@@ -796,6 +831,11 @@ export function getPublishedPublicProfileBySlug(
     displayName: row.display_name,
     bio: row.bio,
     avatarUrl: row.avatar_url,
+    coverUrl: row.cover_url ?? null,
+    coverBlur:
+      typeof row.cover_blur === "number"
+        ? row.cover_blur
+        : COVER_BLUR_DEFAULT,
     instagramUrl: ownerPerms.instagram ? resolvedInstagramUrl : null,
     tiktokUrl: ownerPerms.tiktok_organic
       ? (connectedTiktokRow?.canonical_url ?? null)

@@ -23,6 +23,7 @@ interface ProfilePreviewProps {
   internalBookingEnabled?: boolean;
   catalogItems?: PublicCatalogItem[];
   customLinks?: PublicCustomLinkItem[];
+  unsaved?: boolean;
   onPublicOrderChange?: (order: PublicBlockKey[]) => void;
 }
 
@@ -42,6 +43,7 @@ export function ProfilePreview({
   internalBookingEnabled = false,
   catalogItems = [],
   customLinks = [],
+  unsaved = false,
   onPublicOrderChange,
 }: ProfilePreviewProps) {
   const [draggingKey, setDraggingKey] = useState<PublicBlockKey | null>(null);
@@ -125,6 +127,8 @@ export function ProfilePreview({
     displayName: draft.displayName,
     bio: draft.bio,
     avatarUrl: draft.avatarUrl,
+    coverUrl: draft.coverUrl,
+    coverBlur: draft.coverBlur,
     instagramUrl,
     whatsappUrl,
     bookingUrl: null,
@@ -139,16 +143,13 @@ export function ProfilePreview({
 
   return (
     <div className="preview-column">
-      <div
-        style={{
-          fontSize: "0.8125rem",
-          fontWeight: 600,
-          color: "var(--color-text-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-        }}
-      >
-        Prévia ao vivo
+      <div className="preview-title-row">
+        <span className="preview-title">Prévia ao vivo</span>
+        {unsaved ? (
+          <span className="preview-unsaved-chip" role="status">
+            Não salvo
+          </span>
+        ) : null}
       </div>
 
       {onPublicOrderChange && activeOrderedKeys.length > 1 ? (

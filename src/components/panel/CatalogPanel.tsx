@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { GlassSurface } from "@/components/ui/GlassSurface";
 import type {
   CatalogAvailabilityStatus,
   CatalogFlowType,
   CatalogItem,
   PublicCatalogItem,
 } from "@/lib/types";
+import { SectionShell } from "./SectionShell";
+import { SectionSkeleton } from "./SectionSkeleton";
 
 interface CatalogPanelProps {
   profileId: string;
@@ -364,39 +365,22 @@ export function CatalogPanel({
   }
 
   return (
-    <GlassSurface as="section" intensity="dense">
-      <div className="editor-section-inner">
-        <div
-          className="editor-section-header"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: "12px",
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <h2 className="editor-section-title">
-              Catálogo de Serviços e Produtos
-            </h2>
-            <p className="editor-section-desc">
-              Cadastre itens para exibir em um carrossel horizontal abaixo dos
-              links do seu perfil público.
-            </p>
-          </div>
-          {!formOpen ? (
-            <button
-              type="button"
-              onClick={openNewForm}
-              className="btn btn-primary"
-              style={{ minHeight: "38px" }}
-            >
-              + Novo item
-            </button>
-          ) : null}
-        </div>
-
+    <SectionShell
+      id="secao-servicos"
+      title="Serviços e Produtos"
+      description="Cadastre itens para exibir no carrossel abaixo dos links do seu perfil público."
+      aside={
+        !formOpen ? (
+          <button
+            type="button"
+            onClick={openNewForm}
+            className="btn btn-primary"
+          >
+            + Novo item
+          </button>
+        ) : null
+      }
+    >
         {actionNotice ? (
           <div role="status" className="alert-banner alert-success">
             {actionNotice}
@@ -404,15 +388,14 @@ export function CatalogPanel({
         ) : null}
 
         {loading ? (
-          <p className="field-hint">Carregando catálogo...</p>
+          <SectionSkeleton variant="catalog" label="Carregando serviços e produtos" />
         ) : loadError ? (
-          <div role="alert" className="alert-banner alert-error">
-            <span>{loadError}</span>
+          <div role="alert" className="section-error">
+            <p>{loadError}</p>
             <button
               type="button"
               onClick={handleRetryLoad}
               className="btn btn-secondary"
-              style={{ marginLeft: "12px", minHeight: "36px" }}
             >
               Tentar novamente
             </button>
@@ -783,8 +766,7 @@ export function CatalogPanel({
             ))}
           </div>
         ) : null}
-      </div>
-    </GlassSurface>
+    </SectionShell>
   );
 }
 

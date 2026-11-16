@@ -71,6 +71,8 @@ export interface Profile {
   displayName: string;
   bio: string;
   avatarUrl: string | null;
+  coverUrl: string | null;
+  coverBlur: number;
   instagramInput: string;
   instagramUrl: string | null;
   instagramEnabled: boolean;
@@ -92,6 +94,8 @@ export interface PublicProfile {
   displayName: string;
   bio: string;
   avatarUrl: string | null;
+  coverUrl?: string | null;
+  coverBlur?: number;
   instagramUrl: string | null;
   whatsappUrl: string | null;
   bookingUrl: string | null;
@@ -182,6 +186,8 @@ export interface ProfileUpdateInput {
   displayName?: string;
   bio?: string;
   avatarUrl?: string | null;
+  coverUrl?: string | null;
+  coverBlur?: number;
   instagramInput?: string;
   instagramEnabled?: boolean;
   whatsappNumber?: string;

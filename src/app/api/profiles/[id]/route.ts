@@ -56,7 +56,7 @@ const BOOLEAN_FIELDS = [
   "bookingEnabled",
 ] as const;
 
-const NULLABLE_STRING_FIELDS = ["avatarUrl", "bookingUrl"] as const;
+const NULLABLE_STRING_FIELDS = ["avatarUrl", "coverUrl", "bookingUrl"] as const;
 
 function isValidProfilePatchPayload(
   body: unknown
@@ -83,6 +83,12 @@ function isValidProfilePatchPayload(
     }
   }
   if (body.theme !== undefined && !isPlainObject(body.theme)) {
+    return false;
+  }
+  if (
+    body.coverBlur !== undefined &&
+    (typeof body.coverBlur !== "number" || !Number.isFinite(body.coverBlur))
+  ) {
     return false;
   }
   if (

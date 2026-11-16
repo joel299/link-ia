@@ -70,7 +70,7 @@
     .stat-value { display: flex; align-items: baseline; gap: 7px; margin: 5px 0; font-size: 3rem; font-weight: 760; letter-spacing: -.06em; }
     .stat-value span { color: var(--green); }
     .progress-track { height: 8px; border-radius: 8px; background: var(--line); overflow: hidden; margin: 7px 0 12px; }
-    .progress-fill { height: 100%; width: 85%; background: linear-gradient(90deg, var(--green-strong), var(--green)); border-radius: inherit; }
+    .progress-fill { height: 100%; width: 88%; background: linear-gradient(90deg, var(--green-strong), var(--green)); border-radius: inherit; }
     .estimate { color: var(--muted); font-size: .84rem; }
     .estimate strong { color: var(--gold); font-weight: 650; }
     .section { margin-top: 22px; }
@@ -142,15 +142,15 @@
 
     <section class="hero" aria-labelledby="pageTitle">
       <div class="hero-copy surface">
-        <span class="eyebrow">MVP + Google Agenda (Composio) · Local Ativo</span>
-        <h1 id="pageTitle">MVP e agendamento implementados.</h1>
-        <p class="intro">Painel de edição com prévia ao vivo, página pública `/{slug}`, conexão Google Agenda via Composio e fluxo `/{slug}/agendar`. Callback OAuth usa o domínio público; publicação corrigida e perfil `/soueujoe` publicado. Páginas públicas e consulta de disponibilidade responderam com sucesso; criação de evento real ainda precisa de validação.</p>
+        <span class="eyebrow">MVP + Google Agenda (Composio) · Editor reorganizado</span>
+        <h1 id="pageTitle">Editor de perfil em cinco seções.</h1>
+        <p class="intro">Painel de edição com menu <strong>Profile</strong>, seções montadas sob demanda com skeletons, capa com desfoque, canais em cards com Drawer, modelos de agendamento e prévia com indicador de não salvo. Página pública `/{slug}`, Google Agenda via Composio e fluxo `/{slug}/agendar` seguem funcionando. A auditoria de frontend de 15/11/2026 registrou 15 achados (AUD-001 a AUD-015); nesta entrega foram corrigidos o lint (AUD-012), o `h1`/hierarquia do editor (AUD-007) e o diálogo de exclusão (AUD-014), além da reorganização visual solicitada. Validação em navegador real segue pendente de credenciais.</p>
       </div>
       <aside class="hero-stat surface" aria-label="Progresso e prazo estimado">
         <span class="stat-label">Progresso verificado do MVP</span>
-        <div class="stat-value"><span>85%</span></div>
-        <div class="progress-track" role="progressbar" aria-label="Progresso estimado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="85"><div class="progress-fill"></div></div>
-        <div class="estimate"><strong>Restam ~1 dia</strong> para OAuth real Composio (com chaves), revisão visual no Chrome, Linux e Qualify.</div>
+        <div class="stat-value"><span>88%</span></div>
+        <div class="progress-track" role="progressbar" aria-label="Progresso estimado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="88"><div class="progress-fill"></div></div>
+        <div class="estimate"><strong>Restam ~1 dia</strong> para percurso visual em navegador, OAuth real Composio (com chaves), Linux e Qualify.</div>
       </aside>
     </section>
 
@@ -203,13 +203,92 @@
           <div class="phase complete"><span class="phase-name">Painel, prévia e temas</span><span>concluído</span></div>
           <div class="phase complete"><span class="phase-name">SQLite, slug, links e publicação</span><span>concluído</span></div>
           <div class="phase complete"><span class="phase-name">Code Review + QA HTTP + Docker Win</span><span>validado</span></div>
+          <div class="phase complete"><span class="phase-name">Editor em 5 seções, capa, canais e modelos</span><span>validado</span></div>
           <div class="phase current"><span class="phase-name">Navegador UI, Linux, Qualify e rate limit</span><span>pendente</span></div>
         </div>
       </article>
     </section>
 
-    <aside class="note surface"><strong>Base dos 85%:</strong> Código implementado (painel, prévia, página pública, Composio Google Calendar, canais conectados, tráfego pago, páginas legais e painel administrativo `/painel/admin` com controle granular de 8 permissões por usuário no servidor e UI), <code>npm run lint</code> (0 erros), <code>npm run typecheck</code> (0 erros), <code>npm test</code> (8 arquivos / 68 testes), <code>next build</code>, validação HTTP E2E em <code>127.0.0.1:3000</code> e smoke test Docker no Windows concluídos. Os 15% restantes correspondem à validação OAuth real em produção com contas externas, teste em Docker Linux, descoberta da plataforma Qualify e rate limiting.</aside>
-    <footer>Atualizado em 15/11/2026 - Bootstrap administrativo ajustado; typecheck/lint aprovados; testes locais e publicação pendentes.</footer>
+    <section class="section" aria-labelledby="auditTitle">
+      <div class="section-head"><h2 id="auditTitle">Auditoria de frontend</h2><p class="section-note">15/11/2026 · Chrome headless (CDP) em 1440×900 e 390×844, temas escuro e claro. Painel auditado no build de produção standalone com banco temporário.</p></div>
+      <div class="columns">
+        <article class="list-panel surface">
+          <h2>Pontos fortes</h2>
+          <ul class="plain-list">
+            <li><span class="decision-title">Sem overflow horizontal</span><span class="decision-copy">Todas as rotas medidas em 1440 e 390 mantiveram a largura do viewport.</span></li>
+            <li><span class="decision-title">Página pública consistente</span><span class="decision-copy"><code>/soueujoe</code> com <code>h1</code> único e landmarks corretos, CTAs de 64px e contraste 8,65:1.</span></li>
+            <li><span class="decision-title">Tema claro e escuro sem flash</span><span class="decision-copy">Script de inicialização no layout e fallback sólido quando <code>backdrop-filter</code> não existe.</span></li>
+            <li><span class="decision-title">Estados reais, sem progresso inventado</span><span class="decision-copy">Carregamento, vazio e erro no painel; falha de integração apresentada de forma sanitizada, sem JSON cru.</span></li>
+            <li><span class="decision-title">Prévia mobile sem foco fantasma</span><span class="decision-copy">Ao abrir Prévia, o editor recebe <code>display: none</code> e sai da ordem de foco.</span></li>
+          </ul>
+        </article>
+        <article class="list-panel surface">
+          <h2>Validações executadas</h2>
+          <ul class="plain-list">
+            <li><span class="decision-title">typecheck</span><span class="decision-copy">Passou, sem erros.</span></li>
+            <li><span class="decision-title">testes</span><span class="decision-copy">8 arquivos, 69 testes passaram.</span></li>
+            <li><span class="decision-title">build de produção</span><span class="decision-copy">Sucesso; 2 warnings de tracing dinâmico em <code>src/lib/db.ts</code> (<code>DATA_DIR</code>).</span></li>
+            <li><span class="decision-title">lint</span><span class="decision-copy">0 erros e 4 warnings de <code>&lt;img&gt;</code> em <code>src</code>; <code>.agents/**</code> ignorado em <code>eslint.config.mjs</code>.</span></li>
+            <li><span class="decision-title">HTTP</span><span class="decision-copy"><code>/api/health</code> 200, <code>/soueujoe</code> 200, <code>/soueujoe/agendar</code> 200, <code>/painel/admin</code> como cliente 307 para <code>/painel</code>.</span></li>
+          </ul>
+        </article>
+      </div>
+
+      <article class="list-panel surface section">
+        <h2>Problemas com evidência</h2>
+        <ul class="plain-list">
+          <li><span class="decision-title">AUD-002 · Modal de agendamento sem foco, sem Esc e com rolagem ativa</span><span class="decision-copy"><strong>P1</strong> — foco fica em <code>BODY</code> ao abrir; Tab percorre "Voltar para o perfil", os dias e o seletor de fuso do fundo; <code>body</code>/<code>html</code> com <code>overflow: visible</code> e <code>Escape</code> não fecha.</span></li>
+          <li><span class="decision-title">AUD-001 · Landmarks duplicados na home e no painel</span><span class="decision-copy"><strong>P2</strong> — <code>main</code> e <code>header</code> aparecem 2× em <code>/</code> e no editor; <code>PublicProfileView</code> mantém <code>main</code>/<code>header</code>/<code>footer</code> no modo <code>isPreview</code>.</span></li>
+          <li><span class="decision-title">AUD-007 · Editor sem <code>h1</code> e seções fora da hierarquia — corrigido</span><span class="decision-copy"><strong>P2</strong> — o cabeçalho agora imprime o nome do perfil em <code>h1.editor-profile-name</code> e cada seção usa <code>h2</code> e <code>h3</code> próprios, uma seção por vez.</span></li>
+          <li><span class="decision-title">AUD-008 · Tráfego pago com estado contraditório</span><span class="decision-copy"><strong>P2</strong> — "Conectado" e "Conta de anúncios ativa" convivem com "Nenhuma selecionada" e "A conexão atual não possui autorização para o Meta Ads".</span></li>
+          <li><span class="decision-title">AUD-009 · Cabeçalho mobile consome mais de uma tela</span><span class="decision-copy"><strong>P2</strong> — header de 269px + barra de perfil de 159px; abas em <code>top: 716</code> e primeiro campo em <code>top: 934</code>, com viewport de 844px.</span></li>
+          <li><span class="decision-title">AUD-010 · Alvos de toque abaixo de 44px</span><span class="decision-copy"><strong>P2</strong> — menu do painel 36px, ações do catálogo 33×34 e CTA do item 322×38.</span></li>
+          <li><span class="decision-title">AUD-012 · Lint quebrado por arquivos de terceiros — corrigido</span><span class="decision-copy"><strong>P2</strong> — <code>.agents/**</code> adicionado ao <code>globalIgnores</code> em <code>eslint.config.mjs</code>; <code>npm run lint</code> passou a retornar 0 erros e 4 warnings de <code>&lt;img&gt;</code> em <code>src</code>.</span></li>
+          <li><span class="decision-title">AUD-003, AUD-004 e AUD-013 · Contraste, CSS ausente e host</span><span class="decision-copy"><strong>P2</strong> — selo da home em 3,63:1; <code>.section-title</code> usado em <code>/painel/trafego</code> sem regra no CSS; rodapé legal imprime <code>linka.infinito.com.br</code> contra <code>linkia.iainfinito.com.br</code> na documentação.</span></li>
+          <li><span class="decision-title">AUD-005, AUD-006, AUD-011 e AUD-014 · Manutenção e detalhes de teclado</span><span class="decision-copy"><strong>P3</strong> — 13 seletores <code>.public-social-*</code> repetidos 4×; input de avatar 1×1 focável antes de "Enviar imagem"; grade de recursos em 2+1. <strong>AUD-014 corrigido:</strong> o diálogo de exclusão usa <code>role="alertdialog"</code> sem <code>aria-modal</code> e o foco vai para <strong>Cancelar</strong>.</span></li>
+        </ul>
+      </article>
+
+      <article class="list-panel surface section">
+        <h2>Editor reorganizado (15/11/2026)</h2>
+        <ul class="plain-list">
+          <li><span class="decision-title">Menu Profile com cinco seções</span><span class="decision-copy">Identidade, Canais conectados, Aparência pública, Agendamento e Serviços e Produtos. Uma seção montada por vez, seção ativa marcada no menu e hash na URL (<code>#identidade</code>, <code>#canais</code>, <code>#aparencia</code>, <code>#agendamento</code>, <code>#servicos</code>) via <code>history.replaceState</code>.</span></li>
+          <li><span class="decision-title">Carregamento sob demanda</span><span class="decision-copy">Painéis pesados entram por <code>next/dynamic</code> (<code>ssr: false</code>) e buscam dados só ao abrir a seção. Sem fetch inicial de canais, agenda ou catálogo; uma requisição por canal/recurso em cada abertura; prévia preserva os últimos dados carregados.</span></li>
+          <li><span class="decision-title">Alterações não salvas</span><span class="decision-copy">Troca de seção oferece <strong>Salvar e continuar</strong>, <strong>Descartar e continuar</strong> (restaura o último perfil salvo) e <strong>Cancelar</strong>; <code>beforeunload</code> avisa antes de refresh/fechamento.</span></li>
+          <li><span class="decision-title">Skeletons e erros</span><span class="decision-copy"><code>SectionSkeleton</code> em seis variantes apenas no conteúdo da seção, nunca quando já existem dados; falhas usam bloco simples com <strong>Tentar novamente</strong>. Respeita <code>prefers-reduced-motion</code> e temas claro/escuro.</span></li>
+          <li><span class="decision-title">Capa com desfoque</span><span class="decision-copy"><code>profiles.cover_url</code> e <code>profiles.cover_blur</code> (0–24, padrão 12) com ALTERs idempotentes; upload reaproveita <code>/api/uploads</code> (PNG/JPEG/WebP, 2 MB, <em>magic bytes</em>) e a URL técnica nunca é exibida. Capa renderizada na página pública e na prévia, com <code>backdrop-filter</code> mascarado na primeira dobra.</span></li>
+          <li><span class="decision-title">Canais conectados</span><span class="decision-copy">Cards compactos com ícone e cor da marca mostram estado real (Conectado, Desconectado, Ação necessária), corrigindo o "conectado aparece como Conectar". Detalhes em Drawer responsivo (lateral no desktop, bottom sheet no mobile) com Escape, backdrop, gesto de arrastar, foco inicial e bloqueio de scroll. WhatsApp mantém as duas opções, sem QR fictício; Facebook não é apresentado como Meta Ads.</span></li>
+          <li><span class="decision-title">Modelos de agendamento</span><span class="decision-copy">Seg–Sex, Seg–Sáb, Seg–Dom e Personalizar, com confirmação local antes de aplicar. Nada é persistido até <strong>Salvar disponibilidade</strong>; fuso, duração, pausa e antecedência são preservados. Status real de agendamento público e pré-requisitos no topo da seção.</span></li>
+          <li><span class="decision-title">Aparência e prévia</span><span class="decision-copy">Blocos diretos de tema, cores, tipografia e botões, sem accordion. Prévia reflete campos, cores, capa e ordem pública, com indicador discreto <strong>Não salvo</strong>; sem URLs internas, IDs ou debug. Verde vibrante novo (<code>--color-primary-vivid</code>) só em bordas/foco/indicadores, nunca em texto pequeno.</span></li>
+          <li><span class="decision-title">Validação registrada no commit local</span><span class="decision-copy">O registro de 15/11 informa typecheck, lint, 69 testes e build aprovados naquele ambiente. Na retomada de 16/11, typecheck passou e lint teve 0 erros/4 avisos; Vitest foi bloqueado por EPERM e o build pelo erro 5 de acesso ao caminho Windows. O percurso visual desta reorganização segue pendente.</span></li>
+          <li><span class="decision-title">Limitação conhecida</span><span class="decision-copy"><code>WeeklyAvailabilityDay</code> aceita um intervalo por dia; por isso os modelos aplicam 08:00–18:00 contínuo e avisam sobre o almoço. Dois períodos (08:00–12:00 + 13:00–18:00) exigem mudança no contrato e em <code>scheduling.ts</code>, registrada como EDIT-001.</span></li>
+        </ul>
+      </article>
+
+      <article class="list-panel surface section">
+        <h2>Limitações e próximo passo</h2>
+        <ul class="plain-list">
+          <li><span class="decision-title">O que não foi medido</span><span class="decision-copy">Sem Lighthouse, INP, LCP, CLS, leitor de tela real, OAuth real ou Docker Linux. O percurso visual em navegador não foi executado nesta entrega; nada foi publicado em produção.</span></li>
+          <li><span class="decision-title">AUD-015 · Atrito só no desenvolvimento</span><span class="decision-copy">O ciclo de recarregamento do <code>/painel</code> ocorreu no <code>next dev</code> (Turbopack) e não se reproduziu no build standalone; registrado como limitação de ambiente.</span></li>
+          <li><span class="decision-title">Ordem sugerida para o restante</span><span class="decision-copy">1) Percurso visual em navegador (1440/390, claro/escuro, skeletons, requests) com conta autorizada; 2) AUD-002 (modal de agendamento); 3) AUD-001 (landmarks duplicados); 4) contraste de AUD-003, <code>.section-title</code> de AUD-004 e host de AUD-013; 5) consolidar <code>public-profile.css</code> com capturas antes/depois.</span></li>
+        </ul>
+      </article>
+    </section>
+
+    <aside class="note surface"><strong>Base dos 88%:</strong> Código implementado (painel, prévia, página pública, Composio Google Calendar, canais conectados, tráfego pago, páginas legais, painel administrativo <code>/painel/admin</code> com 8 permissões por usuário e editor reorganizado em cinco seções sob demanda com capa e modelos de agendamento), <code>npm run lint</code> (0 erros), <code>npm run typecheck</code> (0 erros), <code>npm test</code> (8 arquivos / 69 testes), <code>next build</code>, validação HTTP E2E em <code>127.0.0.1:3000</code> e smoke test Docker no Windows concluídos. Os 12% restantes correspondem ao percurso visual em navegador, validação OAuth real com contas externas, teste em Docker Linux, descoberta da plataforma Qualify e rate limiting.</aside>
+    <section class="section" aria-labelledby="auditResume">
+  <div class="section-head"><h2 id="auditResume">Retomada da auditoria (16/11/2026)</h2><p class="section-note">A auditoria anterior cobre o baseline. O commit local reorganiza o editor; a versão atual ainda não foi revalidada visualmente em desktop/mobile.</p></div>
+  <article class="list-panel surface">
+    <ul class="plain-list">
+      <li><span class="decision-title">Skill</span><span class="decision-copy">Taste-skill já estava instalada em .agents/skills/design-taste-frontend e foi lida. A tentativa de reinstalar falhou por ENOTFOUND registry.npmjs.org; nenhuma nova instalação ocorreu.</span></li>
+      <li><span class="decision-title">Estado do Git</span><span class="decision-copy">HEAD local fa13140 está um commit à frente de origin/main. A validação da produção não comprova esse commit.</span></li>
+      <li><span class="decision-title">Validação do workspace</span><span class="decision-copy">Typecheck passou; lint sem erros e 4 avisos de imagem; Vitest bloqueado por EPERM. O servidor local não ficou acessível porque o ambiente negou o socket. O painel de produção ainda mostra o editor antigo, portanto não valida o commit local.</span></li>
+      <li><span class="decision-title">Limitação EDIT-001</span><span class="decision-copy">Os modelos de agenda seguem 08:00–18:00 contínuos; o pedido de 08:00–12:00 e 13:00–18:00 requer uma tarefa funcional separada. Nenhuma melhoria de código foi implementada nesta auditoria.</span></li>
+      <li><span class="decision-title">Próxima ação</span><span class="decision-copy">Publicar o commit local existente e os documentos da auditoria; depois conferir o editor atualizado em desktop/mobile. OAuth real, leitor de tela, Docker Linux e Qualify permanecem validações independentes.</span></li>
+    </ul>
+  </article>
+</section>
+<footer>Atualizado em 16/11/2026 - Auditoria retomada e comparação de produção concluída; taste-skill existente confirmada; typecheck/lint passaram. Vitest e navegação local bloqueados pelo ambiente. A tela de produção ainda não reflete o commit local. Detalhes em docs/estado-atual.md e docs/bugs-e-dificuldades.md.</footer>
   </main>
   <script>
     const steps = [

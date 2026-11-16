@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { buildPreviewInstagramUrl } from "@/components/public/profile-visuals";
-import { CollapsibleSection } from "./CollapsibleSection";
+import { SectionSkeleton } from "./SectionSkeleton";
 import type {
   OrganicSocialProvider,
   Profile,
@@ -334,6 +334,11 @@ export function ConnectedChannelsPanel({
   fieldErrors,
   onFieldChange,
 }: ConnectedChannelsPanelProps) {
+  const allowWhatsapp = !permissions || permissions.whatsapp;
+  const allowInstagram = !permissions || permissions.instagram;
+  const allowTiktok = !permissions || permissions.tiktok_organic;
+  const allowFacebook = !permissions || permissions.facebook_social;
+
   const [initialReturn] = useState(readInitialReturnState);
   const [expanded, setExpanded] = useState<Record<ChannelKey, boolean>>(() => ({
     whatsapp: initialReturn.channel === "whatsapp",
@@ -346,25 +351,25 @@ export function ConnectedChannelsPanel({
     ChannelLoadState<WhatsAppConnectionView>
   >(() => ({
     ...createEmptyChannelState(),
-    loading: initialReturn.channel === "whatsapp",
+    loading: allowWhatsapp,
   }));
   const [instagramState, setInstagramState] = useState<
     ChannelLoadState<SocialChannelData>
   >(() => ({
     ...createEmptyChannelState(),
-    loading: initialReturn.channel === "instagram",
+    loading: allowInstagram,
   }));
   const [tiktokState, setTiktokState] = useState<
     ChannelLoadState<SocialChannelData>
   >(() => ({
     ...createEmptyChannelState(),
-    loading: initialReturn.channel === "tiktok",
+    loading: allowTiktok,
   }));
   const [facebookState, setFacebookState] = useState<
     ChannelLoadState<SocialChannelData>
   >(() => ({
     ...createEmptyChannelState(),
-    loading: initialReturn.channel === "facebook",
+    loading: allowFacebook,
   }));
 
   const [notice, setNotice] = useState<NoticeBanner | null>(
@@ -428,20 +433,24 @@ export function ConnectedChannelsPanel({
     [setSocialState]
   );
 
-  // Clean OAuth return query params and fetch ONLY the returned channel if present
+  // On mount: clean OAuth return params and load the real state of every
+  // enabled channel once, so cards never show "Conectar" for a connected
+  // account and no request is duplicated by the return handler.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!initialReturn.channel && !initialReturn.notice) return;
 
-    const url = new URL(window.location.href);
-    url.searchParams.delete("whatsapp");
-    url.searchParams.delete("social");
-    url.searchParams.delete("provider");
-    url.searchParams.delete("reason");
-    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    if (initialReturn.channel || initialReturn.notice) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("whatsapp");
+      url.searchParams.delete("social");
+      url.searchParams.delete("provider");
+      url.searchParams.delete("reason");
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    }
 
     let cancelled = false;
-    if (initialReturn.channel === "whatsapp") {
+
+    if (allowWhatsapp) {
       void fetchWhatsAppSnapshot(profileId).then((snap) => {
         if (cancelled) return;
         setWhatsappState({
@@ -451,11 +460,33 @@ export function ConnectedChannelsPanel({
           data: snap.data,
         });
       });
-    } else if (initialReturn.channel) {
-      const targetChannel = initialReturn.channel;
-      void fetchSocialSnapshot(profileId, targetChannel).then((snap) => {
+    }
+    if (allowInstagram) {
+      void fetchSocialSnapshot(profileId, "instagram").then((snap) => {
         if (cancelled) return;
-        setSocialState(targetChannel, {
+        setSocialState("instagram", {
+          loaded: true,
+          loading: false,
+          error: snap.error,
+          data: snap.data,
+        });
+      });
+    }
+    if (allowTiktok) {
+      void fetchSocialSnapshot(profileId, "tiktok").then((snap) => {
+        if (cancelled) return;
+        setSocialState("tiktok", {
+          loaded: true,
+          loading: false,
+          error: snap.error,
+          data: snap.data,
+        });
+      });
+    }
+    if (allowFacebook) {
+      void fetchSocialSnapshot(profileId, "facebook").then((snap) => {
+        if (cancelled) return;
+        setSocialState("facebook", {
           loaded: true,
           loading: false,
           error: snap.error,
@@ -467,11 +498,18 @@ export function ConnectedChannelsPanel({
     return () => {
       cancelled = true;
     };
-  }, [profileId, initialReturn, setSocialState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId]);
 
   function handleToggleChannel(channel: ChannelKey) {
     const nextOpen = !expanded[channel];
-    setExpanded((prev) => ({ ...prev, [channel]: nextOpen }));
+    setExpanded({
+      whatsapp: false,
+      instagram: false,
+      tiktok: false,
+      facebook: false,
+      [channel]: nextOpen,
+    });
     setConfirmDisconnect(null);
 
     if (!nextOpen) return;
@@ -819,73 +857,67 @@ export function ConnectedChannelsPanel({
     ? igData.media.filter((item) => item.publicEnabled).length
     : 0;
 
-  const allowWhatsapp = !permissions || permissions.whatsapp;
-  const allowInstagram = !permissions || permissions.instagram;
-  const allowTiktok = !permissions || permissions.tiktok_organic;
-  const allowFacebook = !permissions || permissions.facebook_social;
-
   if (!allowWhatsapp && !allowInstagram && !allowTiktok && !allowFacebook) {
     return null;
   }
 
+  const anyLoaded =
+    whatsappState.loaded ||
+    instagramState.loaded ||
+    tiktokState.loaded ||
+    facebookState.loaded;
+  const anyLoading =
+    whatsappState.loading ||
+    instagramState.loading ||
+    tiktokState.loading ||
+    facebookState.loading;
+
   return (
-    <div id="canais-conectados">
-      <CollapsibleSection
-        title="2. Canais conectados"
-        description="Gerencie em um único lugar WhatsApp, Instagram, TikTok e Facebook. Cada canal consulta seus dados somente quando você abre."
-        defaultOpen={false}
-      >
+    <div id="canais-conectados" className="channels-section">
+      {notice ? (
+        <div
+          role="status"
+          className={`alert-banner ${
+            notice.tone === "success"
+              ? "alert-success"
+              : notice.tone === "warning"
+                ? "alert-warning"
+                : "alert-error"
+          }`}
+        >
+          {notice.message}
+        </div>
+      ) : null}
 
-        {notice ? (
-          <div
-            role="status"
-            className={`alert-banner ${
-              notice.tone === "success"
-                ? "alert-success"
-                : notice.tone === "warning"
-                  ? "alert-warning"
-                  : "alert-error"
-            }`}
-          >
-            {notice.message}
-          </div>
-        ) : null}
-
-        <div className="channel-accordion">
+      {!anyLoaded && anyLoading ? (
+        <SectionSkeleton
+          variant="channels"
+          label="Consultando o estado dos canais conectados"
+        />
+      ) : (
+        <div className="channel-cards">
           {/* 1. WhatsApp */}
           {allowWhatsapp ? (
-          <div className="channel-item">
-            <button
-              type="button"
-              className="channel-header"
-              aria-expanded={expanded.whatsapp}
-              onClick={() => handleToggleChannel("whatsapp")}
-            >
-              <div className="channel-header-info">
-                <span className="channel-name">WhatsApp</span>
-                <span className="channel-subtitle">
-                  Vincule sua conta Business ou configure o número do botão
-                  público
-                </span>
-              </div>
-              <div className="channel-header-meta">
-                {waConn ? (
-                  <span
-                    className={`badge ${WHATSAPP_STATUS_META[waConn.status].badgeClass}`}
-                  >
-                    {WHATSAPP_STATUS_META[waConn.status].label}
-                  </span>
-                ) : (
-                  <span className="badge badge-draft">Conectar</span>
-                )}
-                <span className="channel-chevron" aria-hidden="true">
-                  {expanded.whatsapp ? "▲" : "▼"}
-                </span>
-              </div>
-            </button>
+            <div className="channel-item">
+              <ChannelCard
+                name="WhatsApp"
+                brand="whatsapp"
+                subtitle="Conta Business ou número do botão público"
+                icon={<WhatsAppBrandIcon />}
+                loading={whatsappState.loading && !waConn}
+                hasError={Boolean(whatsappState.error) && !waConn}
+                state={waConn ? WHATSAPP_STATUS_META[waConn.status] : null}
+                expanded={expanded.whatsapp}
+                onOpen={() => handleToggleChannel("whatsapp")}
+              />
 
-            {expanded.whatsapp ? (
-              <div className="channel-body">
+              {expanded.whatsapp ? (
+                <ChannelDrawer
+                  title="WhatsApp"
+                  brand="whatsapp"
+                  onClose={() => handleToggleChannel("whatsapp")}
+                >
+                  <div className="channel-body">
                 {/* Caminho 1: Vincular uma conta do WhatsApp Business */}
                 <div className="link-card-group">
                   <div className="link-card-top">
@@ -1143,44 +1175,34 @@ export function ConnectedChannelsPanel({
                     />
                   </div>
                 </div>
-              </div>
-            ) : null}
-          </div>
+                  </div>
+                </ChannelDrawer>
+              ) : null}
+            </div>
           ) : null}
 
           {/* 2. Instagram */}
           {allowInstagram ? (
-          <div className="channel-item">
-            <button
-              type="button"
-              className="channel-header"
-              aria-expanded={expanded.instagram}
-              onClick={() => handleToggleChannel("instagram")}
-            >
-              <div className="channel-header-info">
-                <span className="channel-name">Instagram</span>
-                <span className="channel-subtitle">
-                  Link público e publicações recentes da conta conectada
-                </span>
-              </div>
-              <div className="channel-header-meta">
-                {igData ? (
-                  <span
-                    className={`badge ${SOCIAL_STATUS_META[igData.connection.status].badgeClass}`}
-                  >
-                    {SOCIAL_STATUS_META[igData.connection.status].label}
-                  </span>
-                ) : (
-                  <span className="badge badge-draft">Conectar</span>
-                )}
-                <span className="channel-chevron" aria-hidden="true">
-                  {expanded.instagram ? "▲" : "▼"}
-                </span>
-              </div>
-            </button>
+            <div className="channel-item">
+              <ChannelCard
+                name="Instagram"
+                brand="instagram"
+                subtitle="Link público e publicações recentes"
+                icon={<InstagramBrandIcon />}
+                loading={instagramState.loading && !igData}
+                hasError={Boolean(instagramState.error) && !igData}
+                state={igData ? SOCIAL_STATUS_META[igData.connection.status] : null}
+                expanded={expanded.instagram}
+                onOpen={() => handleToggleChannel("instagram")}
+              />
 
-            {expanded.instagram ? (
-              <div className="channel-body">
+              {expanded.instagram ? (
+                <ChannelDrawer
+                  title="Instagram"
+                  brand="instagram"
+                  onClose={() => handleToggleChannel("instagram")}
+                >
+                  <div className="channel-body">
                 {/* Link público do Instagram */}
                 <div className="link-card-group">
                   <div className="link-card-top">
@@ -1509,44 +1531,34 @@ export function ConnectedChannelsPanel({
                     ) : null}
                   </>
                 ) : null}
-              </div>
-            ) : null}
-          </div>
+                  </div>
+                </ChannelDrawer>
+              ) : null}
+            </div>
           ) : null}
 
           {/* 3. TikTok */}
           {allowTiktok ? (
-          <div className="channel-item">
-            <button
-              type="button"
-              className="channel-header"
-              aria-expanded={expanded.tiktok}
-              onClick={() => handleToggleChannel("tiktok")}
-            >
-              <div className="channel-header-info">
-                <span className="channel-name">TikTok</span>
-                <span className="channel-subtitle">
-                  Perfil conectado e publicações recentes autorizadas
-                </span>
-              </div>
-              <div className="channel-header-meta">
-                {ttData ? (
-                  <span
-                    className={`badge ${SOCIAL_STATUS_META[ttData.connection.status].badgeClass}`}
-                  >
-                    {SOCIAL_STATUS_META[ttData.connection.status].label}
-                  </span>
-                ) : (
-                  <span className="badge badge-draft">Conectar</span>
-                )}
-                <span className="channel-chevron" aria-hidden="true">
-                  {expanded.tiktok ? "▲" : "▼"}
-                </span>
-              </div>
-            </button>
+            <div className="channel-item">
+              <ChannelCard
+                name="TikTok"
+                brand="tiktok"
+                subtitle="Perfil e publicações autorizadas"
+                icon={<TikTokBrandIcon />}
+                loading={tiktokState.loading && !ttData}
+                hasError={Boolean(tiktokState.error) && !ttData}
+                state={ttData ? SOCIAL_STATUS_META[ttData.connection.status] : null}
+                expanded={expanded.tiktok}
+                onOpen={() => handleToggleChannel("tiktok")}
+              />
 
-            {expanded.tiktok ? (
-              <div className="channel-body">
+              {expanded.tiktok ? (
+                <ChannelDrawer
+                  title="TikTok"
+                  brand="tiktok"
+                  onClose={() => handleToggleChannel("tiktok")}
+                >
+                  <div className="channel-body">
                 {tiktokState.loading ? (
                   <p className="field-hint">Consultando status do TikTok...</p>
                 ) : tiktokState.error ? (
@@ -1716,44 +1728,34 @@ export function ConnectedChannelsPanel({
                     ) : null}
                   </>
                 ) : null}
-              </div>
-            ) : null}
-          </div>
+                  </div>
+                </ChannelDrawer>
+              ) : null}
+            </div>
           ) : null}
 
           {/* 4. Facebook */}
           {allowFacebook ? (
-          <div className="channel-item">
-            <button
-              type="button"
-              className="channel-header"
-              aria-expanded={expanded.facebook}
-              onClick={() => handleToggleChannel("facebook")}
-            >
-              <div className="channel-header-info">
-                <span className="channel-name">Facebook</span>
-                <span className="channel-subtitle">
-                  Conta e página conectadas para recursos da plataforma
-                </span>
-              </div>
-              <div className="channel-header-meta">
-                {fbData ? (
-                  <span
-                    className={`badge ${SOCIAL_STATUS_META[fbData.connection.status].badgeClass}`}
-                  >
-                    {SOCIAL_STATUS_META[fbData.connection.status].label}
-                  </span>
-                ) : (
-                  <span className="badge badge-draft">Conectar</span>
-                )}
-                <span className="channel-chevron" aria-hidden="true">
-                  {expanded.facebook ? "▲" : "▼"}
-                </span>
-              </div>
-            </button>
+            <div className="channel-item">
+              <ChannelCard
+                name="Facebook"
+                brand="facebook"
+                subtitle="Perfil e página conectados"
+                icon={<FacebookBrandIcon />}
+                loading={facebookState.loading && !fbData}
+                hasError={Boolean(facebookState.error) && !fbData}
+                state={fbData ? SOCIAL_STATUS_META[fbData.connection.status] : null}
+                expanded={expanded.facebook}
+                onOpen={() => handleToggleChannel("facebook")}
+              />
 
-            {expanded.facebook ? (
-              <div className="channel-body">
+              {expanded.facebook ? (
+                <ChannelDrawer
+                  title="Facebook"
+                  brand="facebook"
+                  onClose={() => handleToggleChannel("facebook")}
+                >
+                  <div className="channel-body">
                 {facebookState.loading ? (
                   <p className="field-hint">
                     Consultando status do Facebook...
@@ -1882,12 +1884,198 @@ export function ConnectedChannelsPanel({
                     </div>
                   </>
                 ) : null}
-              </div>
-            ) : null}
-          </div>
+                  </div>
+                </ChannelDrawer>
+              ) : null}
+            </div>
           ) : null}
         </div>
-      </CollapsibleSection>
+      )}
     </div>
+  );
+}
+
+interface ChannelCardProps {
+  name: string;
+  brand: "whatsapp" | "instagram" | "tiktok" | "facebook";
+  subtitle: string;
+  icon: ReactNode;
+  loading: boolean;
+  hasError: boolean;
+  state: { label: string; badgeClass: string } | null;
+  expanded: boolean;
+  onOpen: () => void;
+}
+
+function getChannelActionLabel(
+  state: { label: string; badgeClass: string } | null,
+  loading: boolean,
+  hasError: boolean
+): string {
+  if (loading) return "Verificando";
+  if (hasError) return "Tentar novamente";
+  if (!state) return "Abrir";
+  if (state.badgeClass === "badge-published") return "Gerenciar";
+  if (state.label === "Desconectado") return "Conectar";
+  if (state.label === "Ação necessária") return "Reconectar";
+  return "Abrir";
+}
+
+function ChannelCard({
+  name,
+  brand,
+  subtitle,
+  icon,
+  loading,
+  hasError,
+  state,
+  expanded,
+  onOpen,
+}: ChannelCardProps) {
+  return (
+    <button
+      type="button"
+      className={`channel-card channel-card-${brand}${expanded ? " is-open" : ""}`}
+      aria-expanded={expanded}
+      aria-haspopup="dialog"
+      onClick={onOpen}
+    >
+      <span className="channel-card-top">
+        <span className="channel-card-icon" aria-hidden="true">
+          {icon}
+        </span>
+        <span className="channel-card-name">{name}</span>
+      </span>
+      <span className="channel-card-subtitle">{subtitle}</span>
+      <span className="channel-card-footer">
+        {loading ? (
+          <span className="channel-card-state is-muted">Verificando…</span>
+        ) : hasError ? (
+          <span className="badge badge-error">Estado indisponível</span>
+        ) : state ? (
+          <span className={`badge ${state.badgeClass}`}>{state.label}</span>
+        ) : (
+          <span className="channel-card-state is-muted">Sem conexão</span>
+        )}
+        <span className="channel-card-action">
+          {getChannelActionLabel(state, loading, hasError)}
+          <span aria-hidden="true">→</span>
+        </span>
+      </span>
+    </button>
+  );
+}
+
+interface ChannelDrawerProps {
+  title: string;
+  brand: ChannelCardProps["brand"];
+  onClose: () => void;
+  children: ReactNode;
+}
+
+function ChannelDrawer({ title, brand, onClose, children }: ChannelDrawerProps) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const touchStartY = useRef<number | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  return (
+    <div
+      className="channel-drawer-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <aside
+        className={`channel-drawer channel-drawer-${brand}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Detalhes do canal ${title}`}
+        onTouchStart={(event) => {
+          touchStartY.current = event.touches[0]?.clientY ?? null;
+        }}
+        onTouchEnd={(event) => {
+          const start = touchStartY.current;
+          const end = event.changedTouches[0]?.clientY ?? null;
+          touchStartY.current = null;
+          if (start !== null && end !== null && end - start > 90) {
+            onClose();
+          }
+        }}
+      >
+        <header className="channel-drawer-head">
+          <div>
+            <span className="channel-drawer-eyebrow">Canal conectado</span>
+            <h3 className="channel-drawer-title">{title}</h3>
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            className="channel-drawer-close"
+            onClick={onClose}
+            aria-label={`Fechar detalhes do canal ${title}`}
+          >
+            ✕
+          </button>
+        </header>
+        <div className="channel-drawer-body">{children}</div>
+      </aside>
+    </div>
+  );
+}
+
+function WhatsAppBrandIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+      <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.11.82.83-3.04-.2-.31a8.17 8.17 0 0 1-1.25-4.39c0-4.54 3.7-8.23 8.23-8.23 2.2 0 4.26.86 5.82 2.41a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.69 8.23-8.24 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.55.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.55-1.34-.76-1.83-.2-.48-.4-.42-.55-.43h-.47c-.16 0-.42.06-.64.31-.22.25-.84.82-.84 2 0 1.18.86 2.32.98 2.48.12.17 1.69 2.58 4.1 3.62.57.25 1.02.39 1.37.5.58.18 1.1.16 1.51.1.46-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28Z" />
+    </svg>
+  );
+}
+
+function InstagramBrandIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function TikTokBrandIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+      <path d="M16.5 3c.3 1.9 1.5 3.4 3.5 3.7v2.6c-1.3.1-2.5-.3-3.6-1v5.6a5.6 5.6 0 1 1-5.6-5.6c.3 0 .6 0 .9.1v2.7a2.9 2.9 0 1 0 2 2.7V3h2.8Z" />
+    </svg>
+  );
+}
+
+function FacebookBrandIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+      <path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.9.3-1.5 1.6-1.5H17V4.3c-.3 0-1.3-.1-2.4-.1-2.4 0-4.1 1.5-4.1 4.2v2.1H8v3h2.5V21h3Z" />
+    </svg>
   );
 }

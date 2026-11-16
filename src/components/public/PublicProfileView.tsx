@@ -78,6 +78,11 @@ export function PublicProfileView({
       customLinks.length > 0
   );
   const HeadingTag = isPreview ? "h2" : "h1";
+  const coverUrl = getCoverSrc(profile.coverUrl);
+  const coverBlur = Math.max(
+    0,
+    Math.min(24, Number(profile.coverBlur ?? 12) || 0)
+  );
 
   const renderBlock = (key: PublicBlockKey): ReactNode => {
     switch (key) {
@@ -215,10 +220,22 @@ export function PublicProfileView({
 
   return (
     <div
-      className={`public-page-shell ${isPreview ? "is-preview" : ""}`.trim()}
+      className={`public-page-shell ${isPreview ? "is-preview" : ""} ${
+        coverUrl ? "has-cover" : ""
+      }`.trim()}
       data-pub-mode={theme.mode}
       style={customVars}
     >
+      {coverUrl ? (
+        <div className="public-cover" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="public-cover-img" src={coverUrl} alt="" />
+          <span
+            className="public-cover-blur"
+            style={{ "--cover-blur": `${coverBlur}px` } as CSSProperties}
+          />
+        </div>
+      ) : null}
       <main className="public-profile-container">
         <header className="public-profile-header">
           <div className="public-avatar-ring">
@@ -261,6 +278,14 @@ export function PublicProfileView({
       </footer>
     </div>
   );
+}
+
+function getCoverSrc(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("/api/uploads/")) return trimmed;
+  return isSafeHttpUrl(trimmed) ? trimmed : null;
 }
 
 function CalendarIcon() {

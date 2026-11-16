@@ -1,7 +1,11 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
-import { getContrastRatio } from "@/components/public/profile-visuals";
+import {
+  buildPreviewWhatsappUrl,
+  getContrastRatio,
+} from "@/components/public/profile-visuals";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import {
   DEFAULT_DARK_THEME,
@@ -17,14 +21,66 @@ import {
   type ValidationErrors,
 } from "@/lib/types";
 import { AvatarUploader } from "./AvatarUploader";
-import { CollapsibleSection } from "./CollapsibleSection";
 import { ColorField } from "./ColorField";
-import { CatalogPanel } from "./CatalogPanel";
-import { ConnectedChannelsPanel } from "./ConnectedChannelsPanel";
-import { CustomLinksPanel } from "./CustomLinksPanel";
-import { GoogleCalendarPanel } from "./GoogleCalendarPanel";
+import { CoverUploader } from "./CoverUploader";
 import { ProfilePreview } from "./ProfilePreview";
+import {
+  ProfileSectionsNav,
+  type ProfileSectionItem,
+} from "./ProfileSectionsNav";
 import { PublishStatus, type SaveState } from "./PublishStatus";
+import { SectionShell } from "./SectionShell";
+import { SectionSkeleton } from "./SectionSkeleton";
+
+const ConnectedChannelsPanel = dynamic(
+  () =>
+    import("./ConnectedChannelsPanel").then((mod) => mod.ConnectedChannelsPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <SectionSkeleton
+        variant="channels"
+        label="Carregando canais conectados"
+      />
+    ),
+  }
+);
+
+const GoogleCalendarPanel = dynamic(
+  () =>
+    import("./GoogleCalendarPanel").then((mod) => mod.GoogleCalendarPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <SectionSkeleton
+        variant="schedule"
+        label="Carregando configurações de agendamento"
+      />
+    ),
+  }
+);
+
+const CatalogPanel = dynamic(
+  () => import("./CatalogPanel").then((mod) => mod.CatalogPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <SectionShell title="Serviços e Produtos" description="Catálogo do perfil.">
+        <SectionSkeleton variant="catalog" label="Carregando serviços e produtos" />
+      </SectionShell>
+    ),
+  }
+);
+
+const CustomLinksPanel = dynamic(
+  () => import("./CustomLinksPanel").then((mod) => mod.CustomLinksPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <SectionSkeleton variant="generic" rows={3} label="Carregando links" />
+    ),
+  }
+);
 
 interface ProfileEditorProps {
   profile: Profile;
@@ -39,6 +95,43 @@ interface SlugCheckState {
   suggestion?: string;
   normalized?: string;
 }
+
+type SectionKey =
+  | "identidade"
+  | "canais"
+  | "aparencia"
+  | "agendamento"
+  | "servicos";
+
+const ALL_SECTIONS: ProfileSectionItem[] = [
+  {
+    key: "identidade",
+    label: "Identidade",
+    description: "Nome, bio, foto e capa",
+  },
+  {
+    key: "canais",
+    label: "Canais conectados",
+    description: "WhatsApp, Instagram, TikTok e Facebook",
+  },
+  {
+    key: "aparencia",
+    label: "Aparência pública",
+    description: "Tema, cores, fonte e botões",
+  },
+  {
+    key: "agendamento",
+    label: "Agendamento",
+    description: "Google Agenda e horários",
+  },
+  {
+    key: "servicos",
+    label: "Serviços e Produtos",
+    description: "Catálogo exibido no perfil",
+  },
+];
+
+const SECTION_KEYS = new Set<string>(ALL_SECTIONS.map((item) => item.key));
 
 const FONT_OPTIONS: { value: FontOption; label: string }[] = [
   { value: "manrope", label: "Manrope" },
@@ -60,6 +153,9 @@ export function ProfileEditor({
   onProfileDeleted,
 }: ProfileEditorProps) {
   const [draft, setDraft] = useState<Profile>(profile);
+  const [activeSection, setActiveSection] = useState<SectionKey>("identidade");
+  const [pendingSection, setPendingSection] = useState<SectionKey | null>(null);
+  const [switchingSection, setSwitchingSection] = useState(false);
   const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isPublishing, setIsPublishing] = useState(false);
@@ -74,12 +170,109 @@ export function ProfileEditor({
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
   const [slugCheck, setSlugCheck] = useState<SlugCheckState>({ status: "idle" });
   const [internalBookingEnabled, setInternalBookingEnabled] = useState(false);
+  const [bookingDirty, setBookingDirty] = useState(false);
   const [catalogItems, setCatalogItems] = useState<
     import("@/lib/types").PublicCatalogItem[]
   >([]);
   const [customLinks, setCustomLinks] = useState<PublicCustomLinkItem[]>([]);
   const slugTimerRef = useRef<number | null>(null);
   const saveBookingRef = useRef<(() => Promise<boolean>) | null>(null);
+  const baselineRef = useRef<Profile>(profile);
+
+  // Keep the section in the URL hash without adding history entries, so page
+  // refresh keeps the section and the back button still leaves the editor.
+  // The state update is deferred one tick to avoid a hydration mismatch
+  // between the server-rendered section and the hashed one.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash.replace(/^#/, "");
+    if (!SECTION_KEYS.has(hash)) return;
+    const timer = window.setTimeout(() => {
+      setActiveSection(hash as SectionKey);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const visibleSections = ALL_SECTIONS.filter((section) => {
+    if (!permissions) return true;
+    if (section.key === "canais") {
+      return Boolean(
+        permissions.whatsapp ||
+          permissions.instagram ||
+          permissions.tiktok_organic ||
+          permissions.facebook_social
+      );
+    }
+    if (section.key === "agendamento") return Boolean(permissions.google_calendar);
+    if (section.key === "servicos") return Boolean(permissions.catalog);
+    return true;
+  });
+
+  const effectiveSection: SectionKey = visibleSections.some(
+    (section) => section.key === activeSection
+  )
+    ? activeSection
+    : "identidade";
+
+  function goToSection(section: SectionKey) {
+    setActiveSection(section);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.hash = section;
+      window.history.replaceState({}, "", url.toString());
+    }
+  }
+
+  function hasUnsavedChanges() {
+    return saveState === "dirty" || bookingDirty;
+  }
+
+  // Warn before a hard navigation (refresh/close) discards unsaved edits.
+  useEffect(() => {
+    if (saveState !== "dirty" && !bookingDirty) return;
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [saveState, bookingDirty]);
+
+  function requestSectionChange(nextKey: string) {
+    if (!SECTION_KEYS.has(nextKey)) return;
+    const next = nextKey as SectionKey;
+    if (next === effectiveSection) return;
+    if (hasUnsavedChanges()) {
+      setPendingSection(next);
+      return;
+    }
+    goToSection(next);
+  }
+
+  function handleDiscardAndSwitch() {
+    const target = pendingSection;
+    setPendingSection(null);
+    setDraft(baselineRef.current);
+    setFieldErrors({});
+    setSlugCheck({ status: "idle" });
+    setSaveState("idle");
+    setBannerError(null);
+    setBannerSuccess(null);
+    setBookingDirty(false);
+    if (target) goToSection(target);
+  }
+
+  async function handleSaveAndSwitch() {
+    const target = pendingSection;
+    if (!target) return;
+    setSwitchingSection(true);
+    const saved = await saveProfile();
+    setSwitchingSection(false);
+    if (saved) {
+      setPendingSection(null);
+      goToSection(target);
+    }
+  }
 
   function updateField<K extends keyof Profile>(key: K, value: Profile[K]) {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -194,6 +387,8 @@ export function ProfileEditor({
       displayName: draft.displayName,
       bio: draft.bio,
       avatarUrl: draft.avatarUrl,
+      coverUrl: draft.coverUrl,
+      coverBlur: draft.coverBlur,
       instagramInput: draft.instagramInput,
       instagramEnabled: draft.instagramEnabled,
       whatsappNumber: draft.whatsappNumber,
@@ -240,16 +435,18 @@ export function ProfileEditor({
       }
 
       setDraft(data.profile);
+      baselineRef.current = data.profile;
       onProfileUpdated(data.profile);
       if (saveBookingRef.current) {
         const bookingOk = await saveBookingRef.current();
         if (!bookingOk) {
           setSaveState("error");
           setBannerError(
-            "Perfil salvo, mas revise as configurações de agendamento abaixo."
+            "Perfil salvo, mas revise as configurações de agendamento."
           );
           return null;
         }
+        setBookingDirty(false);
       }
       setSaveState("saved");
       return data.profile;
@@ -290,6 +487,7 @@ export function ProfileEditor({
       }
 
       setDraft(data.profile);
+      baselineRef.current = data.profile;
       onProfileUpdated(data.profile);
       setSaveState("saved");
       setBannerSuccess(`Perfil publicado em /${data.profile.slug}`);
@@ -317,6 +515,7 @@ export function ProfileEditor({
         return;
       }
       setDraft(data.profile);
+      baselineRef.current = data.profile;
       onProfileUpdated(data.profile);
       setDeleteConfirmOpen(false);
       setBannerSuccess(
@@ -370,27 +569,87 @@ export function ProfileEditor({
     draft.theme.textColor
   );
   const lowContrast = contrastRatio !== null && contrastRatio < 4.5;
+  const currentSectionLabel =
+    ALL_SECTIONS.find((section) => section.key === effectiveSection)?.label ??
+    "Identidade";
+  const pendingSectionLabel = pendingSection
+    ? (ALL_SECTIONS.find((section) => section.key === pendingSection)?.label ??
+      "a próxima seção")
+    : "";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
       <PublishStatus
+        profileName={draft.displayName}
         status={draft.status}
         slug={draft.slug}
         saveState={saveState}
         isPublishing={isPublishing}
         isUnpublishing={isUnpublishing}
         isDeleting={isDeleting}
+        sectionNav={
+          <ProfileSectionsNav
+            sections={visibleSections}
+            activeKey={effectiveSection}
+            onSelect={requestSectionChange}
+          />
+        }
         onSave={saveProfile}
         onPublish={handlePublish}
         onUnpublish={handleUnpublish}
         onRequestDelete={handleRequestDelete}
       />
 
+      {pendingSection ? (
+        <GlassSurface as="section" intensity="dense">
+          <div
+            role="alertdialog"
+            aria-label="Alterações não salvas"
+            className="unsaved-switch"
+          >
+            <div>
+              <strong>Alterações não salvas</strong>
+              <p className="field-hint">
+                Você alterou <strong>{currentSectionLabel}</strong> e ainda não
+                salvou. Salvar antes de abrir{" "}
+                <strong>{pendingSectionLabel}</strong>?
+              </p>
+            </div>
+            <div className="channel-actions">
+              <button
+                type="button"
+                onClick={handleSaveAndSwitch}
+                disabled={switchingSection}
+                className="btn btn-primary"
+                autoFocus
+              >
+                {switchingSection ? "Salvando..." : "Salvar e continuar"}
+              </button>
+              <button
+                type="button"
+                onClick={handleDiscardAndSwitch}
+                disabled={switchingSection}
+                className="btn btn-secondary"
+              >
+                Descartar e continuar
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingSection(null)}
+                disabled={switchingSection}
+                className="btn btn-ghost"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </GlassSurface>
+      ) : null}
+
       {deleteConfirmOpen ? (
         <GlassSurface as="section" intensity="dense">
           <div
-            role="dialog"
-            aria-modal="false"
+            role="alertdialog"
             aria-label="Confirmar exclusão de perfil"
             style={{
               padding: "18px 20px",
@@ -445,6 +704,7 @@ export function ProfileEditor({
                 }}
                 disabled={isDeleting}
                 className="btn btn-secondary"
+                autoFocus
               >
                 Cancelar
               </button>
@@ -478,7 +738,7 @@ export function ProfileEditor({
           onClick={() => setMobileTab("edit")}
           className="btn"
           style={{
-            minHeight: "40px",
+            minHeight: "44px",
             background:
               mobileTab === "edit" ? "var(--color-surface)" : "transparent",
             borderColor:
@@ -496,7 +756,7 @@ export function ProfileEditor({
           onClick={() => setMobileTab("preview")}
           className="btn"
           style={{
-            minHeight: "40px",
+            minHeight: "44px",
             background:
               mobileTab === "preview" ? "var(--color-surface)" : "transparent",
             borderColor:
@@ -511,14 +771,12 @@ export function ProfileEditor({
 
       <div className="editor-workspace" data-mobile-tab={mobileTab}>
         <div className="editor-column">
-          {/* Section 1: Identidade */}
-          <CollapsibleSection
-            id="secao-identidade"
-            title="1. Identidade"
-            description="Nome público, endereço curto (slug), bio e foto de perfil."
-            defaultOpen={true}
-          >
-
+          {effectiveSection === "identidade" ? (
+            <SectionShell
+              id="secao-identidade"
+              title="Identidade"
+              description="Nome público, endereço, bio, foto de perfil e capa."
+            >
               <div className="field-group">
                 <label htmlFor="displayName" className="field-label">
                   <span>Nome público</span>
@@ -550,15 +808,8 @@ export function ProfileEditor({
                 <label htmlFor="slug" className="field-label">
                   <span>Endereço da página (slug)</span>
                 </label>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span
-                    style={{
-                      fontSize: "0.9rem",
-                      color: "var(--color-text-muted)",
-                      fontWeight: 600,
-                      flexShrink: 0,
-                    }}
-                  >
+                <div className="slug-input-row">
+                  <span className="slug-prefix" aria-hidden="true">
                     linkia /
                   </span>
                   <input
@@ -600,16 +851,7 @@ export function ProfileEditor({
                           onClick={() =>
                             updateField("slug", slugCheck.suggestion!)
                           }
-                          style={{
-                            marginLeft: "6px",
-                            padding: "2px 8px",
-                            borderRadius: "6px",
-                            border: "1px solid var(--color-primary)",
-                            background: "var(--color-success-bg)",
-                            color: "var(--color-success)",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                          }}
+                          className="slug-suggestion"
                         >
                           Usar {slugCheck.suggestion}
                         </button>
@@ -651,32 +893,58 @@ export function ProfileEditor({
                 onChange={(url) => updateField("avatarUrl", url)}
                 error={fieldErrors.avatarUrl}
               />
-          </CollapsibleSection>
 
-          {/* Section 2: Canais conectados (único local para WhatsApp, Instagram, TikTok e Facebook) */}
-          <ConnectedChannelsPanel
-            key={draft.id}
-            profileId={draft.id}
-            permissions={permissions}
-            whatsappEnabled={draft.whatsappEnabled}
-            whatsappNumber={draft.whatsappNumber}
-            whatsappMessage={draft.whatsappMessage}
-            instagramEnabled={draft.instagramEnabled}
-            instagramInput={draft.instagramInput}
-            fieldErrors={fieldErrors}
-            onFieldChange={updateField}
-          />
+              <CoverUploader
+                coverUrl={draft.coverUrl}
+                coverBlur={draft.coverBlur}
+                displayName={draft.displayName}
+                onChange={(url) => updateField("coverUrl", url)}
+                onBlurChange={(value) => updateField("coverBlur", value)}
+                error={fieldErrors.coverUrl ?? fieldErrors.coverBlur}
+              />
 
-          {/* Section 3: Aparência */}
-          <CollapsibleSection
-            id="secao-aparencia"
-            title="3. Aparência pública"
-            description="Personalize o tema, cores, fonte e formato dos botões da sua página."
-            defaultOpen={false}
-          >
+              <div className="settings-divider" role="presentation" />
 
-              <div className="field-group">
-                <span className="field-label">Temas prontos</span>
+              <CustomLinksPanel
+                profileId={draft.id}
+                onLinksChange={setCustomLinks}
+              />
+            </SectionShell>
+          ) : null}
+
+          {effectiveSection === "canais" ? (
+            <SectionShell
+              id="secao-canais"
+              title="Canais conectados"
+              description="Cada card mostra o estado real da conexão. Abra um canal para conectar, reconectar ou ajustar."
+            >
+              <ConnectedChannelsPanel
+                key={`${draft.id}-canais`}
+                profileId={draft.id}
+                permissions={permissions}
+                whatsappEnabled={draft.whatsappEnabled}
+                whatsappNumber={draft.whatsappNumber}
+                whatsappMessage={draft.whatsappMessage}
+                instagramEnabled={draft.instagramEnabled}
+                instagramInput={draft.instagramInput}
+                fieldErrors={fieldErrors}
+                onFieldChange={updateField}
+              />
+            </SectionShell>
+          ) : null}
+
+          {effectiveSection === "aparencia" ? (
+            <SectionShell
+              id="secao-aparencia"
+              title="Aparência pública"
+              description="Tema, cores, fonte e formato dos botões da sua página."
+            >
+              <div className="settings-block">
+                <h3 className="settings-subtitle">Tema</h3>
+                <p className="field-hint">
+                  Escolha uma base clara ou escura. Você pode ajustar as cores
+                  em seguida.
+                </p>
                 <div className="choice-row">
                   <button
                     type="button"
@@ -697,47 +965,54 @@ export function ProfileEditor({
                 </div>
               </div>
 
-              <div className="color-grid">
-                <ColorField
-                  id="bgColor"
-                  label="Cor de fundo"
-                  value={draft.theme.bgColor}
-                  onChange={(val) => updateTheme("bgColor", val)}
-                  error={fieldErrors["theme.bgColor"]}
-                />
-                <ColorField
-                  id="textColor"
-                  label="Cor do texto"
-                  value={draft.theme.textColor}
-                  onChange={(val) => updateTheme("textColor", val)}
-                  error={fieldErrors["theme.textColor"]}
-                />
-                <ColorField
-                  id="primaryColor"
-                  label="Destaque principal"
-                  value={draft.theme.primaryColor}
-                  onChange={(val) => updateTheme("primaryColor", val)}
-                  error={fieldErrors["theme.primaryColor"]}
-                />
-                <ColorField
-                  id="accentColor"
-                  label="Acento dourado"
-                  value={draft.theme.accentColor}
-                  onChange={(val) => updateTheme("accentColor", val)}
-                  error={fieldErrors["theme.accentColor"]}
-                />
+              <div className="settings-block">
+                <h3 className="settings-subtitle">Cores</h3>
+                <p className="field-hint">
+                  Fundo, texto, destaque principal e acento dourado.
+                </p>
+                <div className="color-grid">
+                  <ColorField
+                    id="bgColor"
+                    label="Cor de fundo"
+                    value={draft.theme.bgColor}
+                    onChange={(val) => updateTheme("bgColor", val)}
+                    error={fieldErrors["theme.bgColor"]}
+                  />
+                  <ColorField
+                    id="textColor"
+                    label="Cor do texto"
+                    value={draft.theme.textColor}
+                    onChange={(val) => updateTheme("textColor", val)}
+                    error={fieldErrors["theme.textColor"]}
+                  />
+                  <ColorField
+                    id="primaryColor"
+                    label="Destaque principal"
+                    value={draft.theme.primaryColor}
+                    onChange={(val) => updateTheme("primaryColor", val)}
+                    error={fieldErrors["theme.primaryColor"]}
+                  />
+                  <ColorField
+                    id="accentColor"
+                    label="Acento dourado"
+                    value={draft.theme.accentColor}
+                    onChange={(val) => updateTheme("accentColor", val)}
+                    error={fieldErrors["theme.accentColor"]}
+                  />
+                </div>
+
+                {lowContrast ? (
+                  <div role="status" className="alert-banner alert-warning">
+                    Contraste baixo entre fundo e texto (
+                    {contrastRatio?.toFixed(1)}:1). Recomendamos pelo menos 4.5:1
+                    para boa leitura.
+                  </div>
+                ) : null}
               </div>
 
-              {lowContrast ? (
-                <div role="status" className="alert-banner alert-warning">
-                  Contraste baixo entre fundo e texto (
-                  {contrastRatio?.toFixed(1)}:1). Recomendamos pelo menos 4.5:1
-                  para boa leitura.
-                </div>
-              ) : null}
-
-              <div className="field-group">
-                <span className="field-label">Fonte</span>
+              <div className="settings-block">
+                <h3 className="settings-subtitle">Tipografia</h3>
+                <p className="field-hint">Fonte usada nos textos da página.</p>
                 <div className="choice-row">
                   {FONT_OPTIONS.map((opt) => (
                     <button
@@ -753,8 +1028,9 @@ export function ProfileEditor({
                 </div>
               </div>
 
-              <div className="field-group">
-                <span className="field-label">Estilo dos botões</span>
+              <div className="settings-block">
+                <h3 className="settings-subtitle">Botões</h3>
+                <p className="field-hint">Formato dos botões de ação.</p>
                 <div className="choice-row">
                   {BUTTON_STYLES.map((opt) => (
                     <button
@@ -769,32 +1045,56 @@ export function ProfileEditor({
                   ))}
                 </div>
               </div>
-          </CollapsibleSection>
-          {/* Section 4: Configurações -> Agendamento (Google Agenda) */}
-          {!permissions || permissions.google_calendar ? (
-            <GoogleCalendarPanel
-              profileId={draft.id}
-              profileSlug={draft.slug}
-              hasValidWhatsapp={
-                draft.whatsappNumber.replace(/\D/g, "").length >= 10
-              }
-              onInternalBookingChange={setInternalBookingEnabled}
-              saveBookingRef={saveBookingRef}
-            />
+            </SectionShell>
           ) : null}
 
-          {/* Section 5: Links personalizados */}
-          <CustomLinksPanel
-            profileId={draft.id}
-            onLinksChange={setCustomLinks}
-          />
+          {effectiveSection === "agendamento" ? (
+            <SectionShell
+              id="secao-agendamento"
+              title="Agendamento"
+              description="Google Agenda, disponibilidade e link público de reservas."
+            >
+              {!permissions || permissions.google_calendar ? (
+                <GoogleCalendarPanel
+                  key={`${draft.id}-agendamento`}
+                  profileId={draft.id}
+                  profileSlug={draft.slug}
+                  hasValidWhatsapp={
+                    buildPreviewWhatsappUrl(
+                      draft.whatsappNumber,
+                      draft.whatsappMessage
+                    ) !== null
+                  }
+                  onInternalBookingChange={setInternalBookingEnabled}
+                  onDirtyChange={setBookingDirty}
+                  saveBookingRef={saveBookingRef}
+                />
+              ) : (
+                <p className="field-hint">
+                  O agendamento não está liberado para esta conta.
+                </p>
+              )}
+            </SectionShell>
+          ) : null}
 
-          {/* Section 6: Catálogo de Serviços e Produtos */}
-          {!permissions || permissions.catalog ? (
-            <CatalogPanel
-              profileId={draft.id}
-              onCatalogChange={setCatalogItems}
-            />
+          {effectiveSection === "servicos" ? (
+            !permissions || permissions.catalog ? (
+              <CatalogPanel
+                key={`${draft.id}-servicos`}
+                profileId={draft.id}
+                onCatalogChange={setCatalogItems}
+              />
+            ) : (
+              <SectionShell
+                id="secao-servicos"
+                title="Serviços e Produtos"
+                description="Catálogo exibido no perfil."
+              >
+                <p className="field-hint">
+                  Serviços e Produtos não está liberado para esta conta.
+                </p>
+              </SectionShell>
+            )
           ) : null}
         </div>
 
@@ -809,6 +1109,7 @@ export function ProfileEditor({
             !permissions || permissions.catalog ? catalogItems : []
           }
           customLinks={customLinks}
+          unsaved={saveState === "dirty" || bookingDirty}
           onPublicOrderChange={(order: PublicBlockKey[]) =>
             updateField("publicOrder", order)
           }

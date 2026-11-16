@@ -1,7 +1,7 @@
 # Bugs e dificuldades — LinkIA
 
 **Última atualização:** 15/11/2026  
-**Status do registro:** Correções finais do painel, página pública, links personalizados, ordenação da prévia e restrição de tráfego pago a perfis publicados implementadas e validadas (`npm test` 63/63, `typecheck`, `lint`, `build`). Creation de evento real no Google Calendar e teste em Docker Linux seguem pendentes.
+**Status do registro:** Correções finais do painel, página pública, links personalizados, ordenação da prévia, restrição de tráfego pago a perfis publicados e reorganização do editor em cinco seções sob demanda implementadas e validadas (`npm test` 69/69, `typecheck`, `lint`, `build`). Criação de evento real no Google Calendar, teste em Docker Linux e percurso visual em navegador seguem pendentes.
 
 ## Como usar este arquivo
 
@@ -187,3 +187,195 @@ Registrar aqui cada bug ou dificuldade técnica encontrada durante o trabalho. N
 - **Causa do redirecionamento confirmada:** o guard envia `role !== 'admin'` para `/painel`; o perfil autenticado não foi disponibilizado na aba para confirmar se o e-mail configurado coincide com a conta. **Lacuna de código confirmada:** o bootstrap só era reavaliado no POST de login, não na leitura da sessão.
 - **Correção:** chamar o bootstrap após validar o token e antes de carregar o usuário do banco; adicionar teste cobrindo promoção de conta existente com sessão válida. A promoção ainda exige e-mail correspondente e senha bootstrap de pelo menos 8 caracteres.
 - **Validação:** `npm run typecheck` passou; `npm run lint` passou com 4 avisos existentes; `npm test` bloqueado por `EPERM` do Windows ao resolver o Vite. O Coolify mostra as variáveis preenchidas/runtime e o container saudável. A confirmação do painel autenticado depende de sessão com e-mail correspondente.
+
+### BUG-011 - URL digitada `/login/admin` retornava 404
+- **Data:** 15/11/2026
+- **Estado:** correção local; publicação pendente.
+- **Causa confirmada:** a rota existente é `/painel/admin`; não havia rota `/login/admin`.
+- **Correção:** adicionar alias `/login/admin` que redireciona para `/painel/admin`; a rota final continua exigindo sessão e papel `admin`.
+- **Evidência:** `/painel/admin` abriu em produção com a conta Joel identificada como `Admin` e lista de dois usuários. A rota nova será validada após publicar.
+
+---
+
+## Auditoria de frontend (15/11/2026)
+
+Auditoria solicitada por Joel, sem alteração de código funcional. Método, escopo e limitações estão em `estado-atual.md` (seção "Auditoria de frontend — 15/11/2026"). Cada item abaixo tem evidência reproduzida; nada foi registrado como causa confirmada sem observação direta.
+
+Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito relevante ou inconsistência visível; **P3** = manutenção/organização.
+
+### AUD-001 — Landmarks duplicados na home e no painel
+- **Data:** 15/11/2026
+- **Prioridade:** P2
+- **Estado:** aberto (não corrigido — auditoria sem implementação)
+- **Evidência (build de produção, 1440×900):** `/` → `main: 2, header: 2, footer: 2, nav: 2`; `/painel` com editor aberto → `main: 2, header: 2`; `/soueujoe` → `main: 1, header: 1, footer: 1` (correto).
+- **Causa confirmada:** `src/components/public/PublicProfileView.tsx` sempre renderiza `<main className="public-profile-container">`, `<header>` e `<footer>` (linhas 222–256), inclusive quando recebe `isPreview`. Esse componente é embutido em `src/app/page.tsx` (~linha 186, seção "Exemplo de página pública") e no `ProfilePreview` do editor.
+- **Impacto:** leitor de tela anuncia dois "main" e dois cabeçalhos na mesma página; a navegação por regiões fica ambígua.
+- **Correção sugerida:** quando `isPreview`, renderizar `div`/`section` com `role="group"` e rótulo, mantendo `main`/`header`/`footer` só na página pública real.
+
+### AUD-002 — Modal de agendamento sem gestão de foco, sem Esc e sem bloqueio de rolagem
+- **Data:** 15/11/2026
+- **Prioridade:** P1
+- **Estado:** aberto
+- **Evidência (390×844, fluxo real: dia → horário → modal):** ao abrir, `document.activeElement` permanece `BODY`; 12 pressionamentos de Tab percorrem o fundo ("← Voltar para o perfil", botões dos dias 16–27, `select` de fuso horário) em vez do conteúdo do modal; `getComputedStyle(body).overflow` e `html` = `visible`; a página rola com o modal aberto (`scrolledWithModal: true`); `Escape` não fecha (`modalAfterEscape: true`).
+- **Causa provável (código):** `src/components/public/PublicBookingView.tsx` tem apenas um `useEffect` (linha 343) e nenhum listener de `keydown`, `overflow` no `body`, foco inicial ou restauração de foco.
+- **Impacto:** WCAG 2.4.3 (ordem de foco), 2.1.2 (sem armadilha de teclado) e 1.4.10; usuário de teclado/leitor de tela pode confirmar o agendamento sem nunca alcançar o modal.
+- **Correção sugerida:** mover foco para o primeiro elemento do modal ao abrir, prender o foco (`Tab`/`Shift+Tab`), fechar com `Escape` e clique no backdrop, aplicar `overflow: hidden` no `body` e restaurar o foco no gatilho ao fechar.
+
+### AUD-003 — Contraste 3,6:1 no selo da home (tema claro)
+- **Data:** 15/11/2026
+- **Prioridade:** P2
+- **Estado:** aberto
+- **Evidência:** `span` "LinkIA · Página de Bio Profissional" com `color: #9a762f` sobre `#eaf0eb`, 13px/700 → **3,63:1**, abaixo do mínimo 4,5:1 para texto pequeno.
+- **Arquivo:** `src/app/page.tsx` (linhas ~62–77, tokens `--color-accent`/`--color-border`).
+- **Correção sugerida:** escurecer o dourado no tema claro (ex.: `#7a5c22`) ou aumentar tamanho/peso para dispensa de contraste.
+
+### AUD-004 — Classe `.section-title` usada sem nenhuma regra CSS
+- **Data:** 15/11/2026
+- **Prioridade:** P2
+- **Estado:** aberto
+- **Evidência:** `src/app/painel/trafego/page.tsx` usa `className="section-title"` em três títulos (linhas 121, 165, 201); `src/app/globals.css` não contém `section-title`. Medido em `/painel/trafego`: `h2` 24px com margem 19,92px e `h1` inline 21,6px — mesma classe, tamanhos diferentes.
+- **Impacto:** hierarquia de títulos inconsistente entre estados da mesma tela.
+- **Correção sugerida:** criar a regra no `globals.css` (ou substituir por classe existente) e remover o `fontSize` inline.
+
+### AUD-005 — `public-profile.css` com 13 seletores repetidos 4 vezes
+- **Data:** 15/11/2026
+- **Prioridade:** P3
+- **Estado:** aberto
+- **Evidência:** arquivo com 939 linhas, 94 regras e apenas 52 seletores únicos; quatro blocos "/* Public Social Highlights */" (linhas 235, 382, 654, 801). Repetidos 4×: `.public-social-section`, `-header`, `-title`, `-grid`, `-grid::-webkit-scrollbar`, `-pending`, `-stats`, `-card`, `-card:focus-visible`, `-thumb-wrap`, `-thumb`, `-thumb-fallback`, `-badge`, `-caption`.
+- **Impacto:** manutenção arriscada (uma alteração visual exige editar 4 blocos) e CSS maior que o necessário.
+- **Correção sugerida:** consolidar em um único bloco, validando visual antes/depois.
+
+### AUD-006 — Input de avatar focável, invisível e duplicando a ação
+- **Data:** 15/11/2026
+- **Prioridade:** P2
+- **Estado:** aberto
+- **Evidência:** `#avatar-file-input` tem 1×1, `clip: rect(0, 0, 0, 0)`, `position: absolute`, classe `sr-only`. Ordem de Tab no editor desktop: `#displayName` → `#slug` → `#bio` → **`#avatar-file-input` (foco com box-shadow em área invisível)** → botão "Enviar imagem" (44px). Dois stops para a mesma ação.
+- **Arquivo:** `src/components/panel/AvatarUploader.tsx`.
+- **Correção sugerida:** remover o input da ordem de foco (`tabIndex={-1}`) mantendo o botão visível como único ponto de entrada, ou transformar o botão em `<label for>` estilizado.
+
+### AUD-007 — Editor sem `h1` e títulos de seção fora da hierarquia
+- **Data:** 15/11/2026
+- **Prioridade:** P2
+- **Estado:** corrigido em 15/11/2026
+- **Evidência:** `/painel` com editor carregado → `h1: []`. Títulos "1. Identidade" … "5. Links personalizados" eram `SPAN` de 18px (`.editor-section-title`, `src/components/panel/CollapsibleSection.tsx` linhas 45–51). Os únicos `H2/H3` da tela vinham do preview embutido.
+- **Impacto:** leitor de tela não encontra título de página nem sumário das seções do editor.
+- **Correção aplicada:** o cabeçalho passou a imprimir o nome do perfil em `h1.editor-profile-name`, o menu **Profile** (`ProfileSectionsNav`) usa `button` com estado `aria-current`, e cada seção usa `h2`/`h3` próprios dentro de `SectionShell`, com apenas uma seção montada por vez.
+- **Validação:** revisão de código e `npm run typecheck`/`lint`/`build`; leitura com leitor de tela real segue pendente (EDIT-003).
+
+### AUD-008 — Tráfego pago exibe estado contraditório
+- **Data:** 15/11/2026
+- **Prioridade:** P2
+- **Estado:** aberto (problema de apresentação; erro de backend já conhecido)
+- **Evidência (`/painel/trafego`, conta demo):** a mesma tela mostra "Conectado", "Conta conectada", "Meta Ads conectada" e "Conta de anúncios ativa" junto com "Nenhuma selecionada", "Não encontramos uma conta de anúncios disponível para este acesso…" e "Campanhas e métricas: A conexão atual não possui autorização para o Meta Ads. Reconecte sua conta na aba Tráfego pago."
+- **Erro de servidor reproduzido:** `ConnectedAccount_ToolkitMismatch` — a conta `ca_zF8pU19BbQef` pertence ao toolkit `facebook`, não a `metaads`. A UI apresenta mensagem sanitizada, sem vazar o erro cru (ponto positivo).
+- **Correção sugerida:** separar visualmente "autorização OAuth" de "conta de anúncios selecionada/utilizável" e exibir um único estado principal com a ação esperada.
+
+### AUD-009 — Cabeçalho do painel mobile consome mais de uma tela antes do primeiro campo
+- **Data:** 15/11/2026
+- **Prioridade:** P2
+- **Estado:** aberto
+- **Evidência (390×844):** `.app-header` 269px de altura; `.profile-bar` mais 159px (top 283); abas Editar/Prévia em `top: 716`; primeiro input em `top: 934` — fora do viewport inicial. Altura total do documento: 3063px.
+- **Impacto:** o usuário abre o painel e não vê nenhum campo de edição sem rolar.
+- **Correção sugerida:** compactar marca + navegação no mobile (menu recolhido) e encurtar a barra de perfil.
+
+### AUD-010 — Alvos de toque abaixo de 44px
+- **Data:** 15/11/2026
+- **Prioridade:** P2
+- **Estado:** aberto
+- **Evidência (medido):** links do menu do painel 36px de altura; CTA do item de catálogo na página pública (`linkia-cat-cta`) 322×38; ações do item no editor 33×34 ("Mover … para cima/baixo") e 34px de altura ("Desativar", "Editar", "Excluir"); "+ Novo item" 40px.
+- **Impacto:** alvo mínimo recomendado (WCAG 2.5.8 / 44×44) não atendido em telas de toque.
+- **Correção sugerida:** elevar altura mínima dos botões de ação para 44px e ampliar a área clicável sem alterar o visual.
+
+### AUD-011 — Grade de recursos da home quebra em 2+1
+- **Data:** 15/11/2026
+- **Prioridade:** P3
+- **Estado:** aberto
+- **Evidência (1440×900):** cards "URL curta própria" (x=140) e "Links essenciais" (x=426) em `y=543`; "Prévia ao vivo" isolado em `x=140, y=665`. Origem: `gridTemplateColumns: repeat(auto-fit, minmax(180px, 1fr))` em `src/app/page.tsx` (~linhas 124–131) dentro de uma coluna de ~560px.
+- **Correção sugerida:** `minmax(150px, 1fr)` ou layout explícito de 3 colunas no desktop.
+
+### AUD-012 — `npm run lint` falha por varrer a pasta `.agents`
+- **Data:** 15/11/2026
+- **Prioridade:** P2 (bloqueia o gate de qualidade do projeto)
+- **Estado:** corrigido em 15/11/2026
+- **Evidência:** `npm run lint` → **exit 1**, 15 erros e 241 warnings, todos em `.agents/skills/design-taste-frontend/assets/**` (arquivos de terceiros). Em `src/`, apenas 4 warnings `@next/next/no-img-element`.
+- **Causa confirmada:** `eslint.config.mjs` ignora `.next`, `out`, `build`, `next-env.d.ts` e `data`, mas não `.agents`.
+- **Correção aplicada:** `".agents/**"` adicionado ao `globalIgnores`.
+- **Validação:** `npm run lint` → 0 erros e 4 warnings em `src/`.
+
+### AUD-013 — Host do rodapé legal divergente do domínio oficial
+- **Data:** 15/11/2026
+- **Prioridade:** P2
+- **Estado:** aberto
+- **Evidência:** `src/components/ui/LegalFooter.tsx:31` imprime `https://linka.infinito.com.br`; a documentação e o Coolify registram `https://linkia.iainfinito.com.br` (`docs/estado-atual.md`, `META_ADS_SETUP.md`, `ZERNIO_WEBHOOK_SETUP.md`). O editor mostra o prefixo `linkia /` na prévia, sem host.
+- **Impacto:** endereço incorreto exibido em página pública, com risco de o visitante digitar domínio inexistente.
+- **Correção sugerida:** derivar o host de `APP_BASE_URL`/`NEXT_PUBLIC_APP_URL` em vez de literal.
+
+### AUD-014 — Diálogo de exclusão com `aria-modal="false"` e sem foco
+- **Data:** 15/11/2026
+- **Prioridade:** P3
+- **Estado:** corrigido em 15/11/2026
+- **Evidência:** `src/components/panel/ProfileEditor.tsx` usavam `role="dialog"` com `aria-modal="false"` e `aria-label="Confirmar exclusão de perfil"`; após abrir, `document.activeElement` continuava em `BODY`.
+- **Correção aplicada:** bloco inline passou a `role="alertdialog"` (sem `aria-modal`, pois não é sobreposto) e o botão **Cancelar** recebeu `autoFocus` como ação segura padrão. O diálogo de troca de seção também move o foco para **Salvar e continuar**.
+
+### AUD-015 — Atrito de desenvolvimento: `/painel` entra em ciclo de recarregamento no `next dev`
+- **Data:** 15/11/2026
+- **Prioridade:** P3 (não reproduzido em produção)
+- **Status:** investigado, não reproduzido no build standalone
+- **Evidência:** em `next dev -p 3100` (Turbopack), `/painel` repetia `GET /painel` + `GET /api/auth/me` continuamente e ficava em "Carregando seu painel LinkIA...". No build de produção standalone (`.next/standalone/server.js`), o painel carregou e estabilizou em todas as visitas da auditoria.
+- **Conclusão:** registrar como limitação de ambiente de desenvolvimento; não classificar como bug de produto sem reprodução em produção.
+
+### Observações de ambiente (não são bugs de frontend)
+- Aviso de boot: `ZERNIO_WEBHOOK_SECRET` ausente → o webhook `/api/webhooks/zernio/whatsapp` responde 503 até o segredo ser configurado.
+- `next build` emite 2 warnings de tracing dinâmico em `src/lib/db.ts` (`DATA_DIR`); não bloqueiam o build, mas aumentam o pacote do servidor.
+- `/painel/admin` acessado como usuário cliente responde 307 para `/painel` (comportamento esperado).
+- `/api/health` respondeu 200 em todas as verificações.
+
+---
+
+## Reorganização do editor de perfil (15/11/2026)
+
+### EDIT-001 — Modelos de agendamento não conseguem expressar dois períodos por dia (almoço)
+- **Data:** 15/11/2026
+- **Prioridade:** P2 (limitação funcional conhecida)
+- **Estado:** limitação registrada; comportamento atual documentado
+- **Evidência:** `WeeklyAvailabilityDay` (`src/lib/types.ts`) contém apenas `dayOfWeek`, `enabled`, `startTime` e `endTime`; `validateBookingSettings`/`scheduling.ts` assumem `startTime < endTime` em um único intervalo. Os modelos da interface (**Seg a sex**, **Seg a sáb**, **Seg a dom**) aplicam 08:00–18:00 contínuo e avisam que o intervalo inclui o almoço.
+- **Impacto:** não é possível representar 08:00–12:00 + 13:00–18:00 por dia sem alterar o contrato do backend, a validação, a geração de slots e as reservas existentes.
+- **Correção sugerida (fora do escopo desta entrega):** migrar para uma lista de intervalos por dia (`periods[]`) com migração dos dados atuais e ajuste de `scheduling.ts`, `/availability` e `/bookings`.
+- **Decisão:** preservar o contrato atual e permitir personalização manual de horários; nenhum horário salvo é sobrescrito sem confirmação + **Salvar disponibilidade**.
+
+### EDIT-002 — Carregamento sob demanda sem cache entre montagens
+- **Data:** 15/11/2026
+- **Prioridade:** P3 (trade-off de simplicidade)
+- **Estado:** decisão registrada
+- **Evidência:** cada seção monta seu painel via `next/dynamic` e busca os dados no `useEffect` de montagem; ao trocar de seção e voltar, uma nova busca é feita. A prévia mantém os últimos `catalogItems`/`customLinks` em estado do `ProfileEditor`.
+- **Impacto:** garante dados frescos após salvar/publicar/conectar/desconectar e evita cache cruzado entre perfis, ao custo de uma requisição por reabertura de seção.
+- **Correção sugerida:** se necessário, cache em memória por `profileId` com invalidação explícita; não implementado para evitar estado duplicado nesta fase.
+
+### EDIT-003 — Validação visual e de rede em navegador não executada
+- **Data:** 15/11/2026
+- **Prioridade:** P2 (cobertura de aceite incompleta)
+- **Estado:** bloqueado pelo ambiente
+- **Evidência:** o ambiente não possui credenciais de conta autorizada (`/api/auth/demo` retorna 403) nem sessão de Chrome DevTools remoto. Foram executados `typecheck`, `lint`, `test` (69/69) e `build` com sucesso, além de revisão de código dos fluxos.
+- **Impacto:** os 13 pontos do percurso manual (1440/390, claro/escuro, skeleton, ausência de requests duplicados, Drawer por gesto, capa na primeira dobra) não foram observados em tela real nesta execução.
+- **Correção sugerida:** executar o percurso com uma conta de teste em ambiente com navegador disponível e credenciais Google/WhatsApp/Instagram quando o consentimento externo existir.
+
+### EDIT-004 — `react-hooks/set-state-in-effect` nos novos efeitos de carga
+- **Data:** 15/11/2026
+- **Prioridade:** P3
+- **Estado:** corrigido
+- **Evidência:** `npm run lint` apontou `setState` síncrono em `useEffect` no carregamento inicial dos canais e na leitura do hash de seção.
+- **Correção aplicada:** canais fazem `fetch` direto com atualização em `.then` (sem `setState` síncrono) e o hash é aplicado com `setTimeout(0)`; a página mantém apenas uma busca por canal, sem a duplicação do handler de retorno OAuth.
+- **Validação:** `npm run lint` → 0 erros.
+
+### Retomada EDIT-003 — auditoria da versão atual (16/11/2026)
+- **Estado:** parcialmente verificado; auditoria visual do baseline registrada, validação do editor reorganizado no commit local fa13140 pendente.
+- **Evidência:** a auditoria anterior documenta Chrome headless/CDP em 1440×900 e 390×844, incluindo o editor anterior. Na retomada, git status mostrou main um commit à frente de origin/main; portanto, não se usou a página de produção como prova do código local. npm run typecheck passou e npm run lint passou com 4 avisos; npm test foi bloqueado por EPERM no Vitest e npm run build pelo erro 5 de acesso/canonicalização do caminho Windows.
+- **Impacto:** skeletons, navegação por hash, Drawer responsivo, estados de salvamento e layout desktop/mobile adicionados ou reorganizados no commit local não foram observados em navegador nesta versão.
+- **Próxima ação:** quando o ambiente permitir executar o build local, repetir o percurso de 13 pontos em 1440/390, temas claro/escuro e estados de loading/erro/sucesso; manter OAuth real, leitor de tela e serviços externos como validações separadas.
+
+### Retomada da auditoria e confirmação de produção (16/11/2026)
+- **Estado:** auditoria documental retomada; validação visual do commit local ainda pendente.
+- **Evidência:** a página `/painel` de produção aberta no Chrome ainda apresenta o editor antigo com acordeões e Catálogo na tela principal. O commit local `fa13140` não está em `origin/main`, portanto produção não comprova a reorganização. A tentativa de iniciar o app local não pôde ser confirmada por HTTP porque o ambiente negou a permissão de socket.
+- **Impacto:** não há evidência visual da versão reorganizada em desktop/mobile nesta retomada. Typecheck e lint passaram; Vitest continuou bloqueado por `EPERM`.
+- **Decisão:** manter EDIT-003 aberto e não inferir que a nova interface foi publicada. Nenhuma melhoria funcional foi implementada nesta auditoria.
+- **Próxima ação:** após publicar `fa13140`, verificar em browser os fluxos e dimensões documentados em EDIT-003; abrir melhoria funcional separada para EDIT-001 (intervalos de expediente e pausa de almoço).
