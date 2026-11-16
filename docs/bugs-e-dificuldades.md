@@ -462,3 +462,12 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Correção:** persistir o código do dispositivo e sua expiração de 15 minutos na conexão do usuário; o polling recupera o valor pela rota de status. O código é apagado ao expirar, desconectar ou confirmar a autenticação. O parser também reconhece formatos genéricos do prompt do CLI.
 - **Validação:** typecheck e ESLint direcionado passaram; `git diff --check` passou. Vitest não iniciou por `EPERM` ao resolver o Vite no Windows. Reautenticação real deve ser confirmada após atualizar a imagem.
 - **Segurança:** código de uso único fica no banco privado por no máximo 15 minutos, é retornado somente à sessão autenticada do proprietário e não é escrito em logs.
+
+
+### AI-005 — código do dispositivo ainda não renderizado na produção (16/11/2026)
+- **Prioridade:** P1 (bloqueia conexão da conta Codex).
+- **Evidência:** em produção, a linha de conexão estava `disconnected` sem código e sem prazo de expiração; a UI mostrava apenas o botão de conexão. A leitura foi restrita a estado e presença do código; nenhum código foi consultado. A rota pública de tráfego carregou campanhas e exibiu o cartão de análise.
+- **Causa confirmada no código:** `close` do processo CLI alterava a conexão para desconectada mesmo depois de capturar o código. Além disso, o registro `pending` era criado depois do `spawn`, permitindo perder a persistência de uma saída muito rápida.
+- **Correção aplicada:** criar o registro pendente antes do `spawn`; em saída não zero, preservar estado/código enquanto o código temporário existe e ainda não expirou; limpar apenas quando não houve código. Parser reconhece `user_code` em URL explícita. Painel exibe valor com destaque e cópia acessível.
+- **UI do chat:** escopo atual já continha título, descrição, aviso, seletores e campo de pergunta da referência. A diferença reproduzida era a largura máxima de 1440px; limite aumentado para 1600px apenas na rota de tráfego e área interna ajustada ao layout de referência.
+- **Validação pendente:** typecheck, lint, teste focal e CI. Uma autorização real precisa ser repetida após atualização da imagem; o código não foi lido, capturado ou colocado em logs durante esta investigação.

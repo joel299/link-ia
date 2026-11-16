@@ -356,5 +356,6 @@
   <p>O código temporário não era recuperável quando a rota de status não compartilhava a memória do processo que iniciou o CLI. Agora ele é salvo no registro privado do usuário por até 15 minutos e limpo após expiração, desconexão ou autenticação confirmada.</p>
   <p>Typecheck e ESLint direcionado passaram. Vitest bloqueado por EPERM ao resolver o Vite no Windows. A autenticação real deve ser repetida após atualizar a imagem; nenhum código temporário foi escrito em logs.</p>
 </section>
+<section style="margin:24px 0;padding:20px;border:1px solid #31b879;border-radius:14px"><h2>Ajuste do login Codex e do painel de análise (16/11/2026)</h2><p>A conexão agora grava o estado pendente antes de iniciar o CLI, preserva o código capturado até expirar e o exibe com destaque no painel. O leitor também reconhece o parâmetro explícito user_code, sem confundir o código OAuth da URL.</p><p>Na tela de tráfego, a área de análise ganhou largura de conteúdo compatível com a referência e espaçamento responsivo. A validação da nova imagem e a autenticação real ainda dependem do próximo deploy.</p></section>
 </body>
 </html>

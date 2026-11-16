@@ -14,4 +14,8 @@ describe("Codex device-code output", () => {
   it("extracts a code printed after a generic device-auth prompt", () => {
     expect(extractCodexUserCode("Enter the 9-character code shown in your terminal: WXYZ-1234")).toBe("WXYZ-1234");
   });
+
+  it("extracts only an explicitly named user_code from a device URL", () => {
+    expect(extractCodexUserCode("Open https://auth.openai.com/codex/device?user_code=PQRS-6789")).toBe("PQRS-6789");
+  });
 });

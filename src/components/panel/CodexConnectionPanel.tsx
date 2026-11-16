@@ -85,7 +85,7 @@ export function CodexConnectionPanel() {
           <div className="editor-section" style={{ display: "grid", gap: 12, marginTop: 16 }}>
             <p className="field-hint">Abra a página oficial da OpenAI, informe o código abaixo e conclua o login da sua conta.</p>
             {status.verificationUrl ? <a className="btn btn-secondary" href={status.verificationUrl || CODEX_DEVICE_URL} target="_blank" rel="noopener noreferrer">Abrir autenticação oficial</a> : <p className="field-hint">Gerando o endereço e o código de autenticação…</p>}
-            {status.userCode ? <div><label className="field-label" htmlFor="codex-device-code">Código temporário</label><div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><input id="codex-device-code" className="input" readOnly value={status.userCode} style={{ maxWidth: 240, fontFamily: "monospace", letterSpacing: ".12em" }} /><button type="button" className="btn btn-secondary" onClick={() => void copyCode()}>Copiar código</button></div></div> : <p className="field-hint" role="status">Aguardando o Codex gerar o código…</p>}
+            {status.userCode ? <div className="codex-code-field"><label className="field-label" htmlFor="codex-device-code">Código temporário</label><div className="codex-code-row"><output id="codex-device-code" className="codex-code-value">{status.userCode}</output><button type="button" className="btn btn-secondary" onClick={() => void copyCode()}>Copiar código</button></div></div> : <p className="field-hint" role="status">Aguardando o Codex gerar o código…</p>}
             <p className="field-hint" role="status">Depois de autorizar, esta tela reconhecerá a conexão automaticamente.</p>
           </div>
         ) : null}

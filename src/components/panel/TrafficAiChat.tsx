@@ -59,7 +59,7 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
   }
 
   return (
-    <GlassSurface intensity="subtle" className="editor-section">
+    <GlassSurface intensity="subtle" className="editor-section traffic-ai-chat">
       <div className="editor-section-inner">
         <h2 className="section-title">Análise com IA</h2>
         <p className="field-hint">Converse sobre as campanhas ativas deste perfil. Os dados são consultados no servidor para a conta selecionada.</p>
@@ -67,7 +67,7 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
         {!hasActiveCampaigns ? <p className="field-hint">Quando houver campanhas ativas carregadas, você poderá pedir uma análise por aqui.</p> : null}
         {messages.length ? <div aria-live="polite" style={{ display: "grid", gap: 10, margin: "16px 0" }}>{messages.map((message, index) => <div key={`${index}-${message.role}`} style={{ justifySelf: message.role === "user" ? "end" : "start", maxWidth: "min(100%, 720px)", whiteSpace: "pre-wrap", padding: "12px 16px", borderRadius: 16, background: message.role === "user" ? "var(--color-primary)" : "var(--color-surface-raised, rgba(255,255,255,.06))" }}>{message.text}</div>)}</div> : null}
         {error ? <p className="alert-banner alert-error" role="alert">{error}</p> : null}
-        <form onSubmit={send} style={{ display: "grid", gap: 10 }}>
+        <form className="traffic-ai-chat-form" onSubmit={send}>
           <label className="field-label" htmlFor={`ai-model-${profile.id}`}>Modelo da sua conta</label>
           <select id={`ai-model-${profile.id}`} className="input" value={model} onChange={(event) => setModel(event.target.value)} disabled={!connected || models.length === 0}>
             {models.length === 0 ? <option value="">{connected ? "Carregando modelos..." : "Conecte o ChatGPT na seção IA"}</option> : models.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
@@ -77,7 +77,7 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
             <option value="low">Baixo</option><option value="medium">Médio</option><option value="high">Alto</option><option value="xhigh">Extra alto</option><option value="max">Ultra</option>
           </select>
           <label className="field-label" htmlFor={`ai-prompt-${profile.id}`}>O que você quer entender?</label>
-          <textarea id={`ai-prompt-${profile.id}`} className="input" rows={3} maxLength={4000} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Ex.: Quais campanhas estão gastando sem gerar cliques?" disabled={!connected || !hasActiveCampaigns || loading} />
+          <textarea id={`ai-prompt-${profile.id}`} className="input" rows={4} maxLength={4000} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Ex.: Quais campanhas estão gastando sem gerar cliques?" disabled={!connected || !hasActiveCampaigns || loading} />
           <div className="channel-actions"><button type="submit" className="btn btn-primary" disabled={!connected || !hasActiveCampaigns || !model || !prompt.trim() || loading}>{loading ? "Analisando campanhas..." : "Enviar para análise"}</button></div>
         </form>
       </div>

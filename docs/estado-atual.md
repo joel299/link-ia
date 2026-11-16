@@ -306,3 +306,11 @@ Auditoria completa solicitada por Joel, **sem alterar código funcional, sem com
 - **Causa:** o código dependia da memória local do módulo que iniciou o processo. A rota de status não garantia acesso ao mesmo estado, e o banco não armazenava o código.
 - **Mudança:** código e expiração de 15 minutos persistidos na conexão privada do usuário; migração aditiva para bancos existentes; parser ampliado para os formatos de prompt do CLI.
 - **Validação local:** typecheck e ESLint direcionado passaram; Vitest bloqueado por `EPERM` ao resolver `node_modules/vite` no Windows. O fluxo real deve ser validado após o deploy, iniciando uma nova conexão.
+
+
+### Correção de exibição do código Codex e referência do chat (16/11/2026)
+- **Evidência em produção:** painel IA permaneceu desconectado; leitura sanitizada do SQLite mostrou estado `disconnected`, sem código ou expiração. A tela Tráfego pago carregou campanhas e o cartão de análise; o conteúdo estava limitado pela largura máxima geral de 1440px.
+- **Causa no código:** evento `close` do CLI podia mudar uma conexão com código capturado para `disconnected`, fazendo o endpoint esconder o valor. A linha pendente também era gravada depois do spawn, criando uma janela de corrida para a saída rápida do CLI.
+- **Ajustes:** registrar estado/expiração antes de iniciar o subprocesso; preservar a conexão pendente se o CLI encerrar depois de emitir código; reconhecer `user_code` em URL impressa pelo CLI sem tratar parâmetros OAuth genéricos como código de dispositivo; exibir o código em bloco legível com botão de cópia. A tela de tráfego usa limite de largura ampliado e estilos próprios para se aproximar da imagem enviada, sem mudar as telas restantes.
+- **Validação:** teste unitário adicionado para `user_code`; confirmar typecheck, lint e testes após a alteração. A autenticação real não foi repetida nesta revisão; não foi exibido nem registrado código de dispositivo.
+- **Próxima ação:** aguardar a imagem publicada e iniciar novo fluxo pelo painel IA para validar o código na interface e concluir o login.

@@ -92,8 +92,9 @@ export function extractCodexUserCode(output: string): string | null {
   const contextual = clean.match(/(?:user|device|verification|one[- ]time)\s+code(?:\s*\([^)]*\))?\s*(?:is|:|=)?\s*([A-Z0-9-]{6,20})/i)
     || clean.match(/(?:enter|type|input|use)\s+(?:the\s+)?(?:9-character\s+)?code\s*[:=]?\s*([A-Z0-9-]{6,20})/i)
     || clean.match(/\bcode\s*[:=]\s*([A-Z0-9]{4}-[A-Z0-9]{4})\b/i);
+  const urlUserCode = clean.match(/[?&]user_code=([A-Z0-9-]{6,20})(?:[&#\s]|$)/i);
   const formatted = clean.match(/\b([A-Z0-9]{4}-[A-Z0-9]{4})\b/);
-  return contextual?.[1] || formatted?.[1] || null;
+  return contextual?.[1] || urlUserCode?.[1] || formatted?.[1] || null;
 }
 
 export async function startCodexDeviceLogin(ownerId: string) {
@@ -101,6 +102,11 @@ export async function startCodexDeviceLogin(ownerId: string) {
   if (active && active.exitCode === null && Date.now() - active.startedAt < LOGIN_TTL_MS) return loginSnapshot(active);
   if (active) stopLogin(ownerId);
   const home = await prepareHome(ownerId);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + LOGIN_TTL_MS).toISOString();
+  getDb().prepare(`INSERT INTO codex_device_connections (owner_id, status, connected_at, device_code, device_login_expires_at, updated_at) VALUES (?, 'pending', NULL, NULL, ?, ?)
+    ON CONFLICT(owner_id) DO UPDATE SET status='pending', connected_at=NULL, device_code=NULL, device_login_expires_at=excluded.device_login_expires_at, updated_at=excluded.updated_at`)
+    .run(ownerId, expiresAt, now.toISOString());
   const child = spawn(codexBinary(), ["login", "--device-auth"], { env: safeEnv(home), stdio: ["pipe", "pipe", "pipe"], windowsHide: true, shell: false });
   child.stdin.end();
   const session: LoginProcess = {
@@ -118,14 +124,10 @@ export async function startCodexDeviceLogin(ownerId: string) {
   child.on("close", (code) => {
     session.exitCode = code ?? 1;
     clearTimeout(session.timer);
-    if (session.exitCode !== 0) {
-      getDb().prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, updated_at) VALUES (?, 'disconnected', NULL, ?) ON CONFLICT(owner_id) DO UPDATE SET status='disconnected', connected_at=NULL, updated_at=excluded.updated_at").run(ownerId, new Date().toISOString());
+    if (session.exitCode !== 0 && !session.userCode) {
+      getDb().prepare("INSERT INTO codex_device_connections (owner_id, status, connected_at, device_code, device_login_expires_at, updated_at) VALUES (?, 'disconnected', NULL, NULL, NULL, ?) ON CONFLICT(owner_id) DO UPDATE SET status='disconnected', connected_at=NULL, device_code=NULL, device_login_expires_at=NULL, updated_at=excluded.updated_at").run(ownerId, new Date().toISOString());
     }
   });
-  const now = new Date();
-  getDb().prepare(`INSERT INTO codex_device_connections (owner_id, status, connected_at, device_code, device_login_expires_at, updated_at) VALUES (?, 'pending', NULL, NULL, ?, ?)
-    ON CONFLICT(owner_id) DO UPDATE SET status='pending', connected_at=NULL, device_code=NULL, device_login_expires_at=excluded.device_login_expires_at, updated_at=excluded.updated_at`)
-    .run(ownerId, new Date(now.getTime() + LOGIN_TTL_MS).toISOString(), now.toISOString());
   return loginSnapshot(session);
 }
 
