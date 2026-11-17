@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
   if (!state) {
     return NextResponse.redirect(
-      new URL("/painel?calendar=invalid_state", appBaseUrl)
+      new URL("/painel/configuracoes?calendar=invalid_state", appBaseUrl)
     );
   }
 
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 
     return NextResponse.redirect(
       new URL(
-        `/painel?profileId=${encodeURIComponent(result.profileId)}&calendar=${encodeURIComponent(result.status)}`,
+        `/painel/configuracoes?profileId=${encodeURIComponent(result.profileId)}&calendar=${encodeURIComponent(result.status)}`,
         appBaseUrl
       )
     );
@@ -42,13 +42,13 @@ export async function GET(request: Request) {
     if (err instanceof SchedulingError) {
       return NextResponse.redirect(
         new URL(
-          `/painel?calendar=error&reason=${encodeURIComponent(err.message)}`,
+          `/painel/configuracoes?calendar=error&reason=${encodeURIComponent(err.message)}`,
           appBaseUrl
         )
       );
     }
     return NextResponse.redirect(
-      new URL("/painel?calendar=error", appBaseUrl)
+      new URL("/painel/configuracoes?calendar=error", appBaseUrl)
     );
   }
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PublicCatalogItem } from "@/lib/types";
 import { isSafeHttpUrl } from "./profile-visuals";
+import { trackPublicInteraction } from "./track-public-event";
 
 interface PublicCatalogCarouselProps {
   slug: string;
@@ -195,6 +196,7 @@ export function PublicCatalogCarousel({
                   ) : internalBookingEnabled ? (
                     <Link
                       href={`/${slug}/agendar?service=${encodeURIComponent(item.publicId)}`}
+                      onClick={() => trackPublicInteraction(slug, "booking_click")}
                       className="linkia-cat-cta"
                     >
                       Agendar
@@ -214,6 +216,7 @@ export function PublicCatalogCarousel({
                     href={waHref}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => trackPublicInteraction(slug, "whatsapp_click")}
                     className="linkia-cat-cta"
                   >
                     Solicitar no WhatsApp

@@ -106,37 +106,17 @@ export function PublicProfileView({
             </span>
           </div>
         ) : (
-          <Link
+          <ProfileActionLink
             key="booking"
             href={`/${profile.slug}/agendar`}
-            className="public-action-link public-action-booking"
-          >
-            <span className="public-action-icon" aria-hidden="true">
-              <CalendarIcon />
-            </span>
-            <span className="public-action-text">
-              <span className="public-action-label">
-                {profile.bookingLabel || "Agendar horário"}
-              </span>
-              <span className="public-action-sublabel">
-                Escolher dia e horário
-              </span>
-            </span>
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-              className="public-action-arrow"
-            >
-              <path d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          </Link>
+            label={profile.bookingLabel || "Agendar horário"}
+            sublabel="Escolher dia e horário"
+            variant="booking"
+            icon={<CalendarIcon />}
+            trackSlug={profile.slug}
+            trackEvent="booking_click"
+            internalLink
+          />
         );
       case "whatsapp":
         if (!whatsappHref) return null;
@@ -148,6 +128,8 @@ export function PublicProfileView({
             sublabel="Iniciar conversa direta"
             variant="whatsapp"
             icon={<WhatsAppIcon />}
+            trackSlug={isPreview ? undefined : profile.slug}
+            trackEvent={isPreview ? undefined : "whatsapp_click"}
           />
         );
       case "instagram":
@@ -160,6 +142,8 @@ export function PublicProfileView({
             sublabel="Ver perfil oficial"
             variant="instagram"
             icon={<InstagramIcon />}
+            trackSlug={isPreview ? undefined : profile.slug}
+            trackEvent={isPreview ? undefined : "instagram_click"}
           />
         );
       case "tiktok":

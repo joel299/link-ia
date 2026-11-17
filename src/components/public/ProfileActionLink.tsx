@@ -1,4 +1,11 @@
+"use client";
+
+import Link from "next/link";
 import type { ReactNode } from "react";
+import {
+  trackPublicInteraction,
+  type TrackablePublicEvent,
+} from "./track-public-event";
 
 interface ProfileActionLinkProps {
   href: string;
@@ -6,6 +13,9 @@ interface ProfileActionLinkProps {
   sublabel?: string;
   variant: "booking" | "whatsapp" | "instagram";
   icon: ReactNode;
+  trackSlug?: string;
+  trackEvent?: TrackablePublicEvent;
+  internalLink?: boolean;
 }
 
 export function ProfileActionLink({
@@ -14,14 +24,18 @@ export function ProfileActionLink({
   sublabel,
   variant,
   icon,
+  trackSlug,
+  trackEvent,
+  internalLink = false,
 }: ProfileActionLinkProps) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`public-action-link public-action-${variant}`}
-    >
+  function handleClick() {
+    if (trackSlug && trackEvent) {
+      trackPublicInteraction(trackSlug, trackEvent);
+    }
+  }
+
+  const content = (
+    <>
       <span className="public-action-icon" aria-hidden="true">
         {icon}
       </span>
@@ -43,8 +57,36 @@ export function ProfileActionLink({
         aria-hidden="true"
         className="public-action-arrow"
       >
-        <path d="M7 17 17 7M7 7h10v10" />
+        {internalLink ? (
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        ) : (
+          <path d="M7 17 17 7M7 7h10v10" />
+        )}
       </svg>
+    </>
+  );
+
+  if (internalLink) {
+    return (
+      <Link
+        href={href}
+        onClick={handleClick}
+        className={`public-action-link public-action-${variant}`}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={handleClick}
+      className={`public-action-link public-action-${variant}`}
+    >
+      {content}
     </a>
   );
 }

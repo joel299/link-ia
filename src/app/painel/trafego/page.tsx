@@ -204,7 +204,7 @@ export default function PainelTrafegoPage() {
               suas contas de anúncios.
             </p>
             <div>
-              <Link href="/painel" className="btn btn-primary">
+              <Link href="/painel/configuracoes" className="btn btn-primary">
                 Ir para Configurações do perfil
               </Link>
             </div>
@@ -230,7 +230,7 @@ export default function PainelTrafegoPage() {
               Publique este perfil para configurar o tráfego pago.
             </p>
             <Link
-              href={`/painel?profileId=${encodeURIComponent(selectedProfile.id)}`}
+              href={`/painel/configuracoes?profileId=${encodeURIComponent(selectedProfile.id)}`}
               className="btn btn-primary"
             >
               Ir para o editor e publicar

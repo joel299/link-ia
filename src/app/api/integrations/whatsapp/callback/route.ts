@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 
   if (!state) {
     return NextResponse.redirect(
-      new URL("/painel?whatsapp=invalid_state", appBaseUrl)
+      new URL("/painel/configuracoes?whatsapp=invalid_state", appBaseUrl)
     );
   }
 
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
 
     return NextResponse.redirect(
       new URL(
-        `/painel?profileId=${encodeURIComponent(result.profileId)}&whatsapp=${encodeURIComponent(result.status)}`,
+        `/painel/configuracoes?profileId=${encodeURIComponent(result.profileId)}&whatsapp=${encodeURIComponent(result.status)}`,
         appBaseUrl
       )
     );
@@ -64,14 +64,14 @@ export async function GET(request: Request) {
     if (err instanceof WhatsAppCallbackError) {
       return NextResponse.redirect(
         new URL(
-          `/painel?whatsapp=${encodeURIComponent(err.code)}&reason=${encodeURIComponent(err.message)}`,
+          `/painel/configuracoes?whatsapp=${encodeURIComponent(err.code)}&reason=${encodeURIComponent(err.message)}`,
           appBaseUrl
         )
       );
     }
 
     return NextResponse.redirect(
-      new URL("/painel?whatsapp=failed", appBaseUrl)
+      new URL("/painel/configuracoes?whatsapp=failed", appBaseUrl)
     );
   }
 }

@@ -11,7 +11,7 @@ function getRedirectBasePath(provider?: SocialProvider): string {
   if (provider === "meta_ads" || provider === "tiktok_ads") {
     return "/painel/trafego";
   }
-  return "/painel";
+  return "/painel/configuracoes";
 }
 
 export async function GET(request: Request) {
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
   if (!state) {
     return NextResponse.redirect(
-      new URL("/painel?social=invalid_state", appBaseUrl)
+      new URL("/painel/configuracoes?social=invalid_state", appBaseUrl)
     );
   }
 
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 
     return NextResponse.redirect(redirectUrl);
   } catch (err) {
-    const redirectUrl = new URL("/painel", appBaseUrl);
+    const redirectUrl = new URL("/painel/configuracoes", appBaseUrl);
     redirectUrl.searchParams.set("social", "error");
     if (err instanceof SocialProviderError) {
       redirectUrl.searchParams.set("reason", err.message);

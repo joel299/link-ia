@@ -32,7 +32,12 @@ export function AppShell({
   const isAdmin = userRole === "admin";
 
   const navItems = [
-    { href: "/painel", label: "Configurações do perfil", matchExact: true },
+    { href: "/painel", label: "Dashboard", matchExact: true },
+    {
+      href: "/painel/configuracoes",
+      label: "Configurações do perfil",
+      matchExact: false,
+    },
     ...(canAccessPaidTraffic
       ? [{ href: "/painel/trafego", label: "Tráfego pago", matchExact: false }]
       : []),

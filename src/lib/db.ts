@@ -370,6 +370,22 @@ function initSchema(db: Database.Database): void {
 
 
 
+    CREATE TABLE IF NOT EXISTS public_interaction_events (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      owner_id TEXT NOT NULL,
+      event_type TEXT NOT NULL CHECK (event_type IN ('whatsapp_click', 'instagram_click', 'booking_click')),
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_public_interaction_events_owner_time
+      ON public_interaction_events(owner_id, created_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_public_interaction_events_profile_type_time
+      ON public_interaction_events(profile_id, event_type, created_at DESC);
+
     CREATE TABLE IF NOT EXISTS codex_device_connections (
       owner_id TEXT PRIMARY KEY,
       status TEXT NOT NULL CHECK (status IN ('pending', 'connected', 'disconnected')),
