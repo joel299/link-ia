@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { GlassSurface } from "@/components/ui/GlassSurface";
-import type { AdsProvider, Profile } from "@/lib/types";
+import type { AdsDateRangeFilter, AdsProvider, Profile } from "@/lib/types";
 
-interface TrafficAiChatProps { profile: Profile; provider: AdsProvider; hasActiveCampaigns: boolean; }
+interface TrafficAiChatProps { profile: Profile; provider: AdsProvider; dateRange: AdsDateRangeFilter; hasActiveCampaigns: boolean; }
 interface Message { role: "assistant" | "user"; text: string; }
 interface AttachmentFile { id: string; name: string; content: string; }
 interface PendingAnalysis { question: string; prompt: string; model: string; effort: string; attachments: AttachmentFile[]; failed: boolean; }
@@ -17,7 +17,7 @@ const planSteps = [
 const effortLabels: Record<string, string> = { low: "Baixo", medium: "Médio", high: "Alto", xhigh: "Extra alto", max: "Máximo" };
 const defaultEfforts = ["low", "medium", "high", "xhigh"];
 
-export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: TrafficAiChatProps) {
+export function TrafficAiChat({ profile, provider, dateRange, hasActiveCampaigns }: TrafficAiChatProps) {
   const [connected, setConnected] = useState(false);
   const [models, setModels] = useState<Array<{ id: string; label: string; efforts?: string[] }>>([]);
   const [model, setModel] = useState("");
@@ -103,6 +103,7 @@ export function TrafficAiChat({ profile, provider, hasActiveCampaigns }: Traffic
         body: JSON.stringify({
           profileId: profile.id,
           provider,
+          dateRange,
           prompt: pending.prompt,
           model: pending.model,
           effort: pending.effort,

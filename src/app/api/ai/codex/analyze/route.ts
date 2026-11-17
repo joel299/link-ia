@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { buildCampaignAnalysisPrompt, getAdminSystemPrompt, runCodexAnalysis, type CodexEffort } from "@/lib/codex-ai";
-import { AdsServiceError, getAdsOverviewForOwner, isAdsProvider } from "@/lib/ads-service";
+import { AdsServiceError, getAdsOverviewForOwner, isAdsProvider, validateAdsDateRange } from "@/lib/ads-service";
 import { adsProviderToFeatureKey, requireUserFeature } from "@/lib/permissions";
 import { getProfileByIdForOwner } from "@/lib/profiles";
 
@@ -32,10 +32,18 @@ export async function POST(request: Request) {
   const denied = await requireUserFeature(user.id, adsProviderToFeatureKey(provider));
   if (denied) return denied;
   try {
+    const rawDateRange = input.dateRange && typeof input.dateRange === "object" && !Array.isArray(input.dateRange)
+      ? input.dateRange as Record<string, unknown>
+      : {};
+    const dateRange = validateAdsDateRange({
+      datePreset: typeof rawDateRange.datePreset === "string" ? rawDateRange.datePreset : null,
+      since: typeof rawDateRange.since === "string" ? rawDateRange.since : null,
+      until: typeof rawDateRange.until === "string" ? rawDateRange.until : null,
+    });
     const profileResult = getProfileByIdForOwner(profileId, user.id);
     if (!profileResult.profile) return NextResponse.json({ error: "Perfil não encontrado." }, { status: profileResult.error === "forbidden" ? 403 : 404 });
     const profile = profileResult.profile;
-    const overview = await getAdsOverviewForOwner({ profileId, ownerId: user.id, provider });
+    const overview = await getAdsOverviewForOwner({ profileId, ownerId: user.id, provider, dateRange });
     const campaigns = overview.campaigns.filter((campaign) => campaign.status.toUpperCase() === "ACTIVE").map((campaign) => ({
       name: campaign.name, status: campaign.status, objective: campaign.objective, dailyBudget: campaign.dailyBudget,
       spend: campaign.spend, impressions: campaign.impressions, clicks: campaign.clicks, reach: campaign.reach,
@@ -45,7 +53,7 @@ export async function POST(request: Request) {
     if (!campaigns.length) return NextResponse.json({ error: "Não há campanhas ativas carregadas para este perfil e provedor." }, { status: 409 });
     const analysisPrompt = buildCampaignAnalysisPrompt({
       systemPrompt: getAdminSystemPrompt(), profileName: profile.displayName, provider,
-      account: account || "não informada", campaigns, conversation, prompt,
+      account: account || "não informada", dateRange, campaigns, conversation, prompt,
     });
     const answer = await runCodexAnalysis({ ownerId: user.id, model, effort: effort as CodexEffort, prompt: analysisPrompt });
     return NextResponse.json({ answer }, { headers: { "Cache-Control": "no-store" } });

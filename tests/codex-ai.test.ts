@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractCodexUserCode, getCodexDeviceLoginStatus, getCodexLoginFailureMessage, getCodexAnalysisFailureMessage, parseCodexModelCatalog } from "../src/lib/codex-ai";
+import { buildCampaignAnalysisPrompt, extractCodexUserCode, getCodexDeviceLoginStatus, getCodexLoginFailureMessage, getCodexAnalysisFailureMessage, parseCodexModelCatalog } from "../src/lib/codex-ai";
 
 describe("Codex device login completion", () => {
   it("treats successful CLI exit as connected and failures as disconnected", () => {
@@ -79,5 +79,25 @@ describe("Codex analysis failure messages", () => {
 
   it("does not expose arbitrary command output", () => {
     expect(getCodexAnalysisFailureMessage("internal payload secret-value")).not.toContain("secret-value");
+  });
+});
+
+describe("Codex campaign analysis prompt", () => {
+  it("includes the applied period and asks for a natural reading of returned metrics", () => {
+    const prompt = buildCampaignAnalysisPrompt({
+      systemPrompt: "Analise campanhas.",
+      profileName: "Perfil",
+      provider: "meta_ads",
+      account: "Conta",
+      dateRange: { datePreset: "custom", since: "2026-07-01", until: "2026-11-16" },
+      campaigns: [{ name: "Campanha de vendas", spend: "81.35", impressions: "1071", clicks: "67" }],
+      conversation: [],
+      prompt: "Faça uma leitura da campanha.",
+    });
+    expect(prompt).toContain("01/07/2026 até 16/11/2026");
+    expect(prompt).toContain('"spend":"81.35"');
+    expect(prompt).toContain("forma natural, clara e direta");
+    expect(prompt).toContain("não diga que o painel não mostra dados");
+    expect(prompt).not.toContain("período atual já exibido no painel");
   });
 });

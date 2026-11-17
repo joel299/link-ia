@@ -7,6 +7,7 @@ import { TrafficAiChat } from "./TrafficAiChat";
 import type {
   AdCampaignOperationView,
   AdCampaignView,
+  AdsDateRangeFilter,
   AdsDatePreset,
   AdsProvider,
   Profile,
@@ -47,6 +48,7 @@ interface TabState {
   loading: boolean;
   error: string | null;
   data: AdsOverviewPayload | null;
+  dateRange: AdsDateRangeFilter | null;
 }
 
 const PROVIDER_TABS: { id: AdsProvider; label: string; subtitle: string }[] = [
@@ -140,7 +142,7 @@ const STATUS_META: Record<
 };
 
 function createEmptyTabState(): TabState {
-  return { loaded: false, loading: false, error: null, data: null };
+  return { loaded: false, loading: false, error: null, data: null, dateRange: null };
 }
 
 function readInitialTrafficReturn(): {
@@ -296,6 +298,7 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
     sync = false,
     overrideRange?: { datePreset: AdsDatePreset; since?: string; until?: string }
   ) {
+    const dateRange = overrideRange ?? dateRangeRef.current;
     setTabs((prev) => ({
       ...prev,
       [provider]: { ...prev[provider], loading: true, error: null },
@@ -304,7 +307,7 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
       targetProfileId,
       provider,
       sync,
-      overrideRange ?? dateRangeRef.current
+      dateRange
     );
     if (activeProfileRef.current !== targetProfileId) return;
 
@@ -315,6 +318,7 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
         loading: false,
         error: snap.error,
         data: snap.data,
+        dateRange: snap.data ? dateRange : prev[provider].dateRange,
       },
     }));
 
@@ -969,6 +973,7 @@ export function PaidTrafficPanel({ profile, permissions }: PaidTrafficPanelProps
             key={`${profile.id}-${activeTab}`}
             profile={profile}
             provider={activeTab}
+            dateRange={currentTab.dateRange ?? { datePreset: "last_30d" }}
             hasActiveCampaigns={overview.campaigns.some((campaign) => campaign.status.toUpperCase() === "ACTIVE")}
           />
         </>
