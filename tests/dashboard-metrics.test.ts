@@ -228,4 +228,55 @@ describe("Dashboard metrics, public interaction events, and connected account co
     expect(payload.dashboard.connectedAccounts.items[0].channel).toBe("whatsapp");
     expect(payload.dashboard.campaigns.hasAdsPermission).toBe(false);
   });
+
+  it("validates custom date ranges and filters metrics accurately without timezone drift", async () => {
+    actAs(owner);
+
+    // Missing dates -> 400
+    const missingRes = await dashboardGet(
+      new Request("http://localhost/api/dashboard?period=custom")
+    );
+    expect(missingRes.status).toBe(400);
+
+    // Invalid calendar date -> 400
+    const invalidDateRes = await dashboardGet(
+      new Request(
+        "http://localhost/api/dashboard?period=custom&since=2026-02-30&until=2026-03-01"
+      )
+    );
+    expect(invalidDateRes.status).toBe(400);
+
+    // Reversed range -> 400
+    const reversedRes = await dashboardGet(
+      new Request(
+        "http://localhost/api/dashboard?period=custom&since=2026-11-10&until=2026-11-01"
+      )
+    );
+    expect(reversedRes.status).toBe(400);
+
+    // Seed two dated events: one inside [2026-10-05, 2026-10-10] and one outside
+    const db = getDb();
+    db.prepare(
+      `INSERT INTO public_interaction_events (id, profile_id, owner_id, event_type, created_at)
+       VALUES (?, ?, ?, 'whatsapp_click', ?)`
+    ).run("ev-in", profileId, owner.id, "2026-10-10T23:59:59.000Z");
+    db.prepare(
+      `INSERT INTO public_interaction_events (id, profile_id, owner_id, event_type, created_at)
+       VALUES (?, ?, ?, 'whatsapp_click', ?)`
+    ).run("ev-out", profileId, owner.id, "2026-10-11T00:00:00.000Z");
+
+    const customRes = await dashboardGet(
+      new Request(
+        "http://localhost/api/dashboard?period=custom&since=2026-10-05&until=2026-10-10"
+      )
+    );
+    expect(customRes.status).toBe(200);
+    const customPayload = await customRes.json();
+    expect(customPayload.dashboard.period).toBe("custom");
+    expect(customPayload.dashboard.since).toBe("2026-10-05");
+    expect(customPayload.dashboard.until).toBe("2026-10-10");
+    expect(customPayload.dashboard.periodLabel).toBe("05/10/2026 – 10/10/2026");
+    expect(customPayload.dashboard.interactions.whatsappClicks).toBe(1);
+    expect(customPayload.dashboard.charts.clicks.total).toBe(1);
+  });
 });

@@ -2726,3 +2726,109 @@
     transition: none;
   }
 }
+
+
+/* Dashboard custom period & skeletons */
+.dash-period-indicator {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.dash-custom-range {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.dash-custom-fields {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dash-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-date-input {
+  min-width: 155px;
+}
+
+.dash-skeleton-circles {
+  display: inline-flex;
+  align-items: center;
+}
+
+.dash-skeleton-circle {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--color-surface);
+  margin-left: -10px;
+}
+
+.dash-skeleton-circle:first-child {
+  margin-left: 0;
+}
+
+.dash-skeleton-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.dash-skeleton-donut {
+  display: block;
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+  border: 24px solid var(--color-surface-subtle);
+  background: transparent;
+  box-sizing: border-box;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+.dash-skeleton-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+}
+
+.dash-skeleton-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-skeleton-campaign-row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dash-skeleton-campaign-row:last-child {
+  border-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .dash-custom-fields {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dash-date-input {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-skeleton-donut {
+    animation: none;
+  }
+}

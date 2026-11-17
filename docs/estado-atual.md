@@ -376,3 +376,12 @@ Após dois deploys saudáveis, a verificação no painel ainda mostrou estado de
 - `src/lib/api-tokens.ts` agora prefere `API_JWT_SECRET` quando tem pelo menos 32 caracteres e, se não tiver, deriva uma chave separada por HMAC a partir de `SESSION_SECRET` válido. Se ambos estiverem inválidos, a emissão continua falhando de forma segura.
 - A interface de produção mostrou zero tokens para as duas contas cadastradas. O segredo do Coolify não foi alterado; a derivação permite emissão sem expor ou rotacionar a chave de sessão.
 - Teste direcionado `tests/api-tokens.test.ts` (6/6), `npm run typecheck` e ESLint direcionado passaram. Validação após a nova imagem entrar em execução ainda pendente.
+
+
+### Dashboard — Skeletons de carregamento e período personalizado (16/11/2026)
+- **Skeletons acessíveis (`DashboardPanel.tsx`, `DitherDonutChart.tsx`, `CampaignNamesList.tsx`, `panel.css`):**
+  - Substituídos os placeholders de texto simples por skeletons estruturais (`aria-busy="true"`, `.skeleton-bar`, `.dash-skeleton-circles`, `.dash-skeleton-donut`, `.dash-skeleton-campaign-row`) respeitando `prefers-reduced-motion` e preservando dimensões sem exibir valores antigos durante a troca de período.
+- **Período personalizado (`src/lib/dashboard.ts`, `src/app/api/dashboard/route.ts`, `DashboardPanel.tsx`):**
+  - Adicionada opção **Personalizado** (`custom`) ao seletor rápido do Dashboard com campos `Data inicial`, `Data final` e botão **Aplicar período** (seguindo o padrão de `PaidTrafficPanel.tsx`), mantendo `AbortController` contra respostas fora de ordem.
+  - Validação no cliente e no servidor (`validateDashboardDateRange` reutilizando `validateAdsDateRange` + checagem de data de calendário real), sem conversão de fuso horário ao montar o intervalo `YYYY-MM-DD` (`00:00:00.000Z` até o dia seguinte) e aplicando o mesmo `dateRange` às consultas de eventos públicos, agendamentos internos confirmados e anúncios (`getAdsOverviewForOwner`). Contas conectadas permanecem como estado atual da conta (não filtradas por data).
+- **Validações:** `npx vitest run tests/dashboard-metrics.test.ts` (4/4), `npm run typecheck` (0 erros), `npm run lint` (0 erros, 4 warnings pré-existentes de `<img>`) e `npm run build`. Teste local não comprova comportamento no ambiente Qualify; inspeção visual no Chrome DevTools permanece pendente (`DevToolsActivePort` ausente no host).

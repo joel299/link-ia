@@ -520,3 +520,8 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Correção:** preferir `API_JWT_SECRET` válida; se ausente/curta, derivar uma chave estável e separada por HMAC a partir de `SESSION_SECRET` já exigido para autenticação. Se ambas estiverem ausentes/inválidas, falhar sem criar token parcial.
 - **Impacto e limite:** as duas contas visíveis no painel não têm tokens ativos. O valor da variável não foi lido nem alterado. Se uma chave dedicada válida for configurada posteriormente, isso troca a chave de assinatura e exige gerar novamente os tokens criados com a derivação.
 - **Validação local:** `tests/api-tokens.test.ts` 6/6, `npm run typecheck` e ESLint direcionado passaram. Verificação pós-deploy pendente.
+
+
+### 16/11/2026 — Skeletons e período personalizado no Dashboard
+- **Limitação conhecida em período personalizado:** a contagem de contas conectadas reflete o estado atual confirmado no servidor (não é filtrada por data), enquanto eventos públicos, agendamentos internos confirmados e métricas/campanhas de anúncios aplicam o intervalo selecionado (`since`/`until`).
+- **Pendência externa:** validação visual interativa no Chrome DevTools (`DevToolsActivePort` ausente no host) e validação após publicação no ambiente Qualify.

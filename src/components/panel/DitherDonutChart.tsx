@@ -304,7 +304,7 @@ export function DitherDonutChart({
   const hasData = metric.available && metric.segments.length > 0 && metric.total > 0;
 
   return (
-    <GlassSurface intensity="subtle" className="dash-chart-card">
+    <GlassSurface intensity="subtle" className="dash-chart-card" aria-busy={loading}>
       <div className="dash-chart-header">
         <div className="dash-chart-title-wrap">
           <div className="dash-chart-icon" aria-hidden="true">
@@ -317,7 +317,10 @@ export function DitherDonutChart({
         </div>
         <div className="dash-chart-total">
           {loading ? (
-            <span className="dash-kpi-loading">...</span>
+            <div className="dash-skeleton-total" aria-hidden="true">
+              <span className="skeleton-bar" style={{ width: 54, height: 20 }} />
+              <span className="skeleton-bar" style={{ width: 42, height: 10 }} />
+            </div>
           ) : metric.available ? (
             <>
               <strong className="tabular-nums">
@@ -332,8 +335,20 @@ export function DitherDonutChart({
       </div>
 
       {loading ? (
-        <div className="dash-chart-empty" role="status">
-          <p className="field-hint">Carregando gráfico...</p>
+        <div className="dash-chart-body" role="status" aria-label={`Carregando gráfico ${title}`}>
+          <div className="dash-donut-wrap">
+            <span className="dash-skeleton-donut" aria-hidden="true" />
+          </div>
+          <div className="dash-legend" aria-hidden="true">
+            {[0, 1, 2].map((idx) => (
+              <div key={idx} className="dash-skeleton-legend-row">
+                <span className="skeleton-dot" />
+                <span className="skeleton-bar" style={{ flex: 1, height: 12 }} />
+                <span className="skeleton-bar" style={{ width: 34, height: 12 }} />
+              </div>
+            ))}
+          </div>
+          <span className="sr-only">Carregando gráfico {title}...</span>
         </div>
       ) : !hasData ? (
         <div className="dash-chart-empty" role="status">

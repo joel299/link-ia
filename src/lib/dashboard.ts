@@ -1,9 +1,15 @@
 import crypto from "node:crypto";
-import { getAdsOverviewForOwner } from "./ads-service";
+import {
+  AdsServiceError,
+  getAdsOverviewForOwner,
+  validateAdsDateRange,
+} from "./ads-service";
 import { getDb } from "./db";
 import { getUserPermissions } from "./permissions";
 import { getPublishedPublicProfileBySlug } from "./profiles";
 import type {
+  AdsDatePreset,
+  AdsDateRangeFilter,
   AdsProvider,
   UserPermissions,
 } from "./types";
@@ -13,11 +19,7 @@ export type PublicInteractionEventType =
   | "instagram_click"
   | "booking_click";
 
-export type DashboardPeriod =
-  | "last_7d"
-  | "last_30d"
-  | "this_month"
-  | "last_month";
+export type DashboardPeriod = AdsDatePreset;
 
 export const VALID_PUBLIC_EVENT_TYPES: ReadonlySet<PublicInteractionEventType> =
   new Set(["whatsapp_click", "instagram_click", "booking_click"]);
@@ -27,6 +29,7 @@ export const VALID_DASHBOARD_PERIODS: ReadonlySet<DashboardPeriod> = new Set([
   "last_30d",
   "this_month",
   "last_month",
+  "custom",
 ]);
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -61,15 +64,79 @@ function checkPublicEventRateLimit(key: string, nowMs: number): boolean {
   return true;
 }
 
+function isValidCalendarDate(isoDate: string): boolean {
+  const [yStr, mStr, dStr] = isoDate.split("-");
+  const y = Number(yStr);
+  const m = Number(mStr);
+  const d = Number(dStr);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) {
+    return false;
+  }
+  const parsed = new Date(Date.UTC(y, m - 1, d));
+  return (
+    parsed.getUTCFullYear() === y &&
+    parsed.getUTCMonth() === m - 1 &&
+    parsed.getUTCDate() === d
+  );
+}
+
+function formatBrDateFromIso(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 export function normalizeDashboardPeriod(raw?: string | null): DashboardPeriod {
   const trimmed = (raw ?? "").trim() as DashboardPeriod;
   return VALID_DASHBOARD_PERIODS.has(trimmed) ? trimmed : "last_30d";
 }
 
+export function validateDashboardDateRange(input?: {
+  period?: string | null;
+  since?: string | null;
+  until?: string | null;
+}): AdsDateRangeFilter {
+  const range = validateAdsDateRange({
+    datePreset: input?.period,
+    since: input?.since,
+    until: input?.until,
+  });
+
+  if (range.datePreset === "custom") {
+    if (
+      !range.since ||
+      !range.until ||
+      !isValidCalendarDate(range.since) ||
+      !isValidCalendarDate(range.until)
+    ) {
+      throw new AdsServiceError(
+        "Informe datas válidas no formato YYYY-MM-DD para o período personalizado.",
+        400
+      );
+    }
+  }
+
+  return range;
+}
+
 export function getDateWindowForPeriod(
-  period: DashboardPeriod,
+  rangeInput: DashboardPeriod | AdsDateRangeFilter,
   now: Date = new Date()
 ): { startIso: string; endIso: string; label: string } {
+  const range: AdsDateRangeFilter =
+    typeof rangeInput === "string" ? { datePreset: rangeInput } : rangeInput;
+  const period = range.datePreset;
+
+  if (period === "custom" && range.since && range.until) {
+    const startIso = `${range.since}T00:00:00.000Z`;
+    const endDate = new Date(`${range.until}T00:00:00.000Z`);
+    endDate.setUTCDate(endDate.getUTCDate() + 1);
+    return {
+      startIso,
+      endIso: endDate.toISOString(),
+      label: `${formatBrDateFromIso(range.since)} – ${formatBrDateFromIso(range.until)}`,
+    };
+  }
+
   const end = new Date(now.getTime() + 1000);
   if (period === "last_7d") {
     const start = new Date(now);
@@ -216,6 +283,8 @@ export interface DonutMetricView {
 
 export interface DashboardSnapshot {
   period: DashboardPeriod;
+  since: string | null;
+  until: string | null;
   periodLabel: string;
   profileCount: number;
   connectedAccounts: {
@@ -293,11 +362,18 @@ export async function getDashboardSnapshotForOwner(params: {
   ownerId: string;
   permissions?: UserPermissions;
   period?: string | null;
+  since?: string | null;
+  until?: string | null;
 }): Promise<DashboardSnapshot> {
   const db = getDb();
   const perms = params.permissions ?? getUserPermissions(params.ownerId);
-  const period = normalizeDashboardPeriod(params.period);
-  const window = getDateWindowForPeriod(period);
+  const dateRange = validateDashboardDateRange({
+    period: params.period,
+    since: params.since,
+    until: params.until,
+  });
+  const period = dateRange.datePreset;
+  const window = getDateWindowForPeriod(dateRange);
 
   const profileRows = db
     .prepare(
@@ -530,7 +606,7 @@ export async function getDashboardSnapshotForOwner(params: {
             ownerId: params.ownerId,
             provider,
             sync: false,
-            dateRange: { datePreset: period },
+            dateRange,
           });
         } catch {
           return null;
@@ -639,6 +715,8 @@ export async function getDashboardSnapshotForOwner(params: {
 
   return {
     period,
+    since: dateRange.datePreset === "custom" ? (dateRange.since ?? null) : null,
+    until: dateRange.datePreset === "custom" ? (dateRange.until ?? null) : null,
     periodLabel: window.label,
     profileCount: profileRows.length,
     connectedAccounts: {

@@ -21,7 +21,7 @@ export function CampaignNamesList({
   periodLabel,
 }: CampaignNamesListProps) {
   return (
-    <GlassSurface intensity="subtle" className="dash-campaigns-card">
+    <GlassSurface intensity="subtle" className="dash-campaigns-card" aria-busy={loading}>
       <div className="dash-campaigns-header">
         <div>
           <h3 className="dash-chart-title">Campanhas</h3>
@@ -37,8 +37,22 @@ export function CampaignNamesList({
       </div>
 
       {loading ? (
-        <div className="dash-scroll-empty" role="status">
-          <p className="field-hint">Carregando campanhas...</p>
+        <div
+          className="dash-scroll-area"
+          role="status"
+          aria-label="Carregando campanhas"
+        >
+          <div className="dash-scroll-inner dash-skeleton-rows" aria-hidden="true">
+            {[0, 1, 2, 3].map((idx) => (
+              <div key={idx} className="dash-skeleton-campaign-row">
+                <span
+                  className="skeleton-bar"
+                  style={{ width: idx % 2 === 0 ? "68%" : "52%", height: 14 }}
+                />
+              </div>
+            ))}
+          </div>
+          <span className="sr-only">Carregando campanhas...</span>
         </div>
       ) : !hasAdsPermission ? (
         <div className="dash-scroll-empty" role="status">

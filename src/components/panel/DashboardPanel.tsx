@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { GlassSurface } from "@/components/ui/GlassSurface";
 import type { DashboardPeriod, DashboardSnapshot } from "@/lib/dashboard";
 import type { UserPermissions } from "@/lib/types";
@@ -13,34 +13,80 @@ interface DashboardPanelProps {
   permissions?: UserPermissions;
 }
 
+interface ActiveRange {
+  period: DashboardPeriod;
+  since?: string;
+  until?: string;
+}
+
 const PERIOD_OPTIONS: Array<{ id: DashboardPeriod; label: string }> = [
   { id: "last_7d", label: "7 dias" },
   { id: "last_30d", label: "30 dias" },
   { id: "this_month", label: "Este mês" },
   { id: "last_month", label: "Mês passado" },
+  { id: "custom", label: "Personalizado" },
 ];
 
+function getPresetLabel(range: ActiveRange): string {
+  switch (range.period) {
+    case "last_7d":
+      return "Últimos 7 dias";
+    case "this_month":
+      return "Este mês";
+    case "last_month":
+      return "Mês passado";
+    case "custom":
+      if (range.since && range.until) {
+        const format = (v: string) => {
+          const [y, m, d] = v.split("-");
+          return `${d}/${m}/${y}`;
+        };
+        return `${format(range.since)} – ${format(range.until)}`;
+      }
+      return "Período personalizado";
+    default:
+      return "Últimos 30 dias";
+  }
+}
+
 export function DashboardPanel({ permissions }: DashboardPanelProps) {
-  const [period, setPeriod] = useState<DashboardPeriod>("last_30d");
+  const [selectedControlPeriod, setSelectedControlPeriod] =
+    useState<DashboardPeriod>("last_30d");
+  const [activeRange, setActiveRange] = useState<ActiveRange>({
+    period: "last_30d",
+  });
+  const [customSince, setCustomSince] = useState("");
+  const [customUntil, setCustomUntil] = useState("");
+  const [rangeError, setRangeError] = useState<string | null>(null);
+
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function load() {
       try {
-        const res = await fetch(
-          `/api/dashboard?period=${encodeURIComponent(period)}`,
-          {
-            credentials: "include",
-            cache: "no-store",
-          }
-        );
+        const params = new URLSearchParams();
+        params.set("period", activeRange.period);
+        if (
+          activeRange.period === "custom" &&
+          activeRange.since &&
+          activeRange.until
+        ) {
+          params.set("since", activeRange.since);
+          params.set("until", activeRange.until);
+        }
+
+        const res = await fetch(`/api/dashboard?${params.toString()}`, {
+          credentials: "include",
+          cache: "no-store",
+          signal: controller.signal,
+        });
         const data = await res.json().catch(() => ({}));
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         if (!res.ok) {
           setError(data.error || "Não foi possível carregar o dashboard.");
           setSnapshot(null);
@@ -48,13 +94,13 @@ export function DashboardPanel({ permissions }: DashboardPanelProps) {
         }
         setError(null);
         setSnapshot(data.dashboard as DashboardSnapshot);
-      } catch {
-        if (!cancelled) {
-          setError("Erro de conexão ao carregar o dashboard.");
-          setSnapshot(null);
-        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError("Erro de conexão ao carregar o dashboard.");
+        setSnapshot(null);
       } finally {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setLoading(false);
         }
       }
@@ -62,22 +108,63 @@ export function DashboardPanel({ permissions }: DashboardPanelProps) {
 
     void load();
     return () => {
-      cancelled = true;
+      controller.abort();
     };
-  }, [period, reloadNonce]);
+  }, [activeRange, reloadNonce]);
 
-  function handlePeriodChange(nextPeriod: DashboardPeriod) {
-    if (nextPeriod === period) return;
+  function handleSelectPeriod(nextPeriod: DashboardPeriod) {
+    setRangeError(null);
+    setSelectedControlPeriod(nextPeriod);
+    if (nextPeriod === "custom") {
+      return;
+    }
+    if (
+      activeRange.period === nextPeriod &&
+      snapshot &&
+      !error
+    ) {
+      return;
+    }
     setLoading(true);
     setError(null);
-    setPeriod(nextPeriod);
+    setSnapshot(null);
+    setActiveRange({ period: nextPeriod });
+  }
+
+  function handleApplyCustomRange(e: FormEvent) {
+    e.preventDefault();
+    if (!customSince || !customUntil) {
+      setRangeError("Informe a data inicial e a data final para aplicar o período.");
+      return;
+    }
+    if (customSince > customUntil) {
+      setRangeError("A data inicial não pode ser posterior à data final.");
+      return;
+    }
+    setRangeError(null);
+    setLoading(true);
+    setError(null);
+    setSnapshot(null);
+    setActiveRange({
+      period: "custom",
+      since: customSince,
+      until: customUntil,
+    });
   }
 
   function handleRetry() {
     setLoading(true);
     setError(null);
+    setSnapshot(null);
     setReloadNonce((n) => n + 1);
   }
+
+  const displayedPeriodLabel = snapshot?.periodLabel ?? getPresetLabel(activeRange);
+  const hasPendingCustomDraft =
+    selectedControlPeriod === "custom" &&
+    (activeRange.period !== "custom" ||
+      activeRange.since !== customSince ||
+      activeRange.until !== customUntil);
 
   return (
     <div className="dash-root">
@@ -85,20 +172,21 @@ export function DashboardPanel({ permissions }: DashboardPanelProps) {
         <div>
           <h1 className="section-title dash-heading">Dashboard</h1>
           <p className="field-hint">
-            Resumo das contas conectadas, cliques na página pública e métricas oficiais de anúncios.
+            Resumo das contas conectadas, cliques na página pública e métricas oficiais de anúncios{" "}
+            <span className="dash-period-indicator">({displayedPeriodLabel})</span>.
           </p>
         </div>
 
         <div className="dash-topbar-controls">
           <div className="dash-period-tabs" role="group" aria-label="Período das métricas">
             {PERIOD_OPTIONS.map((opt) => {
-              const active = period === opt.id;
+              const active = selectedControlPeriod === opt.id;
               return (
                 <button
                   key={opt.id}
                   type="button"
                   aria-pressed={active}
-                  onClick={() => handlePeriodChange(opt.id)}
+                  onClick={() => handleSelectPeriod(opt.id)}
                   className={`dash-period-btn${active ? " is-active" : ""}`}
                 >
                   {opt.label}
@@ -111,6 +199,53 @@ export function DashboardPanel({ permissions }: DashboardPanelProps) {
           </Link>
         </div>
       </div>
+
+      {selectedControlPeriod === "custom" ? (
+        <form
+          onSubmit={handleApplyCustomRange}
+          className="dash-custom-range"
+          aria-label="Selecionar intervalo personalizado"
+        >
+          <div className="dash-custom-fields">
+            <label className="dash-date-field">
+              <span className="field-label">Data inicial</span>
+              <input
+                type="date"
+                className="input dash-date-input"
+                value={customSince}
+                onChange={(e) => {
+                  setCustomSince(e.target.value);
+                  setRangeError(null);
+                }}
+              />
+            </label>
+            <label className="dash-date-field">
+              <span className="field-label">Data final</span>
+              <input
+                type="date"
+                className="input dash-date-input"
+                value={customUntil}
+                onChange={(e) => {
+                  setCustomUntil(e.target.value);
+                  setRangeError(null);
+                }}
+              />
+            </label>
+            <button type="submit" className="btn btn-primary dash-small-btn">
+              Aplicar período
+            </button>
+          </div>
+          {rangeError ? (
+            <p className="field-error" role="alert" style={{ margin: 0 }}>
+              {rangeError}
+            </p>
+          ) : hasPendingCustomDraft ? (
+            <p className="field-hint" style={{ margin: 0 }}>
+              Exibindo dados de: <strong>{displayedPeriodLabel}</strong>. Clique em &ldquo;Aplicar período&rdquo; para atualizar para o intervalo escolhido.
+            </p>
+          ) : null}
+        </form>
+      ) : null}
 
       {error ? (
         <GlassSurface intensity="subtle" className="editor-section">
@@ -132,27 +267,40 @@ export function DashboardPanel({ permissions }: DashboardPanelProps) {
 
       {/* 4 KPI cards */}
       <section className="dash-kpi-grid" aria-label="Indicadores principais">
-        <GlassSurface intensity="subtle" className="dash-kpi-card">
+        <GlassSurface intensity="subtle" className="dash-kpi-card" aria-busy={loading}>
           <div className="dash-kpi-top">
             <span className="dash-kpi-label">Contas conectadas</span>
           </div>
           <div className="dash-kpi-value-row">
-            <strong className="dash-kpi-value tabular-nums">
-              {loading ? "—" : (snapshot?.connectedAccounts.total ?? 0)}
-            </strong>
-            {!loading && snapshot ? (
-              <ConnectedAccountsCircles
-                items={snapshot.connectedAccounts.items}
-                total={snapshot.connectedAccounts.total}
-              />
-            ) : null}
+            {loading ? (
+              <>
+                <span className="skeleton-bar" style={{ width: 44, height: 30 }} aria-hidden="true" />
+                <div className="dash-skeleton-circles" aria-hidden="true">
+                  <span className="skeleton-avatar dash-skeleton-circle" />
+                  <span className="skeleton-avatar dash-skeleton-circle" />
+                </div>
+                <span className="sr-only">Carregando contas conectadas...</span>
+              </>
+            ) : (
+              <>
+                <strong className="dash-kpi-value tabular-nums">
+                  {snapshot?.connectedAccounts.total ?? 0}
+                </strong>
+                {snapshot ? (
+                  <ConnectedAccountsCircles
+                    items={snapshot.connectedAccounts.items}
+                    total={snapshot.connectedAccounts.total}
+                  />
+                ) : null}
+              </>
+            )}
           </div>
           <p className="dash-kpi-hint">
             Somente integrações confirmadas como conectadas pelo servidor.
           </p>
         </GlassSurface>
 
-        <GlassSurface intensity="subtle" className="dash-kpi-card">
+        <GlassSurface intensity="subtle" className="dash-kpi-card" aria-busy={loading}>
           <div className="dash-kpi-top">
             <span className="dash-kpi-label">
               Cliques para iniciar conversa (WhatsApp)
@@ -166,13 +314,16 @@ export function DashboardPanel({ permissions }: DashboardPanelProps) {
             </span>
           </div>
           <div className="dash-kpi-value-row">
-            {permissions && !permissions.whatsapp ? (
+            {loading ? (
+              <>
+                <span className="skeleton-bar" style={{ width: 64, height: 30 }} aria-hidden="true" />
+                <span className="sr-only">Carregando cliques no WhatsApp...</span>
+              </>
+            ) : permissions && !permissions.whatsapp ? (
               <span className="dash-badge-muted">Não habilitado</span>
             ) : (
               <strong className="dash-kpi-value tabular-nums">
-                {loading
-                  ? "—"
-                  : (snapshot?.interactions.whatsappClicks ?? 0).toLocaleString("pt-BR")}
+                {(snapshot?.interactions.whatsappClicks ?? 0).toLocaleString("pt-BR")}
               </strong>
             )}
           </div>
@@ -181,7 +332,7 @@ export function DashboardPanel({ permissions }: DashboardPanelProps) {
           </p>
         </GlassSurface>
 
-        <GlassSurface intensity="subtle" className="dash-kpi-card">
+        <GlassSurface intensity="subtle" className="dash-kpi-card" aria-busy={loading}>
           <div className="dash-kpi-top">
             <span className="dash-kpi-label">Impressões de anúncios</span>
             <span
@@ -194,7 +345,10 @@ export function DashboardPanel({ permissions }: DashboardPanelProps) {
           </div>
           <div className="dash-kpi-value-row">
             {loading ? (
-              <strong className="dash-kpi-value tabular-nums">—</strong>
+              <>
+                <span className="skeleton-bar" style={{ width: 88, height: 30 }} aria-hidden="true" />
+                <span className="sr-only">Carregando impressões...</span>
+              </>
             ) : snapshot?.impressionsCard.available ? (
               <strong className="dash-kpi-value tabular-nums">
                 {snapshot.impressionsCard.total.toLocaleString("pt-BR")}
@@ -203,17 +357,19 @@ export function DashboardPanel({ permissions }: DashboardPanelProps) {
               <span className="dash-badge-muted">Indisponível</span>
             )}
           </div>
-          <p className="dash-kpi-hint">
-            {loading
-              ? "Consultando fonte oficial..."
-              : snapshot?.impressionsCard.available
+          {loading ? (
+            <span className="skeleton-bar" style={{ width: "85%", height: 12 }} aria-hidden="true" />
+          ) : (
+            <p className="dash-kpi-hint">
+              {snapshot?.impressionsCard.available
                 ? snapshot.impressionsCard.sourceLabel
                 : snapshot?.impressionsCard.unavailableReason ||
                   "Sem impressões oficiais no período."}
-          </p>
+            </p>
+          )}
         </GlassSurface>
 
-        <GlassSurface intensity="subtle" className="dash-kpi-card">
+        <GlassSurface intensity="subtle" className="dash-kpi-card" aria-busy={loading}>
           <div className="dash-kpi-top">
             <span className="dash-kpi-label">Agendamentos iniciados</span>
             <span
@@ -225,11 +381,16 @@ export function DashboardPanel({ permissions }: DashboardPanelProps) {
             </span>
           </div>
           <div className="dash-kpi-value-row">
-            <strong className="dash-kpi-value tabular-nums">
-              {loading
-                ? "—"
-                : (snapshot?.interactions.bookingClicks ?? 0).toLocaleString("pt-BR")}
-            </strong>
+            {loading ? (
+              <>
+                <span className="skeleton-bar" style={{ width: 64, height: 30 }} aria-hidden="true" />
+                <span className="sr-only">Carregando agendamentos iniciados...</span>
+              </>
+            ) : (
+              <strong className="dash-kpi-value tabular-nums">
+                {(snapshot?.interactions.bookingClicks ?? 0).toLocaleString("pt-BR")}
+              </strong>
+            )}
           </div>
           <p className="dash-kpi-hint">
             Cliques no link de agendamento; não comprova reserva concluída.
@@ -320,7 +481,7 @@ export function DashboardPanel({ permissions }: DashboardPanelProps) {
         hasConnectedAdAccount={snapshot?.campaigns.hasConnectedAdAccount ?? false}
         loading={loading}
         error={snapshot?.campaigns.error ?? null}
-        periodLabel={snapshot?.periodLabel ?? "Últimos 30 dias"}
+        periodLabel={displayedPeriodLabel}
       />
     </div>
   );
