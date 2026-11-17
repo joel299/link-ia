@@ -481,9 +481,8 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Validação:** teste cobre a classificação específica e impede vazamento da saída. Requer CI e uma nova tentativa no ambiente real.
 
 ### AI-009 — análise de tráfego respondeu HTTP 502
-- **Data:** 16/11/2026
-- **Evidência:** DevTools mostrou `POST /api/ai/codex/analyze` → 502; payload de 202 bytes e resposta JSON de 185 bytes em aproximadamente 2,5 s. O corpo não foi inspecionado. Os logs de Runtime visíveis tinham somente o boot saudável.
-- **Causa:** não confirmada. O tamanho não sustenta a hipótese de payload excessivo. A rota carrega campanhas por AdsService e chama `codex exec` para inferência.
-- **Correção:** log seguro com origem, classe e status, sem conteúdo da pergunta, campanhas, ID do usuário ou saída Codex. Se disponível na conta, GPT-6 Luna é o modelo inicial; mantém-se fallback para modelo permitido.
-- **Limite:** falta validar a imagem atualizada e repetir consulta autorizada correlacionada ao log. Ausência do binário na imagem anterior permanece hipótese.
-- **Verificação final:** após integrar o histórico remoto, typecheck, build, configuração do Compose e 86 testes passaram; lint teve zero erros e quatro avisos existentes.
+- **Data:** 16–17/11/2026
+- **Evidência:** novo `Tentar novamente` no painel retornou erro; Coolify registrou `[Codex analyze]` às 00:01:19 de 17/11 com status 502. CLI 0.169.0 retorna `unexpected argument '--ask-for-approval' found` quando essa opção é passada a `codex exec`; a mesma chamada sem a opção retornou `Codex OK` usando GPT-6 Luna.
+- **Causa confirmada:** `runCodexAnalysis` ainda inclui `--ask-for-approval never` nos argumentos do `codex exec`. O parser do CLI rejeita a opção antes de chamar o modelo. A saída não zero vira mensagem genérica e 502 na API, que o painel mostra como falha do Codex.
+- **Correção local:** removida a opção incompatível do subprocesso, preservando `--sandbox read-only`; erros de argumento agora são classificados sem expor a saída bruta. Typecheck, build e 87 testes passaram; lint sem erros, com quatro avisos preexistentes de `<img>`. Publicação e reprodução final pelo painel ainda pendentes.
+- **Observação:** o aviso de `bubblewrap` na execução direta não bloqueou a resposta; o CLI usou seu fallback incluído. A autenticação está funcional e não explica esta falha.

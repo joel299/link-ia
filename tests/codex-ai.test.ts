@@ -65,6 +65,12 @@ describe("Codex account model catalog", () => {
 });
 
 describe("Codex analysis failure messages", () => {
+  it("identifies CLI argument mismatches without exposing the rejected option", () => {
+    const message = getCodexAnalysisFailureMessage("error: unexpected argument '--ask-for-approval' found");
+    expect(message).toContain("parâmetro de execução");
+    expect(message).not.toContain("--ask-for-approval");
+  });
+
   it("classifies unsupported models and effort settings without returning raw CLI output", () => {
     expect(getCodexAnalysisFailureMessage("model gpt-6-x is not available for this account")).toContain("não está disponível");
     expect(getCodexAnalysisFailureMessage("reasoning effort max is not supported")).toContain("não é compatível");

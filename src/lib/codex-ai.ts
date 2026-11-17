@@ -73,6 +73,7 @@ export async function getCodexModels(ownerId: string, refresh = false): Promise<
 
 export function getCodexAnalysisFailureMessage(output: string): string {
   const clean = output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "").toLowerCase();
+  if (/unexpected argument|unexpected value/.test(clean)) return "O Codex CLI rejeitou um parâmetro de execução. Verifique a compatibilidade entre a imagem do CLI e a integração.";
   if (/unsupported model|model.{0,40}(not found|not available|unavailable|does not exist)|unknown model/.test(clean)) return "O modelo escolhido não está disponível para esta conta. Atualize a lista de modelos e tente novamente.";
   if (/reasoning.{0,40}(unsupported|not supported|invalid)|invalid.{0,30}reasoning/.test(clean)) return "Este nível de análise não é compatível com o modelo escolhido. Selecione outro nível e tente novamente.";
   if (/rate limit|usage limit|too many requests|quota.{0,20}(exceeded|limit)/.test(clean)) return "O limite de uso desta conta foi atingido. Tente novamente mais tarde.";
@@ -315,7 +316,7 @@ export async function runCodexAnalysis(args: { ownerId: string; model: string; e
   if (process.platform !== "win32") await fs.chmod(workDir, 0o700);
   const outputPath = path.join(workDir, "answer.txt");
   try {
-    const result = await runCli(args.ownerId, ["--cd", workDir, "exec", "--ephemeral", "--sandbox", "read-only", "--ask-for-approval", "never", "--skip-git-repo-check", "--model", args.model, "--config", `model_reasoning_effort=${args.effort}`, "--output-last-message", outputPath, "-"], args.prompt, 90_000);
+    const result = await runCli(args.ownerId, ["--cd", workDir, "exec", "--ephemeral", "--sandbox", "read-only", "--skip-git-repo-check", "--model", args.model, "--config", `model_reasoning_effort=${args.effort}`, "--output-last-message", outputPath, "-"], args.prompt, 90_000);
     if (result.code !== 0) throw new Error(getCodexAnalysisFailureMessage(result.output));
     const answer = (await fs.readFile(outputPath, "utf8")).trim();
     if (!answer) throw new Error("A IA não retornou uma análise concluída.");

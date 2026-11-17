@@ -325,8 +325,9 @@ Após dois deploys saudáveis, a verificação no painel ainda mostrou estado de
 - **Validação:** teste unitário cobre erro de permissão e confirma que detalhes brutos não vazam. CI e produção ainda precisam validar esta nova versão.
 - **Pendente externo:** se a mensagem indicar a configuração, habilitar login por código nas configurações de segurança da conta ChatGPT ou no workspace e iniciar uma nova tentativa.
 
-### Investigação da análise Codex HTTP 502 (16/11/2026)
-- Evidência: DevTools mostrou `POST /api/ai/codex/analyze` com 502, requisição de 202 bytes e resposta JSON de 185 bytes em cerca de 2,5 s. O corpo da resposta não foi inspecionado. Logs de Runtime visíveis mostravam somente boot saudável, sem a chamada.
+### Correção da análise Codex HTTP 502 (16–17/11/2026)
+- Evidência: repetir `Tentar novamente` no painel produziu HTTP 502; Coolify registrou nova entrada `[Codex analyze]` às 00:01:19 de 17/11, status 502. O teste direto `codex exec` sem `--ask-for-approval` respondeu `Codex OK`; com essa opção o CLI 0.169.0 retorna `unexpected argument '--ask-for-approval' found`.
 - Fluxo confirmado: a rota consulta campanhas via AdsService e executa `codex exec` para inferência; Composio SDK é usado para a integração de anúncios, não como CLI de inferência.
-- Correção: a rota registra origem, classe do erro e status, sem prompt, dados de campanha, usuário ou saída do CLI. GPT-6 Luna é preferido quando está disponível para a conta; outro modelo permitido segue como fallback.
-- Causa do 502 permanece não confirmada. Ausência do binário na imagem anterior é hipótese. Após a publicação, correlacionar uma consulta autorizada com os logs.
+- Causa confirmada no código e reproduzida no CLI: `runCodexAnalysis` passava `--ask-for-approval never`, rejeitado pelo CLI 0.169.0 antes da chamada ao modelo. A rota envia o prompt de análise por stdin; o CLI grava a resposta em arquivo temporário e o backend devolve JSON ao painel.
+- Correção local: removida a opção incompatível, mantendo `--sandbox read-only`; classificada a rejeição de argumentos com mensagem segura, sem expor saída bruta do CLI. Typecheck, build e 87 testes passaram; lint sem erros, com quatro avisos preexistentes de `<img>`. Próximo passo: publicar e repetir a mensagem no painel para confirmar resposta ponta a ponta.
+- O teste direto chegou ao GPT-6 Luna e retornou `Codex OK`; o aviso de `bubblewrap` informa fallback para o binário incluído e não impediu essa resposta.
