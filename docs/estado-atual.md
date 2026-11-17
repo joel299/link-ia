@@ -370,3 +370,9 @@ Após dois deploys saudáveis, a verificação no painel ainda mostrou estado de
 - Atualizei `AdminApiTokensPanel.tsx` para mapear respostas e falhas de rede para mensagens curtas em português, sem exibir código de erro, nome de variável, stack ou texto bruto da API. A URL do MCP continua visível; o campo do token só aparece após emissão bem-sucedida.
 - O print do Coolify mostra a variável cadastrada, mas seu valor está oculto. A resposta da aplicação confirma que a configuração recebida pelo processo não passou a validação; não confirmei se a causa específica é tamanho curto, variável não injetada no processo atual ou versão em implantação.
 - `npm run typecheck` e ESLint direcionado ao componente passaram. Não rodei a suíte de testes nem repeti a emissão após publicação; isso depende da configuração válida no Coolify e da nova versão ativa.
+
+### Administração — emissão do token sem 503 por chave dedicada inválida (17/11/2026)
+- O retorno 503 permaneceu porque a chave `API_JWT_SECRET` recebida pelo processo não atendia ao tamanho mínimo, apesar de a variável aparecer cadastrada no Coolify. O valor está mascarado, então não foi possível distinguir chave curta de valor não injetado corretamente.
+- `src/lib/api-tokens.ts` agora prefere `API_JWT_SECRET` quando tem pelo menos 32 caracteres e, se não tiver, deriva uma chave separada por HMAC a partir de `SESSION_SECRET` válido. Se ambos estiverem inválidos, a emissão continua falhando de forma segura.
+- A interface de produção mostrou zero tokens para as duas contas cadastradas. O segredo do Coolify não foi alterado; a derivação permite emissão sem expor ou rotacionar a chave de sessão.
+- Teste direcionado `tests/api-tokens.test.ts` (6/6), `npm run typecheck` e ESLint direcionado passaram. Validação após a nova imagem entrar em execução ainda pendente.

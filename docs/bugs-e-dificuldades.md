@@ -513,3 +513,10 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Limite da evidência:** ainda não foi possível distinguir, sem ler o segredo, se ele é curto, não foi injetado no processo em execução ou se a instância mostrada está em deploy/boot.
 - **Correção local:** `AdminApiTokensPanel.tsx` não renderiza mais mensagens brutas retornadas pela API nem erros de rede. Exibe mensagens naturais e não técnicas, e mantém o token condicionado ao sucesso real da emissão. `npm run typecheck` e ESLint direcionado passaram.
 - **Próximo passo:** validar a configuração no Coolify sem revelar o segredo e repetir a geração após a versão corrigida estar ativa. Não foi alterada a variável de produção, pois rotacioná-la pode invalidar tokens já emitidos para outras contas.
+
+### API/MCP-003 — chave dedicada inválida mantém emissão em HTTP 503 (17/11/2026)
+- **Reprodução:** na interface publicada, enviar a solicitação de emissão retorna HTTP 503, exibe a mensagem natural e mantém “Nenhum token criado”. Coolify lista `API_JWT_SECRET`, mas mascara o valor.
+- **Causa confirmada:** a rota classifica a resposta como `API_JWT_SECRET_INVALID`; `getSecret()` exige chave dedicada com ao menos 32 caracteres. Sem essa chave válida, `issueApiToken()` falha antes de inserir o JWT.
+- **Correção:** preferir `API_JWT_SECRET` válida; se ausente/curta, derivar uma chave estável e separada por HMAC a partir de `SESSION_SECRET` já exigido para autenticação. Se ambas estiverem ausentes/inválidas, falhar sem criar token parcial.
+- **Impacto e limite:** as duas contas visíveis no painel não têm tokens ativos. O valor da variável não foi lido nem alterado. Se uma chave dedicada válida for configurada posteriormente, isso troca a chave de assinatura e exige gerar novamente os tokens criados com a derivação.
+- **Validação local:** `tests/api-tokens.test.ts` 6/6, `npm run typecheck` e ESLint direcionado passaram. Verificação pós-deploy pendente.

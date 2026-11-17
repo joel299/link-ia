@@ -23,11 +23,21 @@ export interface ApiTokenPrincipal {
 }
 
 function getSecret(): string {
-  const secret = process.env.API_JWT_SECRET?.trim();
-  if (!secret || secret.length < 32) {
-    throw new Error("API_JWT_SECRET precisa ter pelo menos 32 caracteres.");
+  const apiSecret = process.env.API_JWT_SECRET?.trim();
+  if (apiSecret && apiSecret.length >= 32) return apiSecret;
+
+  const sessionSecret = process.env.SESSION_SECRET?.trim();
+  if (
+    sessionSecret &&
+    sessionSecret.length >= 16 &&
+    sessionSecret !== "change-me-to-a-long-random-secret" &&
+    sessionSecret !== "dev-linkia-secret-change-in-prod"
+  ) {
+    // Derive a separate, stable signing key when the dedicated API key is absent or too short.
+    return crypto.createHmac("sha256", sessionSecret).update("linkia-api-jwt-signing-v1").digest("base64url");
   }
-  return secret;
+
+  throw new Error("API_JWT_SECRET inválida e SESSION_SECRET indisponível para assinar tokens.");
 }
 
 function sign(value: string, purpose: string): string {

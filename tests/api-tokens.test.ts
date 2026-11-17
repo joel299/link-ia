@@ -194,32 +194,35 @@ describe("API JWT e MCP Streamable HTTP", () => {
     expect(listBody.mcpUrl).toBe("https://linkia.iainfinito.com.br/mcp");
     expect(JSON.stringify(listBody)).not.toContain(created.token);
 
-    // Missing/short API_JWT_SECRET returns 503 with actionable code and no partial DB insert
+    // Missing/short API_JWT_SECRET uses a separate key derived from SESSION_SECRET.
     const prevSecret = process.env.API_JWT_SECRET;
     const countBefore = (
       db.prepare("SELECT COUNT(*) AS c FROM api_access_tokens WHERE owner_id = ?").get(ownerId) as { c: number }
     ).c;
-    process.env.API_JWT_SECRET = "short";
     try {
-      const errRes = await adminTokensPost(
-        new Request("http://127.0.0.1:3000/api/admin/users/" + ownerId + "/api-tokens", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ label: "falha", expiresInDays: 30, scopes: ["profiles:read"] }),
-        }),
-        { params: Promise.resolve({ userId: ownerId }) }
-      );
-      expect(errRes.status).toBe(503);
-      const errBody = await errRes.json();
-      expect(errBody.code).toBe("API_JWT_SECRET_INVALID");
-      expect(errBody.error).toContain("API_JWT_SECRET");
-      expect(errBody.error).not.toContain("short");
+      for (const invalidSecret of [undefined, "short"]) {
+        if (invalidSecret) process.env.API_JWT_SECRET = invalidSecret;
+        else delete process.env.API_JWT_SECRET;
+        const fallbackRes = await adminTokensPost(
+          new Request("http://127.0.0.1:3000/api/admin/users/" + ownerId + "/api-tokens", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ label: "fallback", expiresInDays: 30, scopes: ["profiles:read"] }),
+          }),
+          { params: Promise.resolve({ userId: ownerId }) }
+        );
+        expect(fallbackRes.status).toBe(201);
+        const fallbackBody = await fallbackRes.json();
+        expect(verifyApiToken(fallbackBody.token)?.ownerId).toBe(ownerId);
+        expect(revokeApiToken(fallbackBody.id, ownerId)).toBe(true);
+      }
       const countAfter = (
         db.prepare("SELECT COUNT(*) AS c FROM api_access_tokens WHERE owner_id = ?").get(ownerId) as { c: number }
       ).c;
-      expect(countAfter).toBe(countBefore);
+      expect(countAfter).toBe(countBefore + 2);
     } finally {
-      process.env.API_JWT_SECRET = prevSecret;
+      if (prevSecret) process.env.API_JWT_SECRET = prevSecret;
+      else delete process.env.API_JWT_SECRET;
     }
 
     // Revoke via DELETE invalidates token immediately
