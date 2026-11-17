@@ -70,6 +70,17 @@ function buildMcpClientConfig(mcpUrl: string, token: string): string {
   );
 }
 
+function friendlyApiError(status: number, code?: unknown): string {
+  if (code === "API_JWT_SECRET_INVALID") {
+    return "Não foi possível gerar o acesso agora. Tente novamente mais tarde. Se o problema continuar, fale com o suporte.";
+  }
+  if (status === 400) return "Confira as informações e permissões selecionadas e tente novamente.";
+  if (status === 403) return "A conta selecionada não tem acesso a uma ou mais permissões. Revise as opções e tente novamente.";
+  if (status === 404) return "Não encontramos essa conta. Atualize a página e tente novamente.";
+  if (status === 429) return "Muitas tentativas foram feitas em pouco tempo. Aguarde um minuto e tente novamente.";
+  return "Não foi possível concluir agora. Tente novamente em alguns minutos. Se o problema continuar, fale com o suporte.";
+}
+
 export function AdminApiTokensPanel({
   userId,
   userName,
@@ -88,21 +99,20 @@ export function AdminApiTokensPanel({
   const [issuedMcpUrl, setIssuedMcpUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
 
   const reload = useCallback(async () => {
     const response = await fetch(`/api/admin/users/${userId}/api-tokens`, { cache: "no-store" });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "Não foi possível carregar os tokens.");
+    if (!response.ok) throw new Error(friendlyApiError(response.status, data.code));
     setTokens(Array.isArray(data.tokens) ? (data.tokens as TokenView[]) : []);
     setMcpUrl(typeof data.mcpUrl === "string" ? data.mcpUrl : null);
   }, [userId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void reload().catch((e: unknown) =>
-        setError(e instanceof Error ? e.message : "Falha ao carregar os tokens.")
+      void reload().catch(() =>
+        setError("Não foi possível carregar os acessos agora. Atualize a página e tente novamente.")
       );
     }, 0);
     return () => window.clearTimeout(timer);
@@ -111,7 +121,6 @@ export function AdminApiTokensPanel({
   async function createToken() {
     setBusy(true);
     setError("");
-    setErrorCode(null);
     setNotice("");
     setOneTimeToken("");
     setIssuedMcpUrl(null);
@@ -123,16 +132,16 @@ export function AdminApiTokensPanel({
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setErrorCode(typeof data.code === "string" ? data.code : null);
-        throw new Error(data.error || "Não foi possível gerar o token.");
+        setError(friendlyApiError(response.status, data.code));
+        return;
       }
       setOneTimeToken(data.token as string);
       setIssuedMcpUrl(typeof data.mcpUrl === "string" ? data.mcpUrl : mcpUrl);
       setLabel("");
       setNotice("Token criado. Copie e guarde agora; ele não será exibido novamente.");
       await reload();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível gerar o token.");
+    } catch {
+      setError("Não foi possível gerar o acesso agora. Confira sua conexão e tente novamente.");
     } finally {
       setBusy(false);
     }
@@ -142,18 +151,20 @@ export function AdminApiTokensPanel({
     if (!window.confirm("Revogar este token? Agentes que o usam perderão o acesso imediatamente.")) return;
     setBusy(true);
     setError("");
-    setErrorCode(null);
     setNotice("");
     try {
       const response = await fetch(`/api/admin/users/${userId}/api-tokens/${tokenId}`, {
         method: "DELETE",
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Não foi possível revogar o token.");
+      if (!response.ok) {
+        setError(friendlyApiError(response.status, data.code));
+        return;
+      }
       setNotice("Token revogado.");
       await reload();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível revogar o token.");
+    } catch {
+      setError("Não foi possível atualizar os acessos agora. Confira sua conexão e tente novamente.");
     } finally {
       setBusy(false);
     }
@@ -209,11 +220,6 @@ export function AdminApiTokensPanel({
       {error ? (
         <div className="alert-banner alert-error" role="alert">
           <p style={{ margin: 0 }}>{error}</p>
-          {errorCode === "API_JWT_SECRET_INVALID" ? (
-            <p className="field-hint" style={{ marginTop: 6, marginBottom: 0 }}>
-              Ação para o administrador: defina <code>API_JWT_SECRET</code> com pelo menos 32 caracteres aleatórios nas variáveis de ambiente do servidor (por exemplo, no painel do Coolify) e reinicie ou reimplante o serviço.
-            </p>
-          ) : null}
         </div>
       ) : null}
 
