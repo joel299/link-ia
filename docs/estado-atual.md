@@ -353,3 +353,14 @@ Após dois deploys saudáveis, a verificação no painel ainda mostrou estado de
   - 3 gráficos de rosca separados (`Cliques`, `Impressões`, `Alcance`) em canvas dithered com suporte a `prefers-reduced-motion`, temas claro/escuro e estados explícitos de carregamento/vazio/indisponível (sem somar unidades diferentes e sem apresentar cliques no Instagram como visualizações de post).
 - **Validações:** `npm test` (11 arquivos, 91/91 testes incluindo `tests/dashboard-metrics.test.ts`), `npm run typecheck` (0 erros), `npm run lint` (0 erros, 4 warnings pré-existentes de `<img>`), `npm run build` (exit 0) e verificação HTTP/SSR local em `127.0.0.1:3000`.
 - **Pendente:** validação visual interativa no navegador (Chrome DevTools não estava ativo no host: `DevToolsActivePort` ausente).
+
+
+### Administração — Acesso da API e MCP (`AdminApiTokensPanel` / `api-tokens`) (16/11/2026)
+- **Diagnóstico do fluxo "Gerar token":**
+  - `AdminApiTokensPanel.tsx` envia `POST /api/admin/users/[userId]/api-tokens`; `issueApiToken()` em `src/lib/api-tokens.ts` chama `getSecret()`, que exige `API_JWT_SECRET` com pelo menos 32 caracteres antes de inserir na tabela `api_access_tokens`. Quando a variável está ausente ou curta no ambiente do servidor, a rota retorna HTTP `503` sem criar token parcial no banco.
+  - Em `AdminApiTokensPanel.tsx`, os `<label>` de escopos tinham `title={option.risk}` duplicando o `<small>{option.risk}</small>` já visível, e nem `GET` nem `POST` retornavam a URL real do endpoint `/mcp` derivada de `APP_BASE_URL`.
+- **Alterações realizadas:**
+  - `src/app/api/admin/users/[userId]/api-tokens/route.ts`: `GET` e `POST` agora retornam `mcpUrl` construída no servidor via `new URL("/mcp", getAppBaseUrl(request.url))` (lendo `APP_BASE_URL`, sem confiar em host do navegador); quando `API_JWT_SECRET` está ausente/inválido, `POST` retorna HTTP `503` com `code: "API_JWT_SECRET_INVALID"` e orientação acionável sem vazar segredos. `GET` nunca retorna o token completo.
+  - `src/components/panel/AdminApiTokensPanel.tsx`: exibe URL MCP copiável, token Bearer único após geração, bloco JSON de configuração pronta (`mcpServers.linkia` com `url` e `Authorization: Bearer <token>`), instruções curtas de conexão/teste/rotação, orientação acionável para erro de `API_JWT_SECRET` e remoção do tooltip `title={option.risk}` duplicado (mantendo os avisos visíveis em `<small>`).
+  - `tests/api-tokens.test.ts`: adicionados testes de rota para emissão (`201` + `mcpUrl` de `APP_BASE_URL`), listagem sem reexibir token, erro `503` sem `API_JWT_SECRET` (sem inserção parcial no SQLite), bloqueio `403` para não-admin e revogação via `DELETE`.
+- **Pendência de ambiente (Coolify):** confirmar nas variáveis de ambiente do serviço no Coolify que `API_JWT_SECRET` (>= 32 caracteres) e `APP_BASE_URL` estão definidos e que o serviço foi reiniciado/reimplantado após alteração.

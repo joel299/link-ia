@@ -1,11 +1,44 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { closeDb } from "../src/lib/db";
+import { NextResponse } from "next/server";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+const cookieState = { token: null as string | null };
+
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) =>
+      name === "linkia_session" && cookieState.token
+        ? { name, value: cookieState.token }
+        : undefined,
+    set: (_name: string, value: string) => {
+      cookieState.token = value || null;
+    },
+  }),
+  headers: async () => new Headers(),
+}));
+
+import { closeDb, getDb } from "../src/lib/db";
 import { issueApiToken, verifyApiToken, createTrustedApiContext, verifyTrustedApiContext, consumeApiRateLimit, consumeMcpRateLimit, revokeApiToken, resolveApiScope } from "../src/lib/api-tokens";
-import { registerUser } from "../src/lib/auth";
+import { hashPassword, registerUser, setSessionCookie, type SessionUser } from "../src/lib/auth";
+import { createLegacyDefaultPermissions } from "../src/lib/permissions";
+import {
+  GET as adminTokensGet,
+  POST as adminTokensPost,
+} from "../src/app/api/admin/users/[userId]/api-tokens/route";
+import { DELETE as adminTokenDelete } from "../src/app/api/admin/users/[userId]/api-tokens/[tokenId]/route";
 import { POST as mcpPost } from "../src/app/v1/mcp/route";
+
+function actAs(user: SessionUser | null) {
+  if (!user) {
+    cookieState.token = null;
+    return;
+  }
+  const res = NextResponse.json({ ok: true });
+  void setSessionCookie(user, res);
+  cookieState.token = res.cookies.get("linkia_session")?.value ?? null;
+}
 
 describe("API JWT e MCP Streamable HTTP", () => {
   let tmpDir: string;
@@ -91,5 +124,112 @@ describe("API JWT e MCP Streamable HTTP", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/json");
     expect(await response.json()).toHaveLength(2);
+  });
+
+  it("emite token e URL MCP via rota admin, trata ausência de API_JWT_SECRET e nunca reexibe o token", async () => {
+    const db = getDb();
+    const adminId = "api-admin-test-1";
+    db.prepare(
+      `INSERT INTO users (id, email, name, password_hash, role, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'admin', 1, ?, ?)`
+    ).run(
+      adminId,
+      "api-admin@linkia.test",
+      "Admin API",
+      hashPassword("AdminApiPass123!"),
+      new Date().toISOString(),
+      new Date().toISOString()
+    );
+    const adminUser: SessionUser = {
+      id: adminId,
+      email: "api-admin@linkia.test",
+      name: "Admin API",
+      role: "admin",
+      isActive: true,
+      permissions: createLegacyDefaultPermissions(),
+    };
+    const clientUser: SessionUser = {
+      id: ownerId,
+      email: "api-owner@linkia.test",
+      name: "API Owner",
+      role: "client",
+      isActive: true,
+      permissions: createLegacyDefaultPermissions(),
+    };
+
+    // Non-admin rejected
+    actAs(clientUser);
+    const forbiddenRes = await adminTokensPost(
+      new Request("https://evil.example/api/admin/users/" + ownerId + "/api-tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: "n8n", expiresInDays: 30, scopes: ["profiles:read"] }),
+      }),
+      { params: Promise.resolve({ userId: ownerId }) }
+    );
+    expect(forbiddenRes.status).toBe(403);
+
+    // Admin issues token (URL comes from APP_BASE_URL, ignoring request host)
+    actAs(adminUser);
+    const createRes = await adminTokensPost(
+      new Request("http://127.0.0.1:3000/api/admin/users/" + ownerId + "/api-tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: "n8n produção", expiresInDays: 30, scopes: ["profiles:read"] }),
+      }),
+      { params: Promise.resolve({ userId: ownerId }) }
+    );
+    expect(createRes.status).toBe(201);
+    const created = await createRes.json();
+    expect(typeof created.token).toBe("string");
+    expect(created.mcpUrl).toBe("https://linkia.iainfinito.com.br/mcp");
+
+    // Listing returns mcpUrl and metadata, never the full token
+    const listRes = await adminTokensGet(
+      new Request("http://127.0.0.1:3000/api/admin/users/" + ownerId + "/api-tokens"),
+      { params: Promise.resolve({ userId: ownerId }) }
+    );
+    expect(listRes.status).toBe(200);
+    const listBody = await listRes.json();
+    expect(listBody.mcpUrl).toBe("https://linkia.iainfinito.com.br/mcp");
+    expect(JSON.stringify(listBody)).not.toContain(created.token);
+
+    // Missing/short API_JWT_SECRET returns 503 with actionable code and no partial DB insert
+    const prevSecret = process.env.API_JWT_SECRET;
+    const countBefore = (
+      db.prepare("SELECT COUNT(*) AS c FROM api_access_tokens WHERE owner_id = ?").get(ownerId) as { c: number }
+    ).c;
+    process.env.API_JWT_SECRET = "short";
+    try {
+      const errRes = await adminTokensPost(
+        new Request("http://127.0.0.1:3000/api/admin/users/" + ownerId + "/api-tokens", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: "falha", expiresInDays: 30, scopes: ["profiles:read"] }),
+        }),
+        { params: Promise.resolve({ userId: ownerId }) }
+      );
+      expect(errRes.status).toBe(503);
+      const errBody = await errRes.json();
+      expect(errBody.code).toBe("API_JWT_SECRET_INVALID");
+      expect(errBody.error).toContain("API_JWT_SECRET");
+      expect(errBody.error).not.toContain("short");
+      const countAfter = (
+        db.prepare("SELECT COUNT(*) AS c FROM api_access_tokens WHERE owner_id = ?").get(ownerId) as { c: number }
+      ).c;
+      expect(countAfter).toBe(countBefore);
+    } finally {
+      process.env.API_JWT_SECRET = prevSecret;
+    }
+
+    // Revoke via DELETE invalidates token immediately
+    const delRes = await adminTokenDelete(
+      new Request(`http://127.0.0.1:3000/api/admin/users/${ownerId}/api-tokens/${created.id}`, {
+        method: "DELETE",
+      }),
+      { params: Promise.resolve({ userId: ownerId, tokenId: created.id }) }
+    );
+    expect(delRes.status).toBe(200);
+    expect(verifyApiToken(created.token)).toBeNull();
   });
 });
