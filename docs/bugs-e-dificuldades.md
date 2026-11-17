@@ -487,3 +487,11 @@ Prioridade: **P1** = quebra de acessibilidade/fluxo essencial; **P2** = atrito r
 - **Correção publicada:** removida a opção incompatível do subprocesso, preservando `--sandbox read-only`; erros de argumento são classificados sem expor a saída bruta. Workflow `43985521493` publicou a imagem e acionou o Coolify.
 - **Validação:** typecheck, build e 87 testes passaram; lint sem erros, com quatro avisos preexistentes de `<img>`. Após o boot às 00:13:01 de 17/11, a pergunta “me fala sobre a campanha de vendas” retornou resposta via GPT-6 Luna no painel; a resposta observou que as métricas não estavam disponíveis no período. Nenhuma campanha foi alterada.
 - **Observação:** o aviso de `bubblewrap` na execução direta não bloqueou a resposta; o CLI usou seu fallback incluído. A autenticação está funcional e não explica esta falha.
+
+### AI-010 — resposta de análise usava intervalo diferente do painel
+- **Data:** 17/11/2026
+- **Sintoma:** com o filtro personalizado 01/07/2026–16/11/2026 aplicado e métricas visíveis nos cards, a análise afirmou que não havia dados de desempenho.
+- **Causa confirmada:** `TrafficAiChat` não enviava o filtro; a rota `/api/ai/codex/analyze` consultava anúncios sem `dateRange`, que assume `last_30d`. O prompt afirmava incorretamente que esse era o período mostrado no painel.
+- **Correção em `c87979c`:** associar o filtro aplicado aos dados carregados, encaminhá-lo no POST, validá-lo no backend e usá-lo na nova consulta server-side. A instrução do Codex passou a exigir linguagem natural e proibir Markdown/códigos de objetivo.
+- **QA independente:** em produção, mesma conta e filtro, a resposta citou os números visíveis: gasto 81,35, 1.071 impressões, alcance 925, 67 cliques, CPC 1,21 e taxa de cliques 6,26%. Nenhuma campanha foi modificada.
+- **Ajuste de precisão local:** Meta insights não solicita compras/custo por compra; portanto, o prompt não deve afirmar que a plataforma deixou de retorná-los. Agora instrui que apenas se diga que o contexto recebido não inclui a métrica. Testes, typecheck, lint dos arquivos e build locais passaram; publicação e QA desta última frase pendentes.

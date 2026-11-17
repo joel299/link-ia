@@ -97,7 +97,7 @@ describe("Codex campaign analysis prompt", () => {
     expect(prompt).toContain("01/07/2026 até 16/11/2026");
     expect(prompt).toContain('"spend":"81.35"');
     expect(prompt).toContain("forma natural, clara e direta");
-    expect(prompt).toContain("não diga que o painel não mostra dados");
+    expect(prompt).toContain("não atribua a ausência ao painel ou à plataforma sem evidência");
     expect(prompt).not.toContain("período atual já exibido no painel");
   });
 });
